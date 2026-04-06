@@ -34,10 +34,10 @@ appsettings.*.json
 publish*/
 deploy*.zip
 
-## Node (root-level)
-node_modules/
-package.json
-package-lock.json
+## Node (root-level only — exclude root package.json, keep project-level)
+/node_modules/
+/package.json
+/package-lock.json
 
 ## Temp / Local
 Temps/
