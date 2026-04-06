@@ -28,7 +28,9 @@ public class PromptRefinerTests
     {
         // 從測試 bin 目錄往上找到專案根目錄
         var dir = AppContext.BaseDirectory;
-        while (dir is not null && !File.Exists(Path.Combine(dir, "AgentFrameworkDemo.sln")))
+        while (dir is not null
+            && !File.Exists(Path.Combine(dir, "AgentCraftLab.slnx"))
+            && !File.Exists(Path.Combine(dir, "AgentFrameworkDemo.sln")))
         {
             dir = Path.GetDirectoryName(dir);
         }
