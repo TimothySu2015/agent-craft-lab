@@ -2,8 +2,7 @@
 
 The open-source AI Agent platform built on .NET — design, test, and deploy agent workflows without leaving the .NET ecosystem.
 
-<!-- TODO: Studio 截圖放這裡 -->
-<!-- ![AgentCraftLab Studio](docs/studio-screenshot.png) -->
+![AgentCraftLab Studio](docs/studio-screenshot.png)
 
 ## Why AgentCraftLab?
 
