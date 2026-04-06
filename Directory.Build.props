@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <Version>0.1.0</Version>
+    <Authors>AgentCraftLab</Authors>
+    <Product>AgentCraftLab</Product>
+    <Copyright>Copyright 2026 AgentCraftLab</Copyright>
+    <RepositoryUrl>https://github.com/TimothySu2015/agent-craft-lab</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+</Project>

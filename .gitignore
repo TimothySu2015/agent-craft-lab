@@ -1,0 +1,50 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+
+## IDE
+.vs/
+.vscode/
+*.swp
+
+## Database
+*.db
+*.db-shm
+*.db-wal
+
+## OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+## Claude
+.claude/
+
+## Secrets
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+
+publish*/
+deploy*.zip
+
+## Node (root-level)
+node_modules/
+package.json
+package-lock.json
+
+## Temp / Local
+Temps/
+**/Properties/launchSettings.json
+**/Data/agentcraftlab.db
+**/Data/craftsearch.db
+**/Data/flow-outputs/
+
+## MCP
+.mcp.json

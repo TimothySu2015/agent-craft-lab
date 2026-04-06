@@ -1,0 +1,39 @@
+{
+  "title": "Copilot",
+  "welcome": "AgentCraftLab Studio に接続しました。何かお手伝いできますか？",
+  "placeholder": "Copilot に質問...",
+  "stop": "生成を停止",
+  "regenerate": "再生成",
+  "tabExecute": "実行",
+  "tabBuild": "AI Build",
+  "error": "エラーが発生しました。もう一度お試しください。",
+  "aiBuild": {
+    "welcome": "自然言語で Workflow を記述すると、自動で構築します。",
+    "placeholder": "Workflow を記述...",
+    "example1": "リサーチ → 下書き → 編集のパイプラインを作成",
+    "example2": "請求・技術・一般対応の Agent を持つカスタマーサービスルーターを構築",
+    "example3": "法務・技術・財務の専門家による並列分析 Workflow を作成",
+    "applyToCanvas": "キャンバスに適用",
+    "applied": "適用済み",
+    "noCredential": "AI Build を使用するには、認証情報ページで API 認証情報を設定してください。",
+    "thinking": "思考中"
+  },
+  "clearChat": "チャットと状態をクリア",
+  "copilotActions": "Copilot アクション",
+  "copilotActionsTooltip": "AI を活用したアクション（ツール一覧、MCP/A2A テスト）をチャット内で有効にします。Runtime サーバーに OPENAI_API_KEY が必要です。",
+  "attachment": {
+    "attach": "ファイルを添付",
+    "remove": "添付を削除",
+    "uploading": "アップロード中...",
+    "tooLarge": "ファイルが大きすぎます（最大 {{max}}）",
+    "uploadFailed": "アップロードに失敗しました。もう一度お試しください。",
+    "send": "送信"
+  },
+  "humanInput": {
+    "title": "入力が必要です",
+    "approve": "承認",
+    "reject": "拒否",
+    "submit": "送信",
+    "placeholder": "回答を入力..."
+  }
+}

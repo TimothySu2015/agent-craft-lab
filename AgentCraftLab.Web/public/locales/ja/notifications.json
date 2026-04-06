@@ -1,0 +1,46 @@
+{
+  "loadFailed": {
+    "apiKeys": "APIキーの読み込みに失敗しました",
+    "knowledgeBases": "ナレッジベースの読み込みに失敗しました",
+    "workflows": "ワークフローの読み込みに失敗しました",
+    "schedules": "スケジュールの読み込みに失敗しました",
+    "logs": "ログの読み込みに失敗しました",
+    "skills": "スキルの読み込みに失敗しました",
+    "tools": "ツールの読み込みに失敗しました",
+    "dataSources": "データソースの読み込みに失敗しました"
+  },
+  "saveFailed": {
+    "skill": "スキルの保存に失敗しました",
+    "dataSource": "データソースの保存に失敗しました",
+    "knowledgeBase": "ナレッジベースの保存に失敗しました"
+  },
+  "createFailed": {
+    "knowledgeBase": "ナレッジベースの作成に失敗しました"
+  },
+  "updateFailed": {
+    "knowledgeBase": "ナレッジベースの更新に失敗しました",
+    "publishToggle": "公開切り替えに失敗しました",
+    "typeToggle": "タイプ切り替えに失敗しました",
+    "inputMode": "入力モードの更新に失敗しました",
+    "scheduleToggle": "スケジュールの切り替えに失敗しました"
+  },
+  "deleteFailed": {
+    "skill": "スキルの削除に失敗しました",
+    "knowledgeBase": "ナレッジベースの削除に失敗しました",
+    "file": "ファイルの削除に失敗しました",
+    "dataSource": "データソースの削除に失敗しました",
+    "schedule": "スケジュールの削除に失敗しました"
+  },
+  "revokeFailed": {
+    "apiKey": "APIキーの取り消しに失敗しました"
+  },
+  "importFailed": {
+    "workflow": "ワークフローのインポートに失敗しました",
+    "skill": "スキルのインポートに失敗しました"
+  },
+  "exportFailed": {
+    "workflow": "エクスポートに失敗しました",
+    "skill": "スキルのエクスポートに失敗しました"
+  },
+  "aiBuildApplyFailed": "AI Buildの適用に失敗しました"
+}

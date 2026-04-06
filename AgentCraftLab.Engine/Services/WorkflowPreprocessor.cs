@@ -1,0 +1,311 @@
+using System.Runtime.CompilerServices;
+using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Strategies;
+using AgentCraftLab.Search.Abstractions;
+using Azure.AI.OpenAI;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
+using OpenAI;
+using System.ClientModel;
+
+namespace AgentCraftLab.Engine.Services;
+
+/// <summary>
+/// Workflow 前處理器 — 從 WorkflowExecutionService 抽出的職責：
+/// 節點分類、附件處理、RAG 前處理、AgentContext 建構與 enrichment。
+/// </summary>
+public class WorkflowPreprocessor
+{
+    private readonly ToolRegistryService _toolRegistry;
+    private readonly SkillRegistryService _skillRegistry;
+    private readonly Data.ISkillStore _skillStore;
+    private readonly IUserContext _userContext;
+    private readonly McpClientService _mcpClient;
+    private readonly A2AClientService _a2aClient;
+    private readonly HttpApiToolService _httpApiTool;
+    private readonly RagService _ragService;
+    private readonly ISearchEngine _searchEngine;
+    private readonly HumanInputBridge _humanBridge;
+    private readonly IAutonomousNodeExecutor? _autonomousExecutor;
+    private readonly Data.IKnowledgeBaseStore _kbStore;
+    private readonly ILogger _logger;
+
+    /// <summary>DI 建構子。</summary>
+    public WorkflowPreprocessor(
+        ToolRegistryService toolRegistry,
+        SkillRegistryService skillRegistry,
+        Data.ISkillStore skillStore,
+        IUserContext userContext,
+        McpClientService mcpClient,
+        A2AClientService a2aClient,
+        HttpApiToolService httpApiTool,
+        RagService ragService,
+        ISearchEngine searchEngine,
+        HumanInputBridge humanBridge,
+        Data.IKnowledgeBaseStore kbStore,
+        ILogger<WorkflowPreprocessor> logger,
+        IAutonomousNodeExecutor? autonomousExecutor = null)
+        : this(toolRegistry, skillRegistry, skillStore, userContext, mcpClient, a2aClient,
+            httpApiTool, ragService, searchEngine, humanBridge, kbStore, (ILogger)logger, autonomousExecutor) { }
+
+    /// <summary>內部建構子（接受泛型 ILogger，供向後相容建構使用）。</summary>
+    internal WorkflowPreprocessor(
+        ToolRegistryService toolRegistry,
+        SkillRegistryService skillRegistry,
+        Data.ISkillStore skillStore,
+        IUserContext userContext,
+        McpClientService mcpClient,
+        A2AClientService a2aClient,
+        HttpApiToolService httpApiTool,
+        RagService ragService,
+        ISearchEngine searchEngine,
+        HumanInputBridge humanBridge,
+        Data.IKnowledgeBaseStore kbStore,
+        ILogger logger,
+        IAutonomousNodeExecutor? autonomousExecutor = null)
+    {
+        _toolRegistry = toolRegistry;
+        _skillRegistry = skillRegistry;
+        _skillStore = skillStore;
+        _userContext = userContext;
+        _mcpClient = mcpClient;
+        _a2aClient = a2aClient;
+        _httpApiTool = httpApiTool;
+        _ragService = ragService;
+        _searchEngine = searchEngine;
+        _humanBridge = humanBridge;
+        _kbStore = kbStore;
+        _logger = logger;
+        _autonomousExecutor = autonomousExecutor;
+    }
+
+    /// <summary>
+    /// 前處理結果。
+    /// </summary>
+    public record PreprocessResult(
+        AgentExecutionContext Context,
+        List<WorkflowNode> AllAgentNodes,
+        List<WorkflowConnection> ResolvedConnections,
+        bool HasA2AOrAutonomousNodes);
+
+    /// <summary>
+    /// 執行前處理：節點分類 → 附件處理 → RAG → 建構 AgentContext → enrichment → 解析連線。
+    /// yield return ExecutionEvent 用於回報進度或錯誤。最後一個 yield 包含 PreprocessResult。
+    /// </summary>
+    public async IAsyncEnumerable<(ExecutionEvent? Event, PreprocessResult? Result)> PrepareAsync(
+        WorkflowPayload payload,
+        WorkflowExecutionRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        // 1. 篩選節點
+        var agentNodes = payload.Nodes.Where(n => n.Type is NodeTypes.Agent).ToList();
+        var a2aAgentNodes = payload.Nodes.Where(n => n.Type is NodeTypes.A2AAgent).ToList();
+        var autonomousNodes = payload.Nodes.Where(n => n.Type is NodeTypes.Autonomous).ToList();
+
+        // Autonomous 節點預設帶入所有可用工具
+        if (autonomousNodes.Count > 0)
+        {
+            var allToolIds = _toolRegistry.GetAvailableTools().Select(t => t.Id).ToList();
+            foreach (var node in autonomousNodes.Where(n => n.Tools.Count == 0))
+            {
+                node.Tools = allToolIds;
+            }
+        }
+
+        // 驗證：至少要有一個可執行節點（查詢 NodeTypeRegistry 而非硬編碼）
+        var hasExecutableNodes = NodeTypeRegistry.HasAnyExecutable(payload.Nodes);
+
+        if (!hasExecutableNodes)
+        {
+            yield return (ExecutionEvent.Error("Workflow has no executable nodes."), null);
+            yield break;
+        }
+
+        // HttpApiDefs fallback
+        if (request.HttpApiDefs is null or { Count: 0 } && payload.HttpApis.Count > 0)
+            request.HttpApiDefs = payload.HttpApis;
+
+        // ZIP 附件處理
+        if (request.Attachment is { Data.Length: > 0 } zipAtt
+            && zipAtt.MimeType is "application/zip" or "application/x-zip-compressed")
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), TempPaths.ZipFolder);
+            Directory.CreateDirectory(tempDir);
+            var zipPath = Path.Combine(tempDir, $"{Guid.NewGuid():N}_{zipAtt.FileName}");
+            File.WriteAllBytes(zipPath, zipAtt.Data);
+
+            request.UserMessage = string.IsNullOrWhiteSpace(request.UserMessage)
+                ? $"使用者上傳了 ZIP 檔案，暫存路徑為：{zipPath}\n請先使用解壓縮工具處理此檔案，再進行後續分析。"
+                : $"{request.UserMessage}\n\n[系統提示] 使用者上傳的 ZIP 檔案暫存路徑為：{zipPath}";
+            request.Attachment = null;
+        }
+
+        // 2. RAG 前處理
+        RagContext? ragContext = null;
+        var ragNodes = payload.Nodes.Where(n => n.Type == NodeTypes.Rag).ToList();
+        if (ragNodes.Count > 0)
+        {
+            await foreach (var evt in PrepareRagAsync(ragNodes, payload.Connections, request, cancellationToken))
+            {
+                if (evt.ragContext is not null)
+                {
+                    ragContext = evt.ragContext;
+                    request.Attachment = null;
+                }
+                else if (evt.executionEvent is not null)
+                {
+                    yield return (evt.executionEvent, null);
+                    if (evt.executionEvent.Type == EventTypes.Error) yield break;
+                }
+            }
+        }
+
+        // 3. 載入使用者自訂 Skill
+        var userId = await _userContext.GetUserIdAsync();
+        var customSkills = await _skillStore.ListAsync(userId);
+
+        // 4. 建構 AgentContext
+        AgentExecutionContext agentContext;
+        if (agentNodes.Count > 0)
+        {
+            var contextBuilder = new AgentContextBuilder(
+                _toolRegistry, _skillRegistry, _mcpClient, _a2aClient, _httpApiTool, _ragService, _logger);
+            var (ctx, buildError) = await contextBuilder.BuildAsync(
+                agentNodes, request, cancellationToken, ragContext, payload, customSkills);
+            if (ctx is null)
+            {
+                yield return (ExecutionEvent.Error(buildError!), null);
+                yield break;
+            }
+
+            agentContext = ctx;
+        }
+        else
+        {
+            agentContext = AgentExecutionContext.Empty;
+        }
+
+        // 5. Context enrichment
+        if (a2aAgentNodes.Count > 0)
+        {
+            var a2aNodeMap = a2aAgentNodes.ToDictionary(n => n.Id);
+            agentContext = agentContext with { A2ANodes = a2aNodeMap, A2AClient = _a2aClient };
+        }
+
+        if (payload.Nodes.Any(n => n.Type == NodeTypes.Human))
+            agentContext = agentContext with { HumanBridge = _humanBridge };
+
+        if (request.DebugBridge is not null)
+            agentContext = agentContext with { DebugBridge = request.DebugBridge };
+
+        if (payload.Nodes.Any(n => n.Type == NodeTypes.HttpRequest))
+            agentContext = agentContext with { HttpApiService = _httpApiTool, HttpApiDefs = request.HttpApiDefs };
+
+        if (autonomousNodes.Count > 0)
+            agentContext = agentContext with { AutonomousExecutor = _autonomousExecutor };
+
+        // 6. 解析連線
+        var executableNodeIds = new HashSet<string>(agentContext.Agents.Keys);
+        if (agentContext.A2ANodes is not null)
+            executableNodeIds.UnionWith(agentContext.A2ANodes.Keys);
+        executableNodeIds.UnionWith(payload.Nodes
+            .Where(n => NodeTypeRegistry.IsExecutable(n.Type) && !NodeTypeRegistry.IsAgentLike(n.Type))
+            .Select(n => n.Id));
+
+        var resolvedConnections = WorkflowGraphHelper.ResolveAgentConnections(payload.Connections, executableNodeIds);
+        var allAgentNodes = agentNodes.Concat(a2aAgentNodes).Concat(autonomousNodes).ToList();
+
+        yield return (null, new PreprocessResult(
+            agentContext, allAgentNodes, resolvedConnections,
+            a2aAgentNodes.Count > 0 || autonomousNodes.Count > 0));
+    }
+
+    private async IAsyncEnumerable<(ExecutionEvent? executionEvent, RagContext? ragContext)> PrepareRagAsync(
+        List<WorkflowNode> ragNodes,
+        List<WorkflowConnection> connections,
+        WorkflowExecutionRequest request,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var hasAttachment = request.Attachment is { Data.Length: > 0 };
+        var knowledgeBaseIds = ragNodes
+            .SelectMany(n => n.KnowledgeBaseIds)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct()
+            .ToList();
+
+        if (!hasAttachment && knowledgeBaseIds.Count == 0) yield break;
+
+        var ragSettings = ragNodes[0].RagConfig ?? new RagSettings();
+        var embeddingModel = ragSettings.EmbeddingModel;
+        var knowledgeBaseIndexNames = new List<string>();
+
+        if (knowledgeBaseIds.Count > 0)
+        {
+            var kbTasks = knowledgeBaseIds.Select(id => _kbStore.GetAsync(id));
+            var kbResults = await Task.WhenAll(kbTasks);
+            var kbDocs = kbResults.Where(kb => kb is not null && !kb.IsDeleted).ToList();
+
+            foreach (var kb in kbDocs) knowledgeBaseIndexNames.Add(kb!.IndexName);
+            if (kbDocs.Count > 0) embeddingModel = kbDocs[0]!.EmbeddingModel;
+        }
+
+        var embeddingGenerator = CreateEmbeddingGenerator(request, embeddingModel);
+        if (embeddingGenerator is null)
+        {
+            yield return (ExecutionEvent.Error(
+                "No API Key configured for embedding generation. Please set OpenAI or Azure credentials."), null);
+            yield break;
+        }
+
+        var indexName = "";
+        if (hasAttachment)
+        {
+            var userId = await _userContext.GetUserIdAsync();
+            indexName = $"{userId}_rag_{Guid.NewGuid():N}";
+            await foreach (var evt in _ragService.IngestAsync(
+                request.Attachment!, ragSettings, embeddingGenerator, indexName, cancellationToken))
+            {
+                yield return (evt, null);
+            }
+        }
+
+        if (knowledgeBaseIndexNames.Count > 0)
+        {
+            yield return (ExecutionEvent.RagProcessing(
+                $"Using {knowledgeBaseIndexNames.Count} knowledge base(s) for RAG search"), null);
+        }
+
+        yield return (null, new RagContext
+        {
+            RagNodes = ragNodes,
+            WorkflowConnections = connections,
+            EmbeddingGenerator = embeddingGenerator,
+            SearchEngine = _searchEngine,
+            IndexName = indexName,
+            KnowledgeBaseIndexNames = knowledgeBaseIndexNames
+        });
+    }
+
+    internal static IEmbeddingGenerator<string, Embedding<float>>? CreateEmbeddingGenerator(
+        WorkflowExecutionRequest request, string embeddingModel)
+    {
+        if (request.Credentials.TryGetValue(Providers.OpenAI, out var openaiCred)
+            && !string.IsNullOrWhiteSpace(openaiCred.ApiKey))
+        {
+            return new OpenAIClient(openaiCred.ApiKey)
+                .GetEmbeddingClient(embeddingModel)
+                .AsIEmbeddingGenerator();
+        }
+
+        if (request.Credentials.TryGetValue(Providers.AzureOpenAI, out var azureCred)
+            && !string.IsNullOrWhiteSpace(azureCred.ApiKey))
+        {
+            return new AzureOpenAIClient(
+                    new Uri(azureCred.Endpoint), new ApiKeyCredential(azureCred.ApiKey))
+                .GetEmbeddingClient(embeddingModel)
+                .AsIEmbeddingGenerator();
+        }
+
+        return null;
+    }
+}

@@ -1,0 +1,39 @@
+{
+  "title": "Copilot",
+  "welcome": "Connected to AgentCraftLab Studio. How can I help?",
+  "placeholder": "Ask the copilot...",
+  "stop": "Stop generating",
+  "regenerate": "Regenerate",
+  "tabExecute": "Execute",
+  "tabBuild": "AI Build",
+  "error": "Something went wrong. Please try again.",
+  "aiBuild": {
+    "welcome": "Describe a workflow in natural language and I'll build it for you.",
+    "placeholder": "Describe a workflow...",
+    "example1": "Create a research → draft → edit pipeline",
+    "example2": "Build a customer service router with billing, technical, and general agents",
+    "example3": "Make a parallel analysis workflow with legal, technical, and financial experts",
+    "applyToCanvas": "Apply to Canvas",
+    "applied": "Applied",
+    "noCredential": "Set up API credentials in Credentials page to use AI Build.",
+    "thinking": "Thinking"
+  },
+  "clearChat": "Clear chat and reset state",
+  "copilotActions": "Copilot Actions",
+  "copilotActionsTooltip": "Enable AI-powered actions (list tools, test MCP/A2A) with interactive UI in chat. Requires OPENAI_API_KEY on the Runtime server.",
+  "attachment": {
+    "attach": "Attach file",
+    "remove": "Remove attachment",
+    "uploading": "Uploading...",
+    "tooLarge": "File too large (max {{max}})",
+    "uploadFailed": "Upload failed. Please try again.",
+    "send": "Send"
+  },
+  "humanInput": {
+    "title": "Input Required",
+    "approve": "Approve",
+    "reject": "Reject",
+    "submit": "Submit",
+    "placeholder": "Type your response..."
+  }
+}

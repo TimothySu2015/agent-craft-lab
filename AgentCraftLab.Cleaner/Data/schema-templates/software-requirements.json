@@ -1,0 +1,249 @@
+{
+  "id": "software-requirements",
+  "name": "軟體需求規格書",
+  "description": "從多份文件（會議記錄、報價單、流程圖、截圖等）整合產出標準的軟體開發需求規格書",
+  "category": "Software Development",
+  "extraction_guidance": "1. functional_requirements 的 priority 請用 MoSCoW 分類（Must/Should/Could/Won't）\n2. budget 相關數字請優先從 Excel/表格類來源擷取\n3. ui_screens 請引用 PPT 投影片編號作為 source\n4. 找不到的欄位請填 null，並加入 open_questions\n5. acceptance_criteria 請盡量具體、可驗證\n6. 保持原始語言（中文來源就用中文輸出）",
+  "json_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "document": {
+        "type": "object",
+        "description": "文件 metadata",
+        "properties": {
+          "title": { "type": "string", "description": "規格書標題" },
+          "version": { "type": "string", "description": "版本號" },
+          "date": { "type": "string", "description": "撰寫日期（YYYY-MM-DD）" },
+          "author": { "type": ["string", "null"], "description": "撰寫者" },
+          "sources": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "來源文件清單"
+          }
+        },
+        "required": ["title", "version", "date", "sources"]
+      },
+      "project_overview": {
+        "type": "object",
+        "description": "專案概述",
+        "properties": {
+          "name": { "type": "string", "description": "專案名稱" },
+          "client": { "type": ["string", "null"], "description": "客戶名稱" },
+          "objective": { "type": "string", "description": "專案目標" },
+          "scope": { "type": "string", "description": "開發範圍" },
+          "out_of_scope": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "不在範圍內的項目"
+          },
+          "constraints": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "限制條件（時程/預算/技術）"
+          },
+          "assumptions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "假設前提"
+          }
+        },
+        "required": ["name", "objective", "scope"]
+      },
+      "stakeholders": {
+        "type": "array",
+        "description": "利害關係人",
+        "items": {
+          "type": "object",
+          "properties": {
+            "role": { "type": "string" },
+            "name": { "type": ["string", "null"] },
+            "responsibility": { "type": "string" }
+          },
+          "required": ["role", "responsibility"]
+        }
+      },
+      "functional_requirements": {
+        "type": "array",
+        "description": "功能需求",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "description": "編號（FR-001 格式）" },
+            "title": { "type": "string", "description": "需求標題" },
+            "priority": {
+              "type": "string",
+              "enum": ["Must", "Should", "Could", "Won't"],
+              "description": "MoSCoW 優先級"
+            },
+            "description": { "type": "string", "description": "需求描述" },
+            "acceptance_criteria": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "驗收條件"
+            },
+            "ui_reference": { "type": ["string", "null"], "description": "UI 畫面引用" },
+            "source": { "type": ["string", "null"], "description": "來源文件" }
+          },
+          "required": ["id", "title", "priority", "description"]
+        }
+      },
+      "non_functional_requirements": {
+        "type": "array",
+        "description": "非功能需求",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "description": "編號（NFR-001 格式）" },
+            "category": {
+              "type": "string",
+              "enum": ["Performance", "Security", "Availability", "Scalability", "Usability", "Compatibility", "Other"],
+              "description": "分類"
+            },
+            "description": { "type": "string" },
+            "metric": { "type": ["string", "null"], "description": "量化指標" }
+          },
+          "required": ["id", "category", "description"]
+        }
+      },
+      "data_model": {
+        "type": "object",
+        "description": "資料模型",
+        "properties": {
+          "entities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "description": { "type": ["string", "null"] },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": { "type": "string" },
+                      "type": { "type": "string" },
+                      "required": { "type": "boolean" },
+                      "description": { "type": ["string", "null"] }
+                    },
+                    "required": ["name", "type"]
+                  }
+                }
+              },
+              "required": ["name", "fields"]
+            }
+          }
+        }
+      },
+      "api_endpoints": {
+        "type": "array",
+        "description": "API 端點",
+        "items": {
+          "type": "object",
+          "properties": {
+            "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+            "path": { "type": "string" },
+            "description": { "type": "string" },
+            "request_body": { "type": ["string", "null"] },
+            "response": { "type": ["string", "null"] }
+          },
+          "required": ["method", "path", "description"]
+        }
+      },
+      "ui_screens": {
+        "type": "array",
+        "description": "UI 畫面清單",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "description": "編號（UI-001 格式）" },
+            "name": { "type": "string" },
+            "description": { "type": "string" },
+            "source": { "type": ["string", "null"], "description": "來源引用（如 PPT 投影片編號）" }
+          },
+          "required": ["id", "name", "description"]
+        }
+      },
+      "timeline": {
+        "type": "object",
+        "description": "時程規劃",
+        "properties": {
+          "phases": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "duration": { "type": ["string", "null"] },
+                "deliverables": { "type": "array", "items": { "type": "string" } }
+              },
+              "required": ["name"]
+            }
+          },
+          "milestones": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": { "type": ["string", "null"] },
+                "description": { "type": "string" }
+              },
+              "required": ["description"]
+            }
+          }
+        }
+      },
+      "budget": {
+        "type": "object",
+        "description": "預算",
+        "properties": {
+          "total": { "type": ["string", "null"], "description": "總金額" },
+          "breakdown": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "item": { "type": "string" },
+                "hours": { "type": ["number", "null"] },
+                "amount": { "type": ["string", "null"] }
+              },
+              "required": ["item"]
+            }
+          }
+        }
+      },
+      "risks": {
+        "type": "array",
+        "description": "風險評估",
+        "items": {
+          "type": "object",
+          "properties": {
+            "description": { "type": "string" },
+            "impact": { "type": "string", "enum": ["High", "Medium", "Low"] },
+            "mitigation": { "type": ["string", "null"], "description": "緩解措施" }
+          },
+          "required": ["description", "impact"]
+        }
+      },
+      "glossary": {
+        "type": "array",
+        "description": "專有名詞",
+        "items": {
+          "type": "object",
+          "properties": {
+            "term": { "type": "string" },
+            "definition": { "type": "string" }
+          },
+          "required": ["term", "definition"]
+        }
+      },
+      "open_questions": {
+        "type": "array",
+        "description": "待確認問題",
+        "items": { "type": "string" }
+      }
+    },
+    "required": ["document", "project_overview", "functional_requirements"]
+  }
+}

@@ -1,0 +1,165 @@
+.copilot-chat-studio {
+  height: 100% !important;
+  max-height: 100% !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+[class*="copilotKitBanner"],
+[data-copilotkit-banner],
+div[style*="CopilotKit v"] {
+  display: none !important;
+}
+
+/* Markdown table styling */
+.copilot-chat-studio table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.copilot-chat-studio th,
+.copilot-chat-studio td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.copilot-chat-studio th {
+  background: var(--accent);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.copilot-chat-studio tr:nth-child(even) {
+  background: var(--muted)/10;
+}
+
+/* Markdown code block styling */
+.copilot-chat-studio pre {
+  background: var(--accent);
+  border-radius: 6px;
+  padding: 8px 12px;
+  overflow-x: auto;
+  font-size: 11px;
+  margin: 6px 0;
+}
+
+.copilot-chat-studio code {
+  font-size: 11px;
+  font-family: monospace;
+}
+
+/* Markdown list styling */
+.copilot-chat-studio ul,
+.copilot-chat-studio ol {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+
+.copilot-chat-studio li {
+  margin: 2px 0;
+}
+
+/* Markdown heading */
+.copilot-chat-studio h1,
+.copilot-chat-studio h2,
+.copilot-chat-studio h3 {
+  margin: 8px 0 4px;
+  font-weight: 600;
+}
+
+.copilot-chat-studio h1 { font-size: 16px; }
+.copilot-chat-studio h2 { font-size: 14px; }
+.copilot-chat-studio h3 { font-size: 13px; }
+
+/* ── Chat file attachment ── */
+
+.chat-file-preview {
+  padding: 0 0 6px;
+}
+
+.chat-file-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--foreground);
+  max-width: 100%;
+}
+
+.chat-file-badge.uploading {
+  opacity: 0.7;
+}
+
+.chat-file-icon {
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+.chat-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.chat-file-size {
+  color: var(--muted-foreground);
+  flex-shrink: 0;
+}
+
+.chat-file-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  border-radius: 4px;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.chat-file-remove:hover {
+  background: var(--accent);
+  color: var(--foreground);
+}
+
+.chat-upload-error {
+  font-size: 11px;
+  color: hsl(0, 84%, 60%);
+  padding: 0 0 4px;
+}
+
+.chat-file-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--muted-foreground);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: chat-spin 0.6s linear infinite;
+}
+
+@keyframes chat-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Attach button active state */
+.copilotKitInputControlButton.has-file {
+  color: hsl(217, 91%, 60%);
+}
+
+/* Execution stats (📊 line) */

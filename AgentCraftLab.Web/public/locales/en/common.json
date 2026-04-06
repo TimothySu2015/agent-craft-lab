@@ -1,0 +1,78 @@
+{
+  "load": "Load",
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "create": "Create",
+  "loading": "Loading...",
+  "search": "Search...",
+  "confirm": "Confirm",
+  "back": "Back",
+  "settings": "Settings",
+  "edit": "Edit",
+  "preview": "Preview",
+  "editorHint": "Ctrl+Enter to save, Esc to close",
+  "noContent": "No content",
+  "apply": "Apply",
+  "nav": {
+    "studio": "Workflow Studio",
+    "credentials": "Credentials",
+    "knowledgeBase": "Knowledge Base",
+    "published": "Published Services",
+    "apiKeys": "API Keys",
+    "tester": "Service Tester",
+    "logs": "Request Logs",
+    "skills": "Skills",
+    "settings": "Settings",
+    "schedules": "Schedules",
+    "docRefinery": "Doc Refinery",
+    "services": "Services"
+  },
+  "apiKeys": {
+    "createTitle": "Create API Key",
+    "empty": "No API keys yet. Create one to enable external access.",
+    "confirmRevoke": "Revoke this API key? This cannot be undone.",
+    "nameRequired": "Name is required.",
+    "usage": "Usage",
+    "usageDesc": "Include the API Key in your request header:",
+    "usageAlt": "Or use {{header}} header. Agent Card discovery endpoints (GET) remain public."
+  },
+  "schedules": {
+    "newSchedule": "New Schedule",
+    "editSchedule": "Edit Schedule",
+    "empty": "No schedules. Create one to automate workflow execution.",
+    "confirmDelete": "Delete schedule for \"{{name}}\"?",
+    "commercialRequired": "Scheduled Workflows requires Commercial mode. Configure ConnectionStrings:MongoDB to enable.",
+    "noLogs": "No execution logs yet.",
+    "executionLogs": "Execution Logs"
+  },
+  "kb": {
+    "confirmDelete": "Delete \"{{name}}\" and all its files?",
+    "noFiles": "No files yet.",
+    "editTitle": "Edit Knowledge Base"
+  },
+  "tester": {
+    "noEndpoints": "No endpoints yet.\nPublish a workflow or add a custom URL.",
+    "sendMessage": "Send a message to test the endpoint.",
+    "waiting": "Waiting for response..."
+  },
+  "logs": {
+    "empty": "No logs found for this time range.",
+    "last1h": "Last 1h",
+    "last24h": "Last 24h",
+    "last7d": "Last 7d",
+    "last30d": "Last 30d",
+    "allProtocols": "All Protocols"
+  },
+  "promptRefiner": {
+    "optimize": "Optimize",
+    "optimizing": "Optimizing...",
+    "title": "Prompt Optimization",
+    "changes": "Changes",
+    "before": "Before",
+    "after": "After",
+    "apply": "Apply",
+    "discard": "Discard",
+    "error": "Optimization failed. Check API key settings."
+  }
+}

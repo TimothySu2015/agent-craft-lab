@@ -1,0 +1,246 @@
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Wrench, Zap, ChevronDown, ChevronRight, RotateCcw, Settings } from 'lucide-react'
+import { Field } from '../PropertiesPanel'
+import { PROVIDERS, getModelsForProvider } from '@/lib/providers'
+import { useCredentialStore } from '@/stores/credential-store'
+import { useDefaultCredential } from '@/hooks/useDefaultCredential'
+import { ToolPickerDialog } from './ToolPickerDialog'
+import { SkillPickerDialog } from './SkillPickerDialog'
+import { MiddlewareConfigDialog } from './MiddlewareConfigDialog'
+import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
+import type { PromptRefinerResult } from '@/components/shared/PromptRefinerDialog'
+import type { AgentNodeData, NodeData } from '@/types/workflow'
+
+interface Props {
+  data: AgentNodeData
+  onUpdate: (partial: Partial<NodeData>) => void
+}
+
+export function AgentForm({ data, onUpdate }: Props) {
+  const { t } = useTranslation('studio')
+  const providerModels = getModelsForProvider(data.provider)
+  const credentials = useCredentialStore((s) => s.credentials)
+  const hasKey = (id: string) => !!credentials[id]?.apiKey || !!credentials[id]?.saved
+  const currentHasKey = hasKey(data.provider)
+  const [showToolPicker, setShowToolPicker] = useState(false)
+  const [showSkillPicker, setShowSkillPicker] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [showMiddlewareConfig, setShowMiddlewareConfig] = useState(false)
+  const getDefaultCred = useDefaultCredential()
+
+  const handleOptimize = async (text: string): Promise<PromptRefinerResult | null> => {
+    const cred = getDefaultCred()
+    if (!cred) return null
+    try {
+      const res = await fetch('/api/prompt-refiner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: text,
+          provider: data.provider,
+          model: data.model,
+          apiKey: cred.apiKey,
+          endpoint: cred.endpoint,
+        }),
+      })
+      if (res.ok) return await res.json()
+    } catch { /* handled by caller */ }
+    return null
+  }
+  const needsEndpoint = PROVIDERS.find((p) => p.id === data.provider)?.needsEndpoint
+  const activeMw = (data.middleware ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+
+  return (
+    <>
+      {/* ─── Provider & Model ─── */}
+      <Field label={t('form.provider')}>
+        <select className="field-input" value={data.provider}
+          onChange={(e) => onUpdate({ provider: e.target.value, model: getModelsForProvider(e.target.value)[0] ?? 'gpt-4o-mini' })}>
+          {PROVIDERS.map((p) => (
+            <option key={p.id} value={p.id}>{hasKey(p.id) ? '\u25CF' : '\u25CB'} {p.name}</option>
+          ))}
+        </select>
+        {!currentHasKey && <p className="text-[9px] text-yellow-400 mt-0.5">{t('credentials.noKeyWarning')}</p>}
+      </Field>
+
+      <Field label={t('form.model')}>
+        <select className="field-input" value={data.model} onChange={(e) => onUpdate({ model: e.target.value })}>
+          {providerModels.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
+      </Field>
+
+      {needsEndpoint && (
+        <Field label={t('form.endpoint')}>
+          <input className="field-input" value={data.endpoint} onChange={(e) => onUpdate({ endpoint: e.target.value })} placeholder="https://..." />
+        </Field>
+      )}
+
+      {needsEndpoint && (
+        <Field label={t('form.deploymentName')}>
+          <input className="field-input" value={data.deploymentName ?? ''} onChange={(e) => onUpdate({ deploymentName: e.target.value })} placeholder="gpt-4o" />
+          <p className="text-[8px] text-muted-foreground mt-0.5">Azure deployment name (if different from model)</p>
+        </Field>
+      )}
+
+      {/* ─── Instructions ─── */}
+      <Field label={t('form.instructions')}>
+        <ExpandableTextarea
+          value={data.instructions}
+          onChange={(v) => onUpdate({ instructions: v })}
+          rows={3}
+          placeholder="Describe what this agent should do..."
+          label={`${data.name || 'Agent'} — Instructions`}
+          language="markdown"
+          onOptimize={handleOptimize}
+        />
+      </Field>
+
+      {/* ─── Output Format ─── */}
+      <Field label={t('form.outputFormat')}>
+        <select className="field-input" value={data.outputFormat ?? 'text'} onChange={(e) => onUpdate({ outputFormat: e.target.value })}>
+          <option value="text">Text (default)</option>
+          <option value="json">JSON</option>
+          <option value="json_schema">JSON Schema</option>
+        </select>
+      </Field>
+
+      {data.outputFormat === 'json_schema' && (
+        <Field label={t('form.jsonSchema')}>
+          <ExpandableTextarea
+            className="font-mono text-[9px]"
+            value={data.jsonSchema ?? ''}
+            onChange={(v) => onUpdate({ jsonSchema: v })}
+            rows={4}
+            placeholder='{"type":"object","properties":{"title":{"type":"string"}}}'
+            label="JSON Schema"
+            language="json"
+          />
+        </Field>
+      )}
+
+      {/* ─── Tools & Skills ─── */}
+      <Field label={t('form.tools')}>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowToolPicker(true)}
+            className="flex items-center gap-1 rounded-md border border-border bg-secondary px-2.5 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer">
+            <Wrench size={11} /> {t('toolPicker.manage')}
+          </button>
+          {data.tools?.length > 0 && <span className="text-[10px] text-blue-400">{data.tools?.length} {t('toolPicker.selected')}</span>}
+        </div>
+        {data.tools?.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {data.tools?.map((id) => <span key={id} className="rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[9px] text-blue-400 font-mono">{id}</span>)}
+          </div>
+        )}
+        <ToolPickerDialog open={showToolPicker} selected={data.tools ?? []} onClose={() => setShowToolPicker(false)} onApply={(tools) => onUpdate({ tools })} />
+      </Field>
+
+      <Field label={t('form.skills')}>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowSkillPicker(true)}
+            className="flex items-center gap-1 rounded-md border border-border bg-secondary px-2.5 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer">
+            <Zap size={11} /> {t('skillPicker.manage')}
+          </button>
+          {(data.skills?.length ?? 0) > 0 && <span className="text-[10px] text-violet-400">{data.skills?.length} {t('skillPicker.selected')}</span>}
+        </div>
+        {(data.skills?.length ?? 0) > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {data.skills?.map((id) => <span key={id} className="rounded bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 text-[9px] text-violet-400 font-mono">{id}</span>)}
+          </div>
+        )}
+        <SkillPickerDialog open={showSkillPicker} selected={data.skills ?? []} onClose={() => setShowSkillPicker(false)} onApply={(skills) => onUpdate({ skills })} />
+      </Field>
+
+      {/* ─── Advanced Parameters (collapsible) ─── */}
+      <button onClick={() => setShowAdvanced(!showAdvanced)}
+        className="flex items-center gap-1 w-full py-1 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer">
+        {showAdvanced ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        {t('form.advanced')}
+      </button>
+
+      {showAdvanced && (
+        <>
+          <Field label={t('form.temperature')}>
+            <SliderWithReset value={data.temperature ?? 0.7} min={0} max={2} step={0.1} defaultVal={0.7}
+              onChange={(v) => onUpdate({ temperature: v })} />
+          </Field>
+
+          <Field label={t('form.topP')}>
+            <SliderWithReset value={data.topP ?? 1} min={0} max={1} step={0.05} defaultVal={1}
+              onChange={(v) => onUpdate({ topP: v })} />
+          </Field>
+
+          <Field label={t('form.maxOutputTokens')}>
+            <div className="flex items-center gap-2">
+              <input type="number" className="field-input flex-1" value={data.maxOutputTokens ?? ''} placeholder="(default)"
+                onChange={(e) => onUpdate({ maxOutputTokens: e.target.value ? Number(e.target.value) : undefined })} />
+              <button onClick={() => onUpdate({ maxOutputTokens: undefined })} className="text-muted-foreground hover:text-foreground cursor-pointer" title="Reset">
+                <RotateCcw size={12} />
+              </button>
+            </div>
+          </Field>
+
+          <Field label={t('form.chatHistory')}>
+            <select className="field-input" value={data.historyProvider ?? 'none'} onChange={(e) => onUpdate({ historyProvider: e.target.value })}>
+              <option value="none">None</option>
+              <option value="inmemory">In-Memory (sliding window)</option>
+              <option value="service">Custom Service</option>
+            </select>
+          </Field>
+
+          {data.historyProvider === 'inmemory' && (
+            <Field label={t('form.maxMessages')}>
+              <input type="number" className="field-input" min={1} max={200} value={data.maxMessages ?? 20}
+                onChange={(e) => onUpdate({ maxMessages: Number(e.target.value) })} />
+              <p className="text-[8px] text-muted-foreground mt-0.5">Sliding window size for conversation history</p>
+            </Field>
+          )}
+
+          <Field label={t('form.middleware')}>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setShowMiddlewareConfig(true)}
+                className="flex items-center gap-1 rounded-md border border-border bg-secondary px-2.5 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer">
+                <Settings size={11} /> {t('form.configure')}
+              </button>
+              {activeMw.length > 0 && <span className="text-[10px] text-green-400">{activeMw.length} {t('form.active')}</span>}
+            </div>
+            {activeMw.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {activeMw.map((id) => (
+                  <span key={id} className="rounded bg-green-500/10 border border-green-500/20 px-1.5 py-0.5 text-[9px] text-green-400">{id}</span>
+                ))}
+              </div>
+            )}
+            <MiddlewareConfigDialog
+              open={showMiddlewareConfig}
+              middleware={data.middleware ?? ''}
+              config={data.middlewareConfig ?? {}}
+              onClose={() => setShowMiddlewareConfig(false)}
+              onApply={(mw, cfg) => onUpdate({ middleware: mw, middlewareConfig: cfg })}
+            />
+          </Field>
+        </>
+      )}
+
+    </>
+  )
+}
+
+// ─── Shared Components ───
+
+function SliderWithReset({ value, min, max, step, defaultVal, onChange }: {
+  value: number; min: number; max: number; step: number; defaultVal: number; onChange: (v: number) => void
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={(e) => onChange(Number(e.target.value))} className="flex-1" style={{ accentColor: 'var(--primary)' }} />
+      <span className="text-[10px] text-muted-foreground w-8 text-right">{value.toFixed(step < 1 ? (step < 0.1 ? 2 : 1) : 0)}</span>
+      <button onClick={() => onChange(defaultVal)} className="text-muted-foreground hover:text-foreground cursor-pointer" title="Reset">
+        <RotateCcw size={11} />
+      </button>
+    </div>
+  )
+}
+

@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>13.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <NoWarn>MAAIW001</NoWarn> <!-- Microsoft.Agents.AI.Workflows experimental Handoff API -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Anthropic" Version="12.*" />
+    <PackageReference Include="Azure.AI.OpenAI" Version="2.9.0-beta.1" />
+    <PackageReference Include="DiffPlex" Version="1.9.0" />
+    <PackageReference Include="MailKit" Version="4.15.1" />
+    <PackageReference Include="Microsoft.Agents.AI" Version="1.*" />
+    <PackageReference Include="Microsoft.Agents.AI.OpenAI" Version="1.*" />
+    <PackageReference Include="Microsoft.Agents.AI.Workflows" Version="1.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.*" />
+    <PackageReference Include="Microsoft.Extensions.AI" Version="10.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AgentCraftLab.Search\AgentCraftLab.Search.csproj" />
+    <ProjectReference Include="..\AgentCraftLab.Cleaner\AgentCraftLab.Cleaner.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AgentCraftLab.Tests" />
+    <InternalsVisibleTo Include="AgentCraftLab.Script" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

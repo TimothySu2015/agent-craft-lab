@@ -1,0 +1,46 @@
+{
+  "loadFailed": {
+    "apiKeys": "載入 API 金鑰失敗",
+    "knowledgeBases": "載入知識庫失敗",
+    "workflows": "載入工作流程失敗",
+    "schedules": "載入排程失敗",
+    "logs": "載入日誌失敗",
+    "skills": "載入技能失敗",
+    "tools": "載入工具失敗",
+    "dataSources": "載入資料來源失敗"
+  },
+  "saveFailed": {
+    "skill": "儲存技能失敗",
+    "dataSource": "儲存資料來源失敗",
+    "knowledgeBase": "儲存知識庫失敗"
+  },
+  "createFailed": {
+    "knowledgeBase": "建立知識庫失敗"
+  },
+  "updateFailed": {
+    "knowledgeBase": "更新知識庫失敗",
+    "publishToggle": "發佈切換失敗",
+    "typeToggle": "類型切換失敗",
+    "inputMode": "輸入模式更新失敗",
+    "scheduleToggle": "切換排程失敗"
+  },
+  "deleteFailed": {
+    "skill": "刪除技能失敗",
+    "knowledgeBase": "刪除知識庫失敗",
+    "file": "刪除檔案失敗",
+    "dataSource": "刪除資料來源失敗",
+    "schedule": "刪除排程失敗"
+  },
+  "revokeFailed": {
+    "apiKey": "撤銷 API 金鑰失敗"
+  },
+  "importFailed": {
+    "workflow": "匯入工作流程失敗",
+    "skill": "匯入技能失敗"
+  },
+  "exportFailed": {
+    "workflow": "匯出失敗",
+    "skill": "匯出技能失敗"
+  },
+  "aiBuildApplyFailed": "AI Build 套用失敗"
+}

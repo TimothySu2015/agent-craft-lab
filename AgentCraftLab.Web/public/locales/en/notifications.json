@@ -1,0 +1,46 @@
+{
+  "loadFailed": {
+    "apiKeys": "Failed to load API keys",
+    "knowledgeBases": "Failed to load knowledge bases",
+    "workflows": "Failed to load workflows",
+    "schedules": "Failed to load schedules",
+    "logs": "Failed to load logs",
+    "skills": "Failed to load skills",
+    "tools": "Failed to load tools",
+    "dataSources": "Failed to load data sources"
+  },
+  "saveFailed": {
+    "skill": "Skill save failed",
+    "dataSource": "Failed to save data source",
+    "knowledgeBase": "Failed to save knowledge base"
+  },
+  "createFailed": {
+    "knowledgeBase": "Failed to create knowledge base"
+  },
+  "updateFailed": {
+    "knowledgeBase": "Failed to update knowledge base",
+    "publishToggle": "Publish toggle failed",
+    "typeToggle": "Type toggle failed",
+    "inputMode": "Input mode update failed",
+    "scheduleToggle": "Failed to toggle schedule"
+  },
+  "deleteFailed": {
+    "skill": "Failed to delete skill",
+    "knowledgeBase": "Failed to delete knowledge base",
+    "file": "Failed to delete file",
+    "dataSource": "Failed to delete data source",
+    "schedule": "Failed to delete schedule"
+  },
+  "revokeFailed": {
+    "apiKey": "Failed to revoke API key"
+  },
+  "importFailed": {
+    "workflow": "Workflow import failed",
+    "skill": "Skill import failed"
+  },
+  "exportFailed": {
+    "workflow": "Export failed",
+    "skill": "Skill export failed"
+  },
+  "aiBuildApplyFailed": "AI Build failed to apply"
+}
