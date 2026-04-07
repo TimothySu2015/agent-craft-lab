@@ -3,13 +3,13 @@ import { NODE_REGISTRY, NODE_COLORS, type NodeTypeConfig } from '../registry'
 import type { NodeType } from '@/types/workflow'
 
 const ALL_NODE_TYPES: NodeType[] = [
-  'agent', 'tool', 'rag', 'condition', 'loop', 'router',
+  'agent', 'rag', 'condition', 'loop', 'router',
   'a2a-agent', 'human', 'code', 'iteration', 'parallel',
   'http-request', 'autonomous', 'start', 'end',
 ]
 
 describe('NODE_REGISTRY', () => {
-  it('has entries for all 15 node types', () => {
+  it('has entries for all 14 node types', () => {
     for (const type of ALL_NODE_TYPES) {
       expect(NODE_REGISTRY[type], `missing registry entry for: ${type}`).toBeDefined()
     }

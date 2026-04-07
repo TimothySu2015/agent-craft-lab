@@ -38,8 +38,8 @@ describe('toWorkflowPayloadJson', () => {
     expect(result.nodes[0].name).toBe('A1')
     expect(result.nodes[0].type).toBe('agent')
 
-    // But all edges are preserved (including start/end connections)
-    expect(result.connections).toHaveLength(2)
+    // start→agent edge preserved, agent→end filtered (target not in payload)
+    expect(result.connections).toHaveLength(1)
   })
 
   it('maps edges to connections with default ports', () => {
@@ -65,6 +65,11 @@ describe('toWorkflowPayloadJson', () => {
     const nodes: Node<NodeData>[] = [
       makeNode('cond-1', 'condition', {
         type: 'condition', name: 'Check', conditionType: 'contains', conditionExpression: '', maxIterations: 5,
+      }),
+      makeNode('agent-1', 'agent', {
+        type: 'agent', name: 'A1', instructions: '', model: 'gpt-4o', provider: 'openai',
+        endpoint: '', deploymentName: '', historyProvider: 'none', maxMessages: 20,
+        middleware: '', tools: [], skills: [],
       }),
     ]
     const edges: Edge[] = [makeEdge('cond-1', 'agent-1', 'output_2', 'input_1')]

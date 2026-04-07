@@ -12,6 +12,7 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('react-router-dom', () => ({
   Navigate: ({ to }: any) => <div data-testid="navigate" data-to={to} />,
+  useNavigate: () => vi.fn(),
   useLocation: () => ({ pathname: '/' }),
   Link: ({ children, to }: any) => <a href={to}>{children}</a>,
 }))
@@ -145,7 +146,7 @@ describe('KnowledgeBasePage', () => {
     await act(async () => {
       render(<KnowledgeBasePage />)
     })
-    expect(screen.getByText('nav.knowledgeBase')).toBeInTheDocument()
+    expect(screen.getByText('kb.title')).toBeInTheDocument()
   })
 })
 

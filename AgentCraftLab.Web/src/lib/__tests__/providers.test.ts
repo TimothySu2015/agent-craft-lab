@@ -7,7 +7,10 @@ describe('PROVIDERS', () => {
       expect(p.id).toBeTruthy()
       expect(p.name).toBeTruthy()
       expect(Array.isArray(p.models)).toBe(true)
-      expect(p.models.length).toBeGreaterThan(0)
+      // keyOptional providers (local inference) may have empty models
+      if (!p.keyOptional) {
+        expect(p.models.length).toBeGreaterThan(0)
+      }
     }
   })
 

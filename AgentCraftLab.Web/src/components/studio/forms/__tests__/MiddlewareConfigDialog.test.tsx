@@ -73,9 +73,9 @@ describe('MiddlewareConfigDialog', () => {
   it('shows config fields when middleware is active', () => {
     render(<MiddlewareConfigDialog {...defaultProps} middleware="guardrails" />)
 
-    // GuardRails should show its fields
-    expect(screen.getByText('Blocked Terms')).toBeInTheDocument()
-    expect(screen.getByText('Severity')).toBeInTheDocument()
+    // GuardRails should show its i18n-keyed fields
+    expect(screen.getByText('middlewareConfig.guardrails.blockedTerms')).toBeInTheDocument()
+    expect(screen.getAllByText('middlewareConfig.guardrails.scanAllMessages').length).toBeGreaterThanOrEqual(1)
   })
 
   it('selects different middleware to show its fields', () => {
@@ -151,10 +151,10 @@ describe('MiddlewareConfigDialog', () => {
     const sidebar = screen.getAllByText('PII Masking')[0].closest('div[class*="cursor-pointer"]')!
     fireEvent.click(sidebar)
 
-    // Checkbox labels appear twice (label + checkbox span), use getAllByText
-    expect(screen.getAllByText('Mask Emails').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Mask Phone Numbers').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Mask Credit Cards').length).toBeGreaterThanOrEqual(1)
+    // PII fields use i18n keys
+    expect(screen.getByText('middlewareConfig.pii.mode')).toBeInTheDocument()
+    expect(screen.getByText('middlewareConfig.pii.confidenceThreshold')).toBeInTheDocument()
+    expect(screen.getByText('middlewareConfig.pii.locales')).toBeInTheDocument()
   })
 
   it('shows retry strategy options', () => {

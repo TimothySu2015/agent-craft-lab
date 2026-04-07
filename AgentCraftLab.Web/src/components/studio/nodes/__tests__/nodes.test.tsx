@@ -237,7 +237,7 @@ describe('RagNode', () => {
       ragEmbeddingModel: 'text-embedding-3-small', knowledgeBaseIds: [],
     }
     render(<RagNode data={data} selected={false} id="rag1" type="rag" />)
-    expect(screen.getByText('TopK: 5 / Chunk: 512')).toBeInTheDocument()
+    expect(screen.getByText('TopK: 5 · Balanced')).toBeInTheDocument()
   })
 })
 
