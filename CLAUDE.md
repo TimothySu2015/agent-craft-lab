@@ -69,7 +69,7 @@ Review 修改完成後，**必須**檢查並補齊單元測試：
 - Microsoft.Agents.AI 已 GA（1.0.0）；.csproj 中以 `1.*` 版本語法自動拉取最新穩定版
 - .NET 10 + LangVersion 13.0
 
-## Solution 概覽 — Open Core 架構
+## Solution 概覽
 
 | 專案 | 定位 |
 |------|------|
@@ -310,10 +310,6 @@ Engine 積木（各自獨立，React + Flow + 畫布 Workflow 都可用）
 ### AI Build
 
 自然語言 → FlowBuilderService → LLM 串流 → buildFromAiSpec（partial update 優先 → full rebuild fallback）。Tool ID 白名單由 ToolRegistryService 動態注入。
-
-### Blazor JS 模組
-
-所有 JS 透過 `Object.assign(window.StudioInterop, ...)` 合併：studio.js / studio-nodes.js（NODE_REGISTRY 唯一真相來源）/ studio-codegen.js / studio-persistence.js / studio-templates.js / studio-export.js / studio-ai-builder.js
 
 ## Extensibility（速查）
 

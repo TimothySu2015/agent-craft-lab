@@ -92,12 +92,10 @@ AgentCraftLab.sln
 ├── AgentCraftLab.Autonomous/        ← ReAct agent (sub-agents, tools, safety)
 ├── AgentCraftLab.Autonomous.Flow/   ← Flow mode (plan -> execute -> crystallize)
 ├── AgentCraftLab.Search/            ← Search engine (FTS5 + vector + RRF)
-├── AgentCraftLab.Script/            ← JS sandbox engine (Jint)
+├── AgentCraftLab.Script/            ← Script sandbox engine (Jint JS + Roslyn C#)
 ├── AgentCraftLab.Ocr/               ← OCR engine (Tesseract)
 ├── AgentCraftLab.Cleaner/           ← Data cleaning engine (7 formats + Schema Mapper)
-├── AgentCraftLab.Commercial/        ← MongoDB + OAuth (for multi-user deployment)
-├── AgentCraftLab.Autonomous.Playground/ ← CLI test console (Spectre.Console)
-└── AgentCraftLab.Tests/             ← Unit tests (1200+)
+└── AgentCraftLab.Tests/             ← Unit tests (1250+)
 ```
 
 ### Engine — Use as a Library
