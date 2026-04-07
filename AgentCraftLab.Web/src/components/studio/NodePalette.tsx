@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Bot, Wrench, Database, GitBranch, RefreshCw, Route,
+  Bot, Database, GitBranch, RefreshCw, Route,
   Globe, User, Code, Repeat, Columns3, Globe2, Brain,
   PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
@@ -12,7 +12,6 @@ const nodeGroups = [
     labelKey: 'palette.nodes',
     items: [
       { type: 'agent', labelKey: 'node.agent', icon: Bot, color: 'text-blue-400' },
-      { type: 'tool', labelKey: 'node.tool', icon: Wrench, color: 'text-yellow-400' },
       { type: 'rag', labelKey: 'node.rag', icon: Database, color: 'text-violet-400' },
       { type: 'condition', labelKey: 'node.condition', icon: GitBranch, color: 'text-amber-400' },
       { type: 'loop', labelKey: 'node.loop', icon: RefreshCw, color: 'text-amber-400' },

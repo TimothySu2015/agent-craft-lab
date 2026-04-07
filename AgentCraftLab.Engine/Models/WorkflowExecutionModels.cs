@@ -425,6 +425,9 @@ public class WorkflowNode : IWorkflowNodeContract
     public int MaxLength { get; set; } = 0;
     public string Delimiter { get; set; } = "\n";
     public int SplitIndex { get; set; } = 0;
+
+    /// <summary>腳本語言（script 模式用）：javascript（預設）或 csharp。</summary>
+    public string ScriptLanguage { get; set; } = "javascript";
 }
 
 public class WorkflowConnection : IWorkflowConnectionContract

@@ -20,7 +20,6 @@ This document describes all available node types in the AgentCraftLab Workflow S
 | `parallel` | Executable / Control Flow | Parallel fan-out/fan-in with multiple branches executing simultaneously |
 | `http-request` | Executable / Integration | Deterministic HTTP call to an external API |
 | `rag` | Data Node | Attaches a RAG knowledge source (uploaded files or knowledge base) |
-| `tool` | Data Node | Attaches built-in tools for Agent invocation |
 
 ---
 
@@ -192,6 +191,7 @@ This document describes all available node types in the AgentCraftLab Workflow S
 | `maxLength` | Truncation length (used in trim) |
 | `delimiter` | Delimiter (used in split-take) |
 | `splitIndex` | Index of the segment to take (used in split-take) |
+| `scriptLanguage` | Script language: `javascript` (default) or `csharp` (used in script mode) |
 
 **Nine Transform Modes:**
 
@@ -205,9 +205,28 @@ This document describes all available node types in the AgentCraftLab Workflow S
 | `split-take` | Split by delimiter and take the segment at the specified index |
 | `upper` | Convert to uppercase |
 | `lower` | Convert to lowercase |
-| `script` | Execute a JavaScript sandbox script (requires AgentCraftLab.Script to be enabled) |
+| `script` | Execute a sandbox script (JavaScript or C#, requires AgentCraftLab.Script) |
 
-**Applicable Scenarios:** Post-processing of Agent output (extracting JSON fields, formatting templates, regex cleanup), data transformation between nodes.
+**Script Mode — Dual Language Support:**
+
+| Language | Engine | Usage |
+|----------|--------|-------|
+| JavaScript | Jint sandbox | Use the `input` variable to read input; set `result` variable for output |
+| C# | Roslyn runtime compilation | Parameter `input` is a string; use `return` to return the result. LINQ, JsonSerializer, and Regex are available |
+
+Both languages run in a secure sandbox: File/Network/Process operations are blocked, with timeout and memory limits enforced.
+
+**Script Studio (Full-screen Editor):**
+
+The side panel shows a read-only code preview; clicking it opens the Script Studio full-screen modal:
+
+- **Top** — AI Generate: describe what you need in natural language, and the LLM generates both script code and test data
+- **Center** — Monaco Editor (VS Code core): syntax highlighting, bracket matching, auto-indent, minimap
+- **Bottom** — Test Run: enter test input, execute instantly, and view results
+- **Format button** — auto-format code (Shift+Alt+F)
+- Click "Apply" to save the code back to the node settings
+
+**Applicable Scenarios:** Post-processing of Agent output (extracting JSON fields, formatting templates, regex cleanup), data transformation between nodes, complex LINQ queries and data processing (C#).
 
 ---
 

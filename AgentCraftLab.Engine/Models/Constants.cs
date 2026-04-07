@@ -15,7 +15,7 @@ public static class NodeTypes
     public const string Router = "router";
     public const string Start = "start";
     public const string End = "end";
-    public const string Tool = "tool";
+
     public const string Rag = "rag";
     public const string A2AAgent = "a2a-agent";
     public const string Human = "human";
@@ -60,7 +60,6 @@ public static class NodeTypeRegistry
         [NodeTypes.Start]      = new(NodeTypes.Start,      IsMeta: true),
         [NodeTypes.End]        = new(NodeTypes.End,        IsMeta: true),
         [NodeTypes.Rag]        = new(NodeTypes.Rag,        IsDataNode: true),
-        [NodeTypes.Tool]       = new(NodeTypes.Tool,       IsDataNode: true),
     };
 
     public static NodeTypeInfo? Get(string type) => Registry.GetValueOrDefault(type);

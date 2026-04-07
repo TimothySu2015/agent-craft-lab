@@ -428,7 +428,7 @@ Ends with `[DONE]`.
 
 ### POST /api/script-generator
 
-LLM generates JavaScript scripts compliant with the Jint sandbox.
+LLM generates sandbox-compliant scripts (JavaScript or C#), along with test data.
 
 **Request Body:**
 ```json
@@ -436,22 +436,32 @@ LLM generates JavaScript scripts compliant with the Jint sandbox.
   "prompt": "string (required, script requirement description)",
   "provider": "openai",
   "model": "gpt-4o-mini",
-  "apiKey": "string (required)",
-  "endpoint": "string (optional)"
+  "apiKey": "string (optional, reads from backend ICredentialStore first)",
+  "endpoint": "string (optional)",
+  "language": "javascript | csharp (optional, defaults to javascript)"
 }
 ```
 
-**Response:** `{ "code": "const data = JSON.parse(input); ..." }`
+**Response:**
+```json
+{
+  "code": "const data = JSON.parse(input); ...",
+  "testInput": "[{\"Name\":\"Alice\",\"Score\":95}]"
+}
+```
+
+Automatically switches the system prompt based on the `language` parameter (JS rules vs C# rules). `testInput` is an LLM-generated sample test data.
 
 ### POST /api/script-test
 
-Test a JavaScript script in the Jint sandbox.
+Test a script in the sandbox (JavaScript or C#).
 
 **Request Body:**
 ```json
 {
-  "code": "string (required, JavaScript code)",
-  "input": "string (simulated input variable value)"
+  "code": "string (required, script code)",
+  "input": "string (simulated input variable value)",
+  "language": "javascript | csharp (optional, defaults to javascript)"
 }
 ```
 

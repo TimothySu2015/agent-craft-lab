@@ -79,7 +79,7 @@ Review 修改完成後，**必須**檢查並補齊單元測試：
 | `AgentCraftLab.Engine` | 開源核心（SQLite + 單人模式，5 種策略 + 8 種節點 + 4 層工具 + Middleware + Hooks） |
 | `AgentCraftLab.Autonomous` | ReAct 迴圈 + Sub-agent 協作 + 15 meta-tools + 安全機制 |
 | `AgentCraftLab.Autonomous.Flow` | Flow 結構化執行（LLM 規劃 → 7 種節點 → Crystallize） |
-| `AgentCraftLab.Script` | JS 沙箱引擎（Jint，IScriptEngine 介面可替換 Roslyn/Python） |
+| `AgentCraftLab.Script` | 多語言沙箱引擎（Jint JS + Roslyn C#，IScriptEngine / IScriptEngineFactory 介面） |
 | `AgentCraftLab.Ocr` | OCR 引擎（Tesseract，IOcrEngine 介面，繁中/簡中/英/日/韓） |
 | `AgentCraftLab.Cleaner` | 資料清洗引擎（Partition → Clean → Schema Mapper，7 種格式 + 多層 Agent） |
 
@@ -120,7 +120,7 @@ WorkflowExecutionService.ExecuteAsync(request)         ← 精簡編排器（~18
 | `parallel` | ✓ | ✓ | | fan-out/fan-in 並行（Task.WhenAll + MergeStrategy） |
 | `http-request` | ✓ | ✓ | | 確定性 HTTP 呼叫 |
 | `start` / `end` | | | | Meta 節點（IsMeta） |
-| `rag` / `tool` | | | | 資料節點（IsDataNode） |
+| `rag` | | | | 資料節點（IsDataNode） |
 
 **新增節點**：(1) `NodeTypes` 加常數 (2) `NodeTypeRegistry` 加一行 (3) `NodeExecutorRegistry` 加 handler
 
@@ -329,7 +329,8 @@ Engine 積木（各自獨立，React + Flow + 畫布 Workflow 都可用）
 - **替換反思引擎**：實作 `IReflectionEngine`（預設 AutoReflectionEngine → Single/Panel 自動選擇）
 - **自訂 Evaluator Persona**：`ReflectionConfig.Personas` 自訂審查角色（預設 Factual/Logic/Completeness）
 - **工具分類擴展**：`MetaToolFactory.TierMap` 新增 meta-tool 時指定 Tier（Core/Discovery/Delegation/Collaboration/Creation）
-- **替換腳本引擎**：實作 `IScriptEngine` + DI 替換（Jint → Roslyn → Python）
+- **替換腳本引擎**：實作 `IScriptEngine` + DI 替換（Jint JS / Roslyn C# / Python）
+- **新增腳本語言**：`ScriptEngineFactory.Register("language", engine)` + 前端 CodeForm SCRIPT_LANGUAGES 加選項
 - **擴展沙箱 API**：實作 `ISandboxApi`（`GetMethods()` 回傳 delegate dictionary）
 - **替換 OCR 引擎**：實作 `IOcrEngine` + DI 替換
 - **替換 Reranker**：實作 `IReranker` + `services.AddReranker<T>()`（預設 NoOpReranker）
@@ -405,10 +406,11 @@ dotnet run --project AgentCraftLab.Autonomous.Playground -- --test
 |------|------|
 | Settings 個人設定 | `/settings` 頁面：Profile / 語系 / 預設模型 / Credentials / Budget / 進階 |
 | OCR 工具 | `AgentCraftLab.Ocr`：Tesseract OCR，tessdata 目錄存在時自動啟用 |
-| JS 沙箱腳本 | `AgentCraftLab.Script`：Code 節點 script 模式，Jint 引擎 + AI 腳本生成 + Test Run |
-| Script Generator | `POST /api/script-generator`：LLM 生成符合沙箱的 JS 腳本 |
+| 多語言沙箱腳本 | `AgentCraftLab.Script`：Code 節點 script 模式，Jint JS + Roslyn C#（collectible ALC + AST 安全掃描）+ AI 腳本生成 + Test Run |
+| Script Generator | `POST /api/script-generator`：LLM 生成符合沙箱的腳本（JS / C#，按 language 切換 prompt） |
 | Prompt Refiner | `POST /api/prompt-refiner`：LLM + Prompt Engineering 指南優化 Agent Instructions |
 | ExpandableTextarea | 可展開全螢幕編輯器：行號 gutter + Edit/Preview 雙模式 + language 標籤 + ✨ Optimize 按鈕 |
+| MonacoCodeEditor | Code 節點 script 模式專用編輯器：Monaco Editor（VS Code 核心）+ 語法高亮 + 括號配對 + 全螢幕 Modal |
 | TraceWaterfall | 執行追蹤瀑布圖：甘特圖 + Modal 詳情 + Tool Call 子行 + 多色彩 + 可拖拽高度 |
 | CraftCleaner | `AgentCraftLab.Cleaner`：7 格式 Partition + 7 清洗規則 + Schema Mapper（單層/多層）+ Markdown Renderer |
 | DocRefinery | `/doc-refinery` 頁面：精煉專案 + 檔案勾選 + 清洗預覽 + 雙模式 Generate + LLM Challenge + 信心度 + 版本管理 + Token 統計 |

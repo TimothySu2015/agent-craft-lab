@@ -3,7 +3,6 @@
   <Project Path="AgentCraftLab.Autonomous.Flow/AgentCraftLab.Autonomous.Flow.csproj" />
   <Project Path="AgentCraftLab.Autonomous/AgentCraftLab.Autonomous.csproj" />
   <Project Path="AgentCraftLab.Cleaner/AgentCraftLab.Cleaner.csproj" />
-  <Project Path="AgentCraftLab.CopilotKit/AgentCraftLab.CopilotKit.csproj" />
   <Project Path="AgentCraftLab.Engine/AgentCraftLab.Engine.csproj" />
   <Project Path="AgentCraftLab.Ocr/AgentCraftLab.Ocr.csproj" />
   <Project Path="AgentCraftLab.Script/AgentCraftLab.Script.csproj" />

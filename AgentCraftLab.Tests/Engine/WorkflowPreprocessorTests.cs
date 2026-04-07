@@ -184,7 +184,6 @@ public class WorkflowPreprocessorTests
     [InlineData(NodeTypes.Start)]
     [InlineData(NodeTypes.End)]
     [InlineData(NodeTypes.Rag)]
-    [InlineData(NodeTypes.Tool)]
     public void IsMeta_OrDataNode_NotExecutable(string nodeType)
     {
         Assert.False(NodeTypeRegistry.IsExecutable(nodeType));

@@ -2,7 +2,7 @@
  * Node type registration — maps NodeType → React component for React Flow.
  */
 import { AgentNode } from './AgentNode'
-import { ToolNode } from './ToolNode'
+
 import { RagNode } from './RagNode'
 import { ConditionNode } from './ConditionNode'
 import { LoopNode } from './LoopNode'
@@ -24,7 +24,6 @@ import type { NodeTypes } from '@xyflow/react'
 
 export const nodeTypes: NodeTypes = {
   agent: AgentNode,
-  tool: ToolNode,
   rag: RagNode,
   condition: ConditionNode,
   loop: LoopNode,

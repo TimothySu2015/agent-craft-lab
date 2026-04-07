@@ -31,17 +31,6 @@ export interface AgentNodeData {
   middlewareConfig?: Record<string, Record<string, string>>;
 }
 
-export interface ToolNodeData {
-  type: 'tool';
-  name: string;
-  description: string;
-  parameters: string;
-  toolSource: string;
-  mcpServerUrl: string;
-  requireApproval?: boolean;
-  approvalReason?: string;
-}
-
 export interface RagNodeData {
   type: 'rag';
   name: string;
@@ -116,6 +105,7 @@ export interface CodeNodeData {
   maxLength: number;
   delimiter: string;
   splitIndex: number;
+  scriptLanguage?: string;
 }
 
 export interface IterationNodeData {
@@ -181,7 +171,6 @@ export interface EndNodeData {
 
 export type NodeData =
   | AgentNodeData
-  | ToolNodeData
   | RagNodeData
   | ConditionNodeData
   | LoopNodeData

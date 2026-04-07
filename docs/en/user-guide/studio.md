@@ -52,7 +52,7 @@ Drag a connection from the output handle at the bottom of a node to the input ha
 - Cannot connect a node to itself
 - Cannot connect into a Start node
 - Cannot connect out from an End node
-- Tool and RAG nodes can only connect to Agent nodes
+- RAG nodes can only connect to Agent nodes
 
 Connections use the smoothstep style by default. Click a connection to select it, then press the Delete key to remove it directly (no confirmation required).
 

@@ -1,9 +1,7 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Sparkles, Loader2, Play } from 'lucide-react'
 import { Field } from '../PropertiesPanel'
 import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
-import { useDefaultCredential } from '@/hooks/useDefaultCredential'
+import { MonacoCodeEditor } from '@/components/shared/MonacoCodeEditor'
 import type { CodeNodeData, NodeData } from '@/types/workflow'
 
 interface Props {
@@ -11,82 +9,29 @@ interface Props {
   onUpdate: (partial: Partial<NodeData>) => void
 }
 
+const SCRIPT_LANGUAGES = [
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'csharp', label: 'C#' },
+] as const
+
 export function CodeForm({ data, onUpdate }: Props) {
   const { t } = useTranslation('studio')
-  const [prompt, setPrompt] = useState('')
-  const [generating, setGenerating] = useState(false)
-  const [genError, setGenError] = useState('')
-  const [testInput, setTestInput] = useState('')
-  const [testResult, setTestResult] = useState<{ success: boolean; output: string; error?: string; elapsedMs?: number } | null>(null)
-  const [testing, setTesting] = useState(false)
-  const getCredential = useDefaultCredential()
-
-  const handleTestRun = async () => {
-    if (!data.template?.trim()) return
-    setTesting(true)
-    setTestResult(null)
-    try {
-      const res = await fetch('/api/script-test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: data.template, input: testInput }),
-      })
-      const result = await res.json()
-      setTestResult(result)
-    } catch (err) {
-      setTestResult({ success: false, output: '', error: (err as Error).message })
-    } finally {
-      setTesting(false)
-    }
-  }
-
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return
-    const cred = getCredential()
-    if (!cred) { setGenError(t('script.noKey')); return }
-
-    setGenerating(true)
-    setGenError('')
-    try {
-      const res = await fetch('/api/script-generator', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: prompt.trim(),
-          provider: cred.provider,
-          model: cred.model || 'gpt-4o',
-          apiKey: cred.apiKey,
-          endpoint: cred.endpoint || '',
-        }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: res.statusText }))
-        throw new Error(err.message || res.statusText)
-      }
-      const result = await res.json()
-      if (result.code) {
-        onUpdate({ template: result.code })
-      }
-    } catch (err) {
-      setGenError((err as Error).message)
-    } finally {
-      setGenerating(false)
-    }
-  }
+  const scriptLang = data.scriptLanguage || 'javascript'
+  const isCSharp = scriptLang === 'csharp'
 
   return (
     <>
       <Field label={t('form.transformType')}>
         <select className="field-input" value={data.transformType} onChange={(e) => onUpdate({ transformType: e.target.value })}>
-          <option value="template">Template</option>
-          <option value="regex-extract">Regex Extract</option>
-          <option value="regex-replace">Regex Replace</option>
-          <option value="json-path">JSON Path</option>
-          <option value="trim">Trim</option>
-          <option value="split-take">Split & Take</option>
-          <option value="upper">Upper</option>
-          <option value="lower">Lower</option>
-          <option value="script">Script (JavaScript)</option>
+          <option value="template">{t('transform.template')}</option>
+          <option value="regex-extract">{t('transform.regexExtract')}</option>
+          <option value="regex-replace">{t('transform.regexReplace')}</option>
+          <option value="json-path">{t('transform.jsonPath')}</option>
+          <option value="trim">{t('transform.trim')}</option>
+          <option value="split-take">{t('transform.splitTake')}</option>
+          <option value="upper">{t('transform.upper')}</option>
+          <option value="lower">{t('transform.lower')}</option>
+          <option value="script">{t('transform.script')}</option>
         </select>
       </Field>
 
@@ -107,58 +52,26 @@ export function CodeForm({ data, onUpdate }: Props) {
 
       {data.transformType === 'script' && (
         <>
-          {/* AI Generate */}
-          <Field label={t('script.generateLabel')}>
-            <div className="flex gap-1.5">
-              <input className="field-input text-[10px] flex-1" value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder={t('script.promptPlaceholder')}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleGenerate() } }} />
-              <button onClick={handleGenerate} disabled={generating || !prompt.trim()}
-                className="flex items-center gap-1 rounded-md bg-violet-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-violet-500 disabled:opacity-50 cursor-pointer shrink-0">
-                {generating ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
-                {t('script.generate')}
-              </button>
-            </div>
-            {genError && <p className="text-[8px] text-red-400 mt-0.5">{genError}</p>}
+          {/* Language Selector */}
+          <Field label={t('script.languageLabel')}>
+            <select className="field-input" value={scriptLang}
+              onChange={(e) => {
+                onUpdate({ scriptLanguage: e.target.value, template: '' })
+              }}>
+              {SCRIPT_LANGUAGES.map((lang) => (
+                <option key={lang.value} value={lang.value}>{lang.label}</option>
+              ))}
+            </select>
           </Field>
 
-          {/* Code Editor */}
-          <Field label={t('script.codeLabel')}>
-            <ExpandableTextarea
-              className="font-mono text-[10px]"
+          {/* Monaco Preview + Script Studio */}
+          <Field label={isCSharp ? t('script.csharpCodeLabel') : t('script.codeLabel')}>
+            <MonacoCodeEditor
               value={data.template}
               onChange={(v) => onUpdate({ template: v })}
-              rows={8}
-              placeholder={'const data = JSON.parse(input);\nresult = data.map(d => d.name).join(\', \');'}
-              label="Code — JavaScript"
-              language="javascript"
+              language={isCSharp ? 'csharp' : 'javascript'}
+              label={`Code — ${isCSharp ? 'C#' : 'JavaScript'}`}
             />
-            <p className="text-[8px] text-muted-foreground mt-0.5">{t('script.hint')}</p>
-          </Field>
-
-          {/* Test Run */}
-          <Field label={t('script.testLabel')}>
-            <textarea className="field-textarea font-mono text-[10px]" value={testInput} rows={2}
-              placeholder={t('script.testInputPlaceholder')}
-              onChange={(e) => setTestInput(e.target.value)} />
-            <button onClick={handleTestRun} disabled={testing || !data.template?.trim()}
-              className="mt-1.5 flex items-center gap-1 rounded-md bg-green-600 px-2.5 py-1 text-[10px] font-medium text-white hover:bg-green-500 disabled:opacity-50 cursor-pointer">
-              {testing ? <Loader2 size={11} className="animate-spin" /> : <Play size={11} />}
-              {t('script.testRun')}
-            </button>
-            {testResult && (
-              <div className={`mt-1.5 rounded-md border px-2.5 py-2 text-[10px] font-mono whitespace-pre-wrap ${
-                testResult.success
-                  ? 'border-green-500/30 bg-green-500/5 text-green-300'
-                  : 'border-red-500/30 bg-red-500/5 text-red-300'
-              }`}>
-                {testResult.success ? testResult.output || '(empty output)' : `Error: ${testResult.error}`}
-                {testResult.elapsedMs != null && (
-                  <span className="block text-[8px] text-muted-foreground mt-1">{testResult.elapsedMs.toFixed(1)}ms</span>
-                )}
-              </div>
-            )}
           </Field>
         </>
       )}

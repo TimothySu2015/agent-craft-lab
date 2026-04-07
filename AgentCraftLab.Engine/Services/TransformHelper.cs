@@ -17,8 +17,19 @@ public static class TransformHelper
     /// </summary>
     internal static Func<string, string, string>? ScriptExecutor { get; set; }
 
-    private static string ExecuteScript(string code, string input)
+    /// <summary>
+    /// 多語言腳本執行 delegate — (language, code, input) → output。
+    /// 由 AddMultiLanguageScript() 設定。優先使用此 delegate，fallback 到 ScriptExecutor。
+    /// </summary>
+    internal static Func<string, string, string, string>? MultiLanguageScriptExecutor { get; set; }
+
+    private static string ExecuteScript(string code, string input, string language = "javascript")
     {
+        if (MultiLanguageScriptExecutor is not null)
+        {
+            return MultiLanguageScriptExecutor(language, code, input);
+        }
+
         if (ScriptExecutor is null)
         {
             return "[Script engine not configured. Call AddScript() to enable script execution.]";
@@ -27,13 +38,14 @@ public static class TransformHelper
     }
 
     /// <summary>
-    /// 對 WorkflowNode 的屬性執行 Code 轉換（8 種模式）。
+    /// 對 WorkflowNode 的屬性執行 Code 轉換（9 種模式）。
     /// </summary>
     public static string ApplyTransform(WorkflowNode node, string input)
     {
         return ApplyTransform(
             node.TransformType, input, node.Template, node.Pattern,
-            node.Replacement, node.MaxLength, node.Delimiter, node.SplitIndex);
+            node.Replacement, node.MaxLength, node.Delimiter, node.SplitIndex,
+            node.ScriptLanguage);
     }
 
     /// <summary>
@@ -41,7 +53,8 @@ public static class TransformHelper
     /// </summary>
     public static string ApplyTransform(
         string transformType, string input, string? template = null, string? pattern = null,
-        string? replacement = null, int maxLength = 0, string? delimiter = null, int splitIndex = 0)
+        string? replacement = null, int maxLength = 0, string? delimiter = null, int splitIndex = 0,
+        string? scriptLanguage = null)
     {
         try
         {
@@ -59,7 +72,7 @@ public static class TransformHelper
                 "split-take" => SplitAndTake(input, delimiter, splitIndex),
                 "upper" => input.ToUpperInvariant(),
                 "lower" => input.ToLowerInvariant(),
-                "script" => ExecuteScript(template ?? "", input),
+                "script" => ExecuteScript(template ?? "", input, scriptLanguage ?? "javascript"),
                 _ => input
             };
         }

@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { SimpleForm } from '../SimpleForm'
-import type { NodeData, RouterNodeData, ParallelNodeData, IterationNodeData, ToolNodeData } from '@/types/workflow'
+import type { NodeData, RouterNodeData, ParallelNodeData, IterationNodeData } from '@/types/workflow'
 
 // Mock i18n — 直接回傳 key
 vi.mock('react-i18next', () => ({
@@ -173,43 +173,6 @@ describe('SimpleForm — Iteration', () => {
     render(<SimpleForm data={data} onUpdate={onUpdate} />)
 
     expect(screen.getByPlaceholderText('\\n')).toBeInTheDocument()
-  })
-})
-
-describe('SimpleForm — Tool', () => {
-  const baseData: ToolNodeData = {
-    type: 'tool', name: 'T', description: 'A tool', parameters: '',
-    toolSource: 'function', mcpServerUrl: '',
-  }
-
-  it('hides MCP URL for function source', () => {
-    const onUpdate = vi.fn()
-    render(<SimpleForm data={baseData} onUpdate={onUpdate} />)
-
-    expect(screen.queryByPlaceholderText('http://localhost:3001/mcp')).not.toBeInTheDocument()
-  })
-
-  it('shows MCP URL for mcp source', () => {
-    const onUpdate = vi.fn()
-    const data = { ...baseData, toolSource: 'mcp' }
-    render(<SimpleForm data={data} onUpdate={onUpdate} />)
-
-    expect(screen.getByPlaceholderText('http://localhost:3001/mcp')).toBeInTheDocument()
-  })
-
-  it('hides approval reason when approval is off', () => {
-    const onUpdate = vi.fn()
-    render(<SimpleForm data={baseData} onUpdate={onUpdate} />)
-
-    expect(screen.queryByPlaceholderText('Why does this tool need approval?')).not.toBeInTheDocument()
-  })
-
-  it('shows approval reason when approval is on', () => {
-    const onUpdate = vi.fn()
-    const data = { ...baseData, requireApproval: true }
-    render(<SimpleForm data={data} onUpdate={onUpdate} />)
-
-    expect(screen.getByPlaceholderText('Why does this tool need approval?')).toBeInTheDocument()
   })
 })
 

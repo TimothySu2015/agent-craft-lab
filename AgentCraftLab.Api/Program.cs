@@ -40,8 +40,8 @@ if (Directory.Exists(tessDataPath))
     builder.Services.AddOcr(tessDataPath);
 }
 
-// JavaScript 沙箱引擎（Code 節點 script 模式 + Agent 工具）
-builder.Services.AddScript();
+// 多語言腳本引擎（JavaScript + C# 沙箱，Code 節點 script 模式 + Agent 工具）
+builder.Services.AddMultiLanguageScript();
 
 // create_tool meta-tool 橋接器（IScriptEngine → IToolCodeRunner）
 builder.Services.AddSingleton<AgentCraftLab.Autonomous.Services.IToolCodeRunner>(sp =>

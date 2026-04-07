@@ -52,7 +52,7 @@ A2A Agent、HTTP Request
 - 不可自己連自己
 - 不可連入 Start 節點
 - 不可從 End 節點連出
-- Tool 與 RAG 節點只能與 Agent 節點相連
+- RAG 節點只能與 Agent 節點相連
 
 連線預設使用 smoothstep 樣式，點擊連線可選取，選取後按 Delete 鍵直接刪除（不需確認）。
 

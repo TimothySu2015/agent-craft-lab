@@ -20,7 +20,6 @@
 | `parallel` | 可執行 / 控制流程 | 並行 fan-out/fan-in，多分支同時執行 |
 | `http-request` | 可執行 / 整合 | 確定性 HTTP 呼叫外部 API |
 | `rag` | 資料節點 | 掛載 RAG 知識來源（上傳檔案或知識庫） |
-| `tool` | 資料節點 | 掛載內建工具供 Agent 呼叫 |
 
 ---
 
@@ -192,6 +191,7 @@
 | `maxLength` | 截斷長度（trim 使用） |
 | `delimiter` | 分隔符號（split-take 使用） |
 | `splitIndex` | 取第幾段（split-take 使用） |
+| `scriptLanguage` | 腳本語言：`javascript`（預設）或 `csharp`（script 模式使用） |
 
 **九種轉換模式：**
 
@@ -205,9 +205,28 @@
 | `split-take` | 按分隔符號拆分，取指定索引的段落 |
 | `upper` | 轉大寫 |
 | `lower` | 轉小寫 |
-| `script` | 執行 JavaScript 沙箱腳本（需啟用 AgentCraftLab.Script） |
+| `script` | 執行沙箱腳本（JavaScript 或 C#，需啟用 AgentCraftLab.Script） |
 
-**適用場景：** Agent 輸出的後處理（擷取 JSON 欄位、格式化模板、正則清洗）、節點間的資料轉換。
+**Script 模式雙語言支援：**
+
+| 語言 | 引擎 | 特色 |
+|------|------|------|
+| JavaScript | Jint 沙箱 | 用 `input` 變數讀取輸入，設定 `result` 變數輸出 |
+| C# | Roslyn 動態編譯 | 參數 `input` 為字串，用 `return` 回傳結果。可用 LINQ、JsonSerializer、Regex |
+
+兩種語言都在安全沙箱中執行：禁止 File/Network/Process 操作，有 timeout 和記憶體限制。
+
+**Script Studio（全螢幕編輯器）：**
+
+側邊面板顯示程式碼唯讀預覽，點擊打開 Script Studio 全螢幕 Modal：
+
+- **上方** — AI 生成：輸入自然語言描述，LLM 自動生成腳本程式碼 + 測試資料
+- **中間** — Monaco Editor（VS Code 核心）：語法高亮、括號配對、自動縮排、minimap
+- **下方** — Test Run：填入測試輸入，即時執行並檢視結果
+- **Format 按鈕** — 自動格式化程式碼（Shift+Alt+F）
+- 點擊「套用」將程式碼帶回節點設定
+
+**適用場景：** Agent 輸出的後處理（擷取 JSON 欄位、格式化模板、正則清洗）、節點間的資料轉換、複雜 LINQ 查詢與資料處理（C#）。
 
 ---
 

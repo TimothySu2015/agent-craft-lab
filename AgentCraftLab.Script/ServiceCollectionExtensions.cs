@@ -28,6 +28,44 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
+    /// 註冊多語言腳本引擎（Jint JS + Roslyn C#）+ IScriptEngineFactory。
+    /// 取代 AddScript()，同時支援 JavaScript 和 C# 腳本執行。
+    /// </summary>
+    public static IServiceCollection AddMultiLanguageScript(
+        this IServiceCollection services,
+        ScriptOptions? defaultOptions = null)
+    {
+        var jintEngine = new JintScriptEngine(defaultOptions);
+        var roslynEngine = new RoslynScriptEngine(defaultOptions);
+
+        var factory = new ScriptEngineFactory()
+            .Register("javascript", jintEngine)
+            .Register("csharp", roslynEngine);
+
+        services.AddSingleton<IScriptEngineFactory>(factory);
+
+        // 向後相容：IScriptEngine 預設仍回傳 Jint（既有程式碼不受影響）
+        services.AddSingleton<IScriptEngine>(jintEngine);
+
+        // 多語言 TransformHelper 整合
+        TransformHelper.MultiLanguageScriptExecutor = (language, code, input) =>
+        {
+            var engine = factory.GetEngine(language);
+            var result = engine.ExecuteAsync(code, input).GetAwaiter().GetResult();
+            return result.Success ? result.Output : $"[Script error: {result.Error}]";
+        };
+
+        // 向後相容 ScriptExecutor（fallback）
+        TransformHelper.ScriptExecutor = (code, input) =>
+        {
+            var result = jintEngine.ExecuteAsync(code, input).GetAwaiter().GetResult();
+            return result.Success ? result.Output : $"[Script error: {result.Error}]";
+        };
+
+        return services;
+    }
+
+    /// <summary>
     /// 將腳本工具掛載到 ToolRegistryService。在 app build 完成後呼叫。
     /// </summary>
     public static void UseScriptTools(this IServiceProvider provider)
@@ -41,7 +79,17 @@ public static class ServiceCollectionExtensions
         var registry = provider.GetRequiredService<ToolRegistryService>();
         registry.RegisterScriptTools(scriptEngine);
 
+        // Roslyn 預熱（背景執行，避免阻塞啟動）
+        var factory = provider.GetService<IScriptEngineFactory>();
+        if (factory is not null)
+        {
+            Task.Run(RoslynScriptEngine.Warmup);
+        }
+
         var logger = provider.GetService<ILogger<JintScriptEngine>>();
-        logger?.LogInformation("Script engine registered (Jint JavaScript sandbox)");
+        var languages = factory?.SupportedLanguages is { Count: > 0 } langs
+            ? string.Join(", ", langs)
+            : "JavaScript";
+        logger?.LogInformation("Script engine registered ({Languages})", languages);
     }
 }

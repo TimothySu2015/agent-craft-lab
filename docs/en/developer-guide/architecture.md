@@ -17,7 +17,7 @@ AgentCraftLab adopts an Open Core model, where the core engine is open source an
 | `AgentCraftLab.Autonomous` | ReAct loop + Sub-agent collaboration + 12 meta-tools + safety mechanisms |
 | `AgentCraftLab.Autonomous.Flow` | Flow structured execution (LLM planning -> 7 node types -> Crystallize) |
 | `AgentCraftLab.Autonomous.Playground` | CLI test console (Spectre.Console) |
-| `AgentCraftLab.Script` | JS sandbox engine (Jint, IScriptEngine interface swappable for Roslyn/Python) |
+| `AgentCraftLab.Script` | Multi-language sandbox engine (Jint JS + Roslyn C#, IScriptEngine / IScriptEngineFactory interfaces) |
 | `AgentCraftLab.Ocr` | OCR engine (Tesseract, IOcrEngine interface) |
 | `AgentCraftLab.Commercial` | Commercial layer (MongoDB + OAuth, not open source) |
 | `AgentCraftLab` | Blazor Web App (legacy UI, Drawflow canvas) |
@@ -125,12 +125,12 @@ All node metadata is centralized in `NodeTypeRegistry`. Each node type defines t
 | `loop` | Y | Y | | Loop |
 | `router` | Y | Y | | Multi-route classification |
 | `human` | Y | Y | | Pause waiting for user input |
-| `code` | Y | Y | | Deterministic transformation (9 modes + JS sandbox) |
+| `code` | Y | Y | | Deterministic transformation (9 modes + JS/C# dual-language sandbox) |
 | `iteration` | Y | Y | | foreach loop (SplitMode + MaxItems 50) |
 | `parallel` | Y | Y | | fan-out/fan-in parallelism |
 | `http-request` | Y | Y | | Deterministic HTTP call |
 | `start` / `end` | | | | Meta nodes (IsMeta) |
-| `rag` / `tool` | | | | Data nodes (IsDataNode) |
+| `rag` | | | | Data node (IsDataNode) |
 
 ### NodeExecutorRegistry
 
@@ -168,7 +168,7 @@ Each executable node type maps to an executor handler. The execution engine disp
 |  Layer 4: HTTP APIs + OCR + Script                    |
 |    - API calls from http-request nodes                |
 |    - OCR (IOcrEngine, Tesseract)                      |
-|    - Script (IScriptEngine, Jint JS sandbox)          |
+|    - Script (IScriptEngineFactory, Jint JS + Roslyn C# sandbox)|
 |                                                       |
 |  --> Merged into a unified AITool[] for ChatClientAgent|
 +------------------------------------------------------+
@@ -542,7 +542,8 @@ CopilotKit Runtime serves as a middle layer, converting the frontend CopilotKit 
 | New Built-in Tool | Add method in `ToolImplementations.cs` + `ToolRegistryService.Register()` |
 | New Middleware | Inherit from `DelegatingChatClient` + add case in `ApplyMiddleware()` |
 | New Flow Node | `FlowNodeRunner` case + `FlowPlannerPrompt` + `FlowPlanValidator` + `WorkflowCrystallizer` |
-| Replace Script Engine | Implement `IScriptEngine` + DI replacement (Jint -> Roslyn -> Python) |
+| Replace Script Engine | Implement `IScriptEngine` + DI replacement (Jint JS / Roslyn C# / Python) |
+| Add Script Language | `ScriptEngineFactory.Register("language", engine)` + add option to frontend CodeForm SCRIPT_LANGUAGES |
 | Replace OCR Engine | Implement `IOcrEngine` + DI replacement |
 | New Tool Module | Follow the `AddXxx()` + `UseXxxTools()` pattern from `AgentCraftLab.Ocr` / `AgentCraftLab.Script` |
 | Replace Autonomous Strategy | Implement the corresponding interface (IBudgetPolicy, etc.) + DI `Replace` registration |

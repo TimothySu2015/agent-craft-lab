@@ -344,16 +344,33 @@
     "httpApiIdHint": "空の場合、上記の URL/Headers を使用",
     "noKeyWarning": "このプロバイダーの API キーが設定されていません"
   },
+  "transform": {
+    "template": "テンプレート",
+    "regexExtract": "正規表現抽出",
+    "regexReplace": "正規表現置換",
+    "jsonPath": "JSON パス",
+    "trim": "切り詰め",
+    "splitTake": "分割取得",
+    "upper": "大文字変換",
+    "lower": "小文字変換",
+    "script": "スクリプト"
+  },
   "script": {
     "generateLabel": "AI で生成",
     "promptPlaceholder": "スクリプトの内容を記述（例：「JSON を CSV に変換」）",
     "generate": "生成",
+    "languageLabel": "スクリプト言語",
+    "scriptOption": "スクリプト",
     "codeLabel": "JavaScript コード",
+    "csharpCodeLabel": "C# コード",
     "hint": "`input` で前のノードの出力を読み取り、`result` に出力を設定します。サンドボックスで実行（require/import は使用不可）。",
+    "csharpHint": "パラメータ `input` は文字列です。`return` で結果を返します。使用可能：LINQ、JsonSerializer、Regex。File/Network/Process は禁止。",
     "noKey": "API キーが未設定です。設定ページで設定してください。",
     "testLabel": "テスト実行",
     "testInputPlaceholder": "テスト入力（前のノードの出力をシミュレート）",
-    "testRun": "実行"
+    "testRun": "実行",
+    "resultLabel": "結果",
+    "noResult": "実行して結果を確認"
   },
   "personal": {
     "title": "設定",

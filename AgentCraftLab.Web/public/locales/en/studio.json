@@ -345,16 +345,33 @@
     "httpApiIdHint": "Leave empty to use inline URL/Headers above",
     "noKeyWarning": "No API key configured for this provider"
   },
+  "transform": {
+    "template": "Template",
+    "regexExtract": "Regex Extract",
+    "regexReplace": "Regex Replace",
+    "jsonPath": "JSON Path",
+    "trim": "Trim",
+    "splitTake": "Split & Take",
+    "upper": "Upper",
+    "lower": "Lower",
+    "script": "Script"
+  },
   "script": {
     "generateLabel": "Generate with AI",
     "promptPlaceholder": "Describe what the script should do, e.g. 'Convert JSON to CSV'",
     "generate": "Generate",
+    "languageLabel": "Script Language",
+    "scriptOption": "Script",
     "codeLabel": "JavaScript Code",
+    "csharpCodeLabel": "C# Code",
     "hint": "Use `input` to read previous output. Set `result` for output. Runs in sandbox (no require/import).",
+    "csharpHint": "Parameter `input` is a string. Use `return` to return output. Available: LINQ, JsonSerializer, Regex. No File/Network/Process.",
     "noKey": "No API key configured. Set up credentials in Settings.",
     "testLabel": "Test Run",
     "testInputPlaceholder": "Test input (simulates previous node output)",
-    "testRun": "Run"
+    "testRun": "Run",
+    "resultLabel": "Result",
+    "noResult": "Run to see results"
   },
   "personal": {
     "title": "Settings",

@@ -428,7 +428,7 @@ AG-UI 協定端點以 SSE（Server-Sent Events）串流回傳執行事件。
 
 ### POST /api/script-generator
 
-LLM 生成符合 Jint 沙箱的 JavaScript 腳本。
+LLM 生成符合沙箱的腳本（JavaScript 或 C#），同時生成測試資料。
 
 **Request Body：**
 ```json
@@ -436,22 +436,32 @@ LLM 生成符合 Jint 沙箱的 JavaScript 腳本。
   "prompt": "string (必填，腳本需求描述)",
   "provider": "openai",
   "model": "gpt-4o-mini",
-  "apiKey": "string (必填)",
-  "endpoint": "string (選填)"
+  "apiKey": "string (選填，優先從後端 ICredentialStore 讀取)",
+  "endpoint": "string (選填)",
+  "language": "javascript | csharp (選填，預設 javascript)"
 }
 ```
 
-**Response：** `{ "code": "const data = JSON.parse(input); ..." }`
+**Response：**
+```json
+{
+  "code": "const data = JSON.parse(input); ...",
+  "testInput": "[{\"Name\":\"Alice\",\"Score\":95}]"
+}
+```
+
+根據 `language` 參數自動切換 system prompt（JS 規則 vs C# 規則）。`testInput` 為 LLM 自動生成的測試資料樣本。
 
 ### POST /api/script-test
 
-在 Jint 沙箱中測試 JavaScript 腳本。
+在沙箱中測試腳本（JavaScript 或 C#）。
 
 **Request Body：**
 ```json
 {
-  "code": "string (必填，JavaScript 程式碼)",
-  "input": "string (模擬的 input 變數值)"
+  "code": "string (必填，腳本程式碼)",
+  "input": "string (模擬的 input 變數值)",
+  "language": "javascript | csharp (選填，預設 javascript)"
 }
 ```
 

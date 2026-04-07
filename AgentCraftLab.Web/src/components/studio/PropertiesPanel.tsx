@@ -67,7 +67,7 @@ export function PropertiesPanel() {
       {data.type === 'a2a-agent' && <A2AForm data={data} onUpdate={onUpdate} />}
       {data.type === 'autonomous' && <AutonomousForm data={data} onUpdate={onUpdate} />}
       {(data.type === 'router' || data.type === 'iteration' || data.type === 'parallel' ||
-        data.type === 'rag' || data.type === 'tool' || data.type === 'http-request') && (
+        data.type === 'rag' || data.type === 'http-request') && (
         <SimpleForm data={data} onUpdate={onUpdate} />
       )}
     </div>

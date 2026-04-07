@@ -4,7 +4,7 @@
  */
 import type { LucideIcon } from 'lucide-react'
 import {
-  Bot, Wrench, Database, GitBranch, RefreshCw, Route,
+  Bot, Database, GitBranch, RefreshCw, Route,
   Globe, User, Code, Repeat, Columns3, Globe2, Brain,
   Play, Square,
 } from 'lucide-react'
@@ -32,17 +32,6 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
       type: 'agent', name, instructions: '', model: 'gpt-4o', provider: 'openai',
       endpoint: '', deploymentName: '', historyProvider: 'none', maxMessages: 20,
       middleware: '', tools: [], skills: [],
-    }),
-  },
-  tool: {
-    type: 'tool',
-    labelKey: 'node.tool',
-    icon: Wrench,
-    color: 'yellow',
-    inputs: 1,
-    outputs: 1,
-    defaultData: (name) => ({
-      type: 'tool', name, description: '', parameters: '', toolSource: 'function', mcpServerUrl: '',
     }),
   },
   rag: {
@@ -123,6 +112,7 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     defaultData: (name) => ({
       type: 'code', name, transformType: 'template', pattern: '', replacement: '',
       template: '{{input}}', maxLength: 0, delimiter: '\\n', splitIndex: 0,
+      scriptLanguage: 'javascript',
     }),
   },
   iteration: {

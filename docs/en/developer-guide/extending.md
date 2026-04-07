@@ -37,7 +37,7 @@ Flag descriptions:
 - `RequiresImperative`: Requires the Imperative strategy (needed for nodes with control flow logic)
 - `IsAgentLike`: Behaves like an Agent (has LLM calls)
 - `IsMeta`: Meta node (start/end)
-- `IsDataNode`: Data node (tool/rag)
+- `IsDataNode`: Data node (rag)
 
 ### Step 3: Add Handler to NodeExecutorRegistry
 
@@ -444,27 +444,37 @@ public interface IScriptEngine
 }
 ```
 
-Implement an alternative engine:
+**Built-in engines:**
+
+| Engine | Language | Description |
+|--------|----------|-------------|
+| `JintScriptEngine` | JavaScript | Jint JS sandbox with natural isolation + 4-level resource limits |
+| `RoslynScriptEngine` | C# | Low-level CSharpCompilation + collectible ALC, AST security scanning + References whitelist |
+
+**Multi-language factory:** `IScriptEngineFactory` dispatches to the appropriate engine by language:
 
 ```csharp
-public class PythonScriptEngine : IScriptEngine
-{
-    public async Task<ScriptResult> ExecuteAsync(
-        string code, string input,
-        ScriptOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        // Execute script via Python interop
-        // Return ScriptResult { Output, Success, Error, ConsoleOutput, Elapsed }
-    }
-}
+// Add language support
+var factory = new ScriptEngineFactory()
+    .Register("javascript", new JintScriptEngine())
+    .Register("csharp", new RoslynScriptEngine())
+    .Register("python", new PythonScriptEngine()); // Custom engine
 ```
 
-DI replacement:
+**DI registration (recommended multi-language mode):**
+
+```csharp
+// Registers both Jint + Roslyn, backward-compatible with IScriptEngine
+builder.Services.AddMultiLanguageScript();
+```
+
+**Replace a single engine:**
 
 ```csharp
 services.Replace(ServiceDescriptor.Singleton<IScriptEngine, PythonScriptEngine>());
 ```
+
+**Roslyn C# security:** `RoslynCodeSanitizer` scans the AST before compilation, blocking dangerous APIs (File/Process/HttpClient/Assembly/Environment, etc.). `BuildSafeReferences()` only includes safe assemblies (excludes System.IO.FileSystem, System.Net.Http). Each execution uses a collectible `AssemblyLoadContext`, unloaded after execution to prevent memory leaks.
 
 ### Replacing the OCR Engine
 

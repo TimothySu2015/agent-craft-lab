@@ -37,7 +37,7 @@ private static readonly Dictionary<string, NodeTypeInfo> Registry = new(StringCo
 - `RequiresImperative`：Imperative ストラテジーが必要（フロー制御ロジックを持つノードはすべて必要）
 - `IsAgentLike`：Agent に類似した動作（LLM 呼び出しあり）
 - `IsMeta`：meta ノード（start/end）
-- `IsDataNode`：データノード（tool/rag）
+- `IsDataNode`：データノード（rag）
 
 ### 手順 3：NodeExecutorRegistry に handler を追加
 
@@ -444,27 +444,37 @@ public interface IScriptEngine
 }
 ```
 
-代替エンジンの実装：
+**組み込みエンジン：**
+
+| エンジン | 言語 | 説明 |
+|---------|------|------|
+| `JintScriptEngine` | JavaScript | Jint JS サンドボックス、自然な分離 + 4 段階のリソース制限 |
+| `RoslynScriptEngine` | C# | 低レベル CSharpCompilation + collectible ALC、AST セキュリティスキャン + References ホワイトリスト |
+
+**マルチ言語ファクトリ：** `IScriptEngineFactory` が言語に応じて適切なエンジンにディスパッチします：
 
 ```csharp
-public class PythonScriptEngine : IScriptEngine
-{
-    public async Task<ScriptResult> ExecuteAsync(
-        string code, string input,
-        ScriptOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        // Python interop 経由でスクリプトを実行
-        // ScriptResult { Output, Success, Error, ConsoleOutput, Elapsed } を返却
-    }
-}
+// 言語サポートの追加
+var factory = new ScriptEngineFactory()
+    .Register("javascript", new JintScriptEngine())
+    .Register("csharp", new RoslynScriptEngine())
+    .Register("python", new PythonScriptEngine()); // カスタムエンジン
 ```
 
-DI 置換：
+**DI 登録（推奨：マルチ言語モード）：**
+
+```csharp
+// Jint + Roslyn を同時登録、IScriptEngine との後方互換性を維持
+builder.Services.AddMultiLanguageScript();
+```
+
+**単一エンジンの置換：**
 
 ```csharp
 services.Replace(ServiceDescriptor.Singleton<IScriptEngine, PythonScriptEngine>());
 ```
+
+**Roslyn C# セキュリティ：** `RoslynCodeSanitizer` がコンパイル前に AST をスキャンし、危険な API（File/Process/HttpClient/Assembly/Environment 等）をブロックします。`BuildSafeReferences()` は安全なアセンブリのみを含みます（System.IO.FileSystem、System.Net.Http は除外）。各実行では collectible `AssemblyLoadContext` を使用し、実行後に Unload してメモリリークを防止します。
 
 ### OCR エンジンの置換
 

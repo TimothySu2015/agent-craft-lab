@@ -5,9 +5,9 @@ import { Field } from '../PropertiesPanel'
 import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
 import { api } from '@/lib/api'
 import { notify } from '@/lib/notify'
-import { EMBEDDING_MODELS, type NodeData, type RouterNodeData, type IterationNodeData, type ParallelNodeData, type RagNodeData, type ToolNodeData, type HttpRequestNodeData } from '@/types/workflow'
+import { EMBEDDING_MODELS, type NodeData, type RouterNodeData, type IterationNodeData, type ParallelNodeData, type RagNodeData, type HttpRequestNodeData } from '@/types/workflow'
 
-type SimpleData = RouterNodeData | IterationNodeData | ParallelNodeData | RagNodeData | ToolNodeData | HttpRequestNodeData
+type SimpleData = RouterNodeData | IterationNodeData | ParallelNodeData | RagNodeData | HttpRequestNodeData
 
 interface Props {
   data: SimpleData
@@ -20,7 +20,6 @@ export function SimpleForm({ data, onUpdate }: Props) {
     case 'iteration': return <IterationForm data={data} onUpdate={onUpdate} />
     case 'parallel': return <ParallelForm data={data} onUpdate={onUpdate} />
     case 'rag': return <RagForm data={data} onUpdate={onUpdate} />
-    case 'tool': return <ToolForm data={data} onUpdate={onUpdate} />
     case 'http-request': return <HttpForm data={data} onUpdate={onUpdate} />
     default: return null
   }
@@ -268,48 +267,6 @@ function RagForm({ data, onUpdate }: { data: RagNodeData; onUpdate: (p: Partial<
           </Field>
         )}
       </CollapsibleSection>
-    </>
-  )
-}
-
-// ─── Tool ───
-function ToolForm({ data, onUpdate }: { data: ToolNodeData; onUpdate: (p: Partial<NodeData>) => void }) {
-  const { t } = useTranslation('studio')
-  return (
-    <>
-      <Field label={t('form.toolSource')}>
-        <select className="field-input" value={data.toolSource} onChange={(e) => onUpdate({ toolSource: e.target.value })}>
-          <option value="function">Function (AIFunction)</option>
-          <option value="mcp">MCP Server</option>
-        </select>
-      </Field>
-      <Field label={t('form.description')}>
-        <textarea className="field-textarea" value={data.description} onChange={(e) => onUpdate({ description: e.target.value })} rows={2}
-          placeholder="Describe what this tool does..." />
-      </Field>
-      <Field label={t('form.parameters')}>
-        <textarea className="field-textarea font-mono text-[9px]" value={data.parameters ?? ''} onChange={(e) => onUpdate({ parameters: e.target.value })} rows={3}
-          placeholder='name:string:description, count:number:how many items' />
-        <p className="text-[8px] text-muted-foreground mt-0.5">Format: name:type:description (one per line or comma-separated)</p>
-      </Field>
-      {data.toolSource === 'mcp' && (
-        <Field label={t('form.mcpServerUrl')}>
-          <input className="field-input font-mono text-[10px]" value={data.mcpServerUrl ?? ''} onChange={(e) => onUpdate({ mcpServerUrl: e.target.value })}
-            placeholder="http://localhost:3001/mcp" />
-        </Field>
-      )}
-      <Field label={t('form.requireApproval')}>
-        <label className="flex items-center gap-1.5 cursor-pointer">
-          <input type="checkbox" checked={data.requireApproval ?? false} onChange={(e) => onUpdate({ requireApproval: e.target.checked })} className="accent-blue-500" />
-          <span className="text-[10px] text-foreground">Require human approval before execution</span>
-        </label>
-      </Field>
-      {data.requireApproval && (
-        <Field label={t('form.approvalReason')}>
-          <textarea className="field-textarea text-[10px]" value={data.approvalReason ?? ''} onChange={(e) => onUpdate({ approvalReason: e.target.value })} rows={2}
-            placeholder="Why does this tool need approval?" />
-        </Field>
-      )}
     </>
   )
 }

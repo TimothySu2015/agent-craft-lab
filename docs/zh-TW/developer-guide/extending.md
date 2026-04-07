@@ -37,7 +37,7 @@ private static readonly Dictionary<string, NodeTypeInfo> Registry = new(StringCo
 - `RequiresImperative`：需要 Imperative 策略（有流程控制邏輯的節點都需要）
 - `IsAgentLike`：行為類似 Agent（有 LLM 呼叫）
 - `IsMeta`：meta 節點（start/end）
-- `IsDataNode`：資料節點（tool/rag）
+- `IsDataNode`：資料節點（rag）
 
 ### 步驟 3：NodeExecutorRegistry 加 handler
 
@@ -444,27 +444,37 @@ public interface IScriptEngine
 }
 ```
 
-實作替代引擎：
+**內建��擎：**
+
+| 引擎 | 語言 | 說明 |
+|------|------|------|
+| `JintScriptEngine` | JavaScript | Jint JS 沙箱，天然隔離 + 四道資源限制 |
+| `RoslynScriptEngine` | C# | 低階 CSharpCompilation + collectible ALC，AST 安全掃描 + References 白名單 |
+
+**多語言工廠：** `IScriptEngineFactory` 按語言分派到對應引擎：
 
 ```csharp
-public class PythonScriptEngine : IScriptEngine
-{
-    public async Task<ScriptResult> ExecuteAsync(
-        string code, string input,
-        ScriptOptions? options = null,
-        CancellationToken cancellationToken = default)
-    {
-        // 透過 Python interop 執行腳本
-        // 回傳 ScriptResult { Output, Success, Error, ConsoleOutput, Elapsed }
-    }
-}
+// 新增語言支援
+var factory = new ScriptEngineFactory()
+    .Register("javascript", new JintScriptEngine())
+    .Register("csharp", new RoslynScriptEngine())
+    .Register("python", new PythonScriptEngine()); // 自訂引擎
 ```
 
-DI 替換：
+**DI 註冊（推薦使用多語言模式）：**
+
+```csharp
+// 同時註冊 Jint + Roslyn，向後相容 IScriptEngine
+builder.Services.AddMultiLanguageScript();
+```
+
+**替換單一引擎：**
 
 ```csharp
 services.Replace(ServiceDescriptor.Singleton<IScriptEngine, PythonScriptEngine>());
 ```
+
+**Roslyn C# 安全機制：** `RoslynCodeSanitizer` 在編譯前掃描 AST，攔截危險 API（File/Process/HttpClient/Assembly/Environment 等）。`BuildSafeReferences()` 只引用安全的 assembly（不含 System.IO.FileSystem、System.Net.Http）。每次執行使用 collectible `AssemblyLoadContext`，執行完即 Unload 避免記憶體洩漏。
 
 ### 替換 OCR 引擎
 

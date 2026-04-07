@@ -345,16 +345,33 @@
     "httpApiIdHint": "留空則使用上方 URL/Headers",
     "noKeyWarning": "此提供者尚未設定 API 金鑰"
   },
+  "transform": {
+    "template": "模板",
+    "regexExtract": "正則擷取",
+    "regexReplace": "正則替換",
+    "jsonPath": "JSON 路徑",
+    "trim": "截斷",
+    "splitTake": "分割取值",
+    "upper": "轉大寫",
+    "lower": "轉小寫",
+    "script": "腳本"
+  },
   "script": {
     "generateLabel": "AI 生成腳本",
     "promptPlaceholder": "描述腳本功能，如「把 JSON 轉成 CSV」",
     "generate": "生成",
+    "languageLabel": "腳本語言",
+    "scriptOption": "腳本",
     "codeLabel": "JavaScript 程式碼",
+    "csharpCodeLabel": "C# 程式碼",
     "hint": "用 `input` 讀取前一節點的輸出，設定 `result` 變數作為輸出。在沙箱中執行（不支援 require/import）。",
+    "csharpHint": "參數 `input` 為字串。用 `return` 回傳結果。可用：LINQ、JsonSerializer、Regex。禁止 File/Network/Process。",
     "noKey": "未設定 API 金鑰。請到設定頁面設定。",
     "testLabel": "測試執行",
     "testInputPlaceholder": "測試輸入（模擬前一節點的輸出）",
-    "testRun": "執行"
+    "testRun": "執行",
+    "resultLabel": "結果",
+    "noResult": "執行後顯示結果"
   },
   "personal": {
     "title": "個人設定",
