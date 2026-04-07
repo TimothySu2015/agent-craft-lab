@@ -7,6 +7,7 @@ using AgentCraftLab.Autonomous.Extensions;
 using AgentCraftLab.Autonomous.Flow.Extensions;
 using AgentCraftLab.Engine.Data;
 using AgentCraftLab.Engine.Extensions;
+using AgentCraftLab.MongoDB;
 using AgentCraftLab.Api.Endpoints;
 using AgentCraftLab.Ocr;
 using AgentCraftLab.Script;
@@ -29,6 +30,35 @@ builder.Logging.AddFilter("AgentCraftLab", LogLevel.Warning);
 
 var workingDir = Environment.GetEnvironmentVariable("WORKING_DIR") ?? Directory.GetCurrentDirectory();
 builder.Services.AddAgentCraftEngine(workingDir: workingDir);
+
+// 資料庫 Provider（預設 sqlite，可切換 mongodb / mssql / postgresql）
+var dbProvider = builder.Configuration["Database:Provider"] ?? "sqlite";
+Func<IServiceProvider, Task>? initializeDbProvider = null;
+
+if (dbProvider != "sqlite")
+{
+    var dbConn = builder.Configuration["Database:ConnectionString"]
+        ?? throw new InvalidOperationException($"Database:Provider={dbProvider} 需要設定 Database:ConnectionString");
+    var dbName = builder.Configuration["Database:DatabaseName"] ?? "agentcraftlab";
+
+    switch (dbProvider)
+    {
+        case "mongodb":
+            builder.Services.AddMongoDbProvider(dbConn, dbName);
+            initializeDbProvider = sp => sp.InitializeMongoDbAsync();
+            break;
+        // case "mssql":
+        //     builder.Services.AddMssqlProvider(dbConn);
+        //     initializeDbProvider = sp => sp.InitializeMssqlAsync();
+        //     break;
+        // case "postgresql":
+        //     builder.Services.AddPostgreSqlProvider(dbConn);
+        //     initializeDbProvider = sp => sp.InitializePostgreSqlAsync();
+        //     break;
+        default:
+            throw new InvalidOperationException($"不支援的 Database:Provider: {dbProvider}");
+    }
+}
 builder.Services.AddSingleton<HumanInputBridgeRegistry>();
 builder.Services.AddSingleton<DebugBridgeRegistry>();
 builder.Services.AddSingleton<AgentCraftLab.Api.Services.EnhancedFlowBuildService>();
@@ -97,6 +127,11 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 await app.Services.InitializeDatabaseAsync();
+if (initializeDbProvider is not null)
+{
+    await initializeDbProvider(app.Services);
+}
+app.Logger.LogInformation("Database Provider: {Provider}", dbProvider);
 app.Services.UseOcrTools(workingDirectory: workingDir);
 app.Services.UseCleanerTools(workingDirectory: workingDir);
 app.Services.UseScriptTools();

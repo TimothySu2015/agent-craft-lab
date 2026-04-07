@@ -95,7 +95,8 @@ AgentCraftLab.sln
 ├── AgentCraftLab.Script/            ← Script sandbox engine (Jint JS + Roslyn C#)
 ├── AgentCraftLab.Ocr/               ← OCR engine (Tesseract)
 ├── AgentCraftLab.Cleaner/           ← Data cleaning engine (7 formats + Schema Mapper)
-└── AgentCraftLab.Tests/             ← Unit tests (1250+)
+├── AgentCraftLab.MongoDB/           ← MongoDB provider (optional, replaces SQLite stores)
+└── AgentCraftLab.Tests/             ← Unit tests (1260+)
 ```
 
 ### Engine — Use as a Library

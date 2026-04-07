@@ -25,6 +25,7 @@
     <ProjectReference Include="..\AgentCraftLab.Ocr\AgentCraftLab.Ocr.csproj" />
     <ProjectReference Include="..\AgentCraftLab.Script\AgentCraftLab.Script.csproj" />
     <ProjectReference Include="..\AgentCraftLab.Cleaner\AgentCraftLab.Cleaner.csproj" />
+    <ProjectReference Include="..\AgentCraftLab.MongoDB\AgentCraftLab.MongoDB.csproj" />
   </ItemGroup>
 
   <ItemGroup>
