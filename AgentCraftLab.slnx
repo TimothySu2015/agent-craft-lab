@@ -4,6 +4,7 @@
   <Project Path="AgentCraftLab.Autonomous/AgentCraftLab.Autonomous.csproj" />
   <Project Path="AgentCraftLab.Cleaner/AgentCraftLab.Cleaner.csproj" />
   <Project Path="AgentCraftLab.Engine/AgentCraftLab.Engine.csproj" />
+  <Project Path="AgentCraftLab.MongoDB/AgentCraftLab.MongoDB.csproj" />
   <Project Path="AgentCraftLab.Ocr/AgentCraftLab.Ocr.csproj" />
   <Project Path="AgentCraftLab.Script/AgentCraftLab.Script.csproj" />
   <Project Path="AgentCraftLab.Search/AgentCraftLab.Search.csproj" />

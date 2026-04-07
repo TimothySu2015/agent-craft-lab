@@ -63,6 +63,43 @@ Review 修改完成後，**必須**檢查並補齊單元測試：
 - 補上缺少的測試案例（正常路徑 + 邊界情況）
 - 確認 `dotnet test` 全部通過後才可 commit
 
+## 開源 Repo 同步流程
+
+**私有 repo**（`F:/codes/AgentFrameworkProject`）→ **開源 repo**（`F:/codes/agent-craft-lab`）
+
+### 開發流程
+
+```bash
+# 1. 私有 repo 開 branch 開發
+git checkout -b feat/xxx
+# ... 開發、測試、commit ...
+git push origin feat/xxx
+
+# 2. merge 回 main
+git checkout main && git merge feat/xxx && git push
+
+# 3. 同步到開源（自動開分支 + 建 PR）
+bash sync-to-opensource.sh "feat: 功能描述"
+# → 開源 repo 會出現 sync/yyyymmdd-hhmmss 分支
+# → 到 GitHub 建 PR merge 到 main
+```
+
+### 同步腳本排除清單
+
+不會同步到開源的項目：
+- `AgentCraftLab.Commercial/`（MongoDB + OAuth）
+- `AgentCraftLab.CopilotKit/`（獨立 CopilotKit Runtime）
+- `AgentCraftLab.Autonomous.Playground/`（CLI 測試主控台）
+- `AgentCraftLab/`（Blazor 前端）
+- `.claude/`、`nupkgs/`、`deploy*.zip`
+- `docs/` 中非 user-guide / developer-guide 的文件
+
+### 新增專案時
+
+如果新增了開源專案，需更新：
+1. `sync-to-opensource.sh` — 加到 `for proj in ...` 清單
+2. `AgentCraftLab.slnx` — 加 `<Project>` 行
+
 ## Critical Constraints
 
 - **禁止 Semantic Kernel**：所有程式碼純用 `Microsoft.Agents.AI` 系列 API，不使用 `Microsoft.SemanticKernel` 命名空間
@@ -82,6 +119,7 @@ Review 修改完成後，**必須**檢查並補齊單元測試：
 | `AgentCraftLab.Script` | 多語言沙箱引擎（Jint JS + Roslyn C#，IScriptEngine / IScriptEngineFactory 介面） |
 | `AgentCraftLab.Ocr` | OCR 引擎（Tesseract，IOcrEngine 介面，繁中/簡中/英/日/韓） |
 | `AgentCraftLab.Cleaner` | 資料清洗引擎（Partition → Clean → Schema Mapper，7 種格式 + 多層 Agent） |
+| `AgentCraftLab.MongoDB` | MongoDB 資料庫 Provider（替換 SQLite Store，可選啟用） |
 
 **開發規則**：核心功能放 Engine；搜尋/擷取/分塊 → Search
 
