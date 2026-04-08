@@ -46,5 +46,10 @@ Temps/
 **/Data/craftsearch.db
 **/Data/flow-outputs/
 
+## VitePress
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+docs/node_modules/
+
 ## MCP
 .mcp.json
