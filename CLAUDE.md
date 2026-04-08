@@ -24,7 +24,7 @@ npx -y @modelcontextprotocol/server-everything streamableHttp
 # → http://localhost:3001/mcp
 ```
 
-`dotnet test` runs 1098 unit tests. `TreatWarningsAsErrors` is enabled on all projects.
+`dotnet test` runs 1316 unit tests. `TreatWarningsAsErrors` is enabled on all projects.
 
 **整合測試：** `dotnet run --project AgentCraftLab.Autonomous.Playground -- --test`（8 場景，需 Azure OpenAI 憑證於 `appsettings.json`）。
 
@@ -87,7 +87,7 @@ bash sync-to-opensource.sh "feat: 功能描述"
 ### 同步腳本排除清單
 
 不會同步到開源的項目：
-- `AgentCraftLab.Commercial/`（MongoDB + OAuth）
+- `AgentCraftLab.Commercial/`（OAuth + 商業功能）
 - `AgentCraftLab.CopilotKit/`（獨立 CopilotKit Runtime）
 - `AgentCraftLab.Autonomous.Playground/`（CLI 測試主控台）
 - `AgentCraftLab/`（Blazor 前端）
@@ -106,22 +106,35 @@ bash sync-to-opensource.sh "feat: 功能描述"
 - Microsoft.Agents.AI 已 GA（1.0.0）；.csproj 中以 `1.*` 版本語法自動拉取最新穩定版
 - .NET 10 + LangVersion 13.0
 
-## Solution 概覽
+## Solution 概覽 — Open Core 架構
+
+### 核心專案
 
 | 專案 | 定位 |
 |------|------|
 | `AgentCraftLab.Api` | 純後端 API（AG-UI + REST，Minimal API 端點） |
 | `AgentCraftLab.Web` | React 前端（React Flow + CopilotKit + shadcn/ui） |
-| `AgentCraftLab.Search` | 獨立搜尋引擎（FTS5 + 向量 + RRF 混合搜尋） |
-| `AgentCraftLab.Engine` | 開源核心（SQLite + 單人模式，5 種策略 + 8 種節點 + 4 層工具 + Middleware + Hooks） |
+| `AgentCraftLab.Engine` | 開源核心（5 種策略 + 10 種節點 + 4 層工具 + Middleware + Hooks，不含 DB 實作） |
 | `AgentCraftLab.Autonomous` | ReAct 迴圈 + Sub-agent 協作 + 15 meta-tools + 安全機制 |
 | `AgentCraftLab.Autonomous.Flow` | Flow 結構化執行（LLM 規劃 → 7 種節點 → Crystallize） |
-| `AgentCraftLab.Script` | 多語言沙箱引擎（Jint JS + Roslyn C#，IScriptEngine / IScriptEngineFactory 介面） |
-| `AgentCraftLab.Ocr` | OCR 引擎（Tesseract，IOcrEngine 介面，繁中/簡中/英/日/韓） |
 | `AgentCraftLab.Cleaner` | 資料清洗引擎（Partition → Clean → Schema Mapper，7 種格式 + 多層 Agent） |
-| `AgentCraftLab.MongoDB` | MongoDB 資料庫 Provider（替換 SQLite Store，可選啟用） |
 
-**開發規則**：核心功能放 Engine；搜尋/擷取/分塊 → Search
+### extensions/ — 可擴充模組
+
+| 目錄 | 專案 | 定位 |
+|------|------|------|
+| `extensions/data/` | `AgentCraftLab.Data` | 資料層抽象（15 Store 介面 + Documents + CredentialProtector，零依賴） |
+| | `AgentCraftLab.Data.Sqlite` | SQLite Provider（EF Core，開源預設） |
+| | `AgentCraftLab.Data.MongoDB` | MongoDB Provider（MongoDB.Driver，15/15 全量覆蓋） |
+| | `AgentCraftLab.Data.PostgreSQL` | PostgreSQL Provider（EF Core + Npgsql） |
+| | `AgentCraftLab.Data.SqlServer` | SQL Server Provider（EF Core + Microsoft.Data.SqlClient） |
+| `extensions/search/` | `AgentCraftLab.Search` | 獨立搜尋引擎（5 Provider：SQLite FTS5 / PgVector / Qdrant / MongoDB Atlas / InMemory） |
+| `extensions/script/` | `AgentCraftLab.Script` | 多語言沙箱引擎（Jint JS + Roslyn C#） |
+| `extensions/ocr/` | `AgentCraftLab.Ocr` | OCR 引擎（Tesseract，繁中/簡中/英/日/韓） |
+
+**依賴方向**：`AgentCraftLab.Data`（零依賴）← `Data.Sqlite` / `Data.MongoDB` / `Data.PostgreSQL` / `Data.SqlServer` ← `Engine`（只用介面）← `Api`（組合點：DI 選 Provider）
+
+**開發規則**：核心功能放 Engine；搜尋/擷取/分塊 → Search；新 DB Provider → `extensions/data/`
 
 ## Architecture
 
@@ -263,7 +276,7 @@ Engine 積木（各自獨立，React + Flow + 畫布 Workflow 都可用）
 
 ### CraftSearch 搜尋引擎
 
-獨立類別庫。核心：`ISearchEngine` + `IDocumentExtractor` + `ITextChunker` + `IReranker`。搜尋模式：FullText（FTS5）/ Vector（SIMD Cosine）/ Hybrid（RRF k=60）。Provider：SqliteSearchEngine（開源）/ InMemorySearchEngine（測試）/ PgVectorSearchEngine / QdrantSearchEngine。
+獨立類別庫。核心：`ISearchEngine` + `IDocumentExtractor` + `ITextChunker` + `IReranker`。搜尋模式：FullText / Vector / Hybrid（RRF k=60）。5 個 Provider：SqliteSearchEngine（FTS5 + SIMD Cosine，開源預設）/ PgVectorSearchEngine（tsvector + HNSW）/ QdrantSearchEngine（遠端向量 DB）/ MongoSearchEngine（Atlas Search + Atlas Vector）/ InMemorySearchEngine（測試）。DI：`AddCraftSearchSqlite()` / `AddCraftSearchPgVector()` / `AddCraftSearchInMemory()`，SQLite 用 `TryAddSingleton` 允許其他 Provider 搶佔。
 
 **Advanced RAG 元件：**
 - **Relevance Filtering**：`SearchQuery.MinScore` 過濾低分結果（預設 `DefaultRagMinScore = 0.005f`）
@@ -275,7 +288,9 @@ Engine 積木（各自獨立，React + Flow + 畫布 Workflow 都可用）
 
 ### RAG Pipeline
 
-`RagService` + `RagChatClient`（DelegatingChatClient）。Ingest：多格式擷取 → 分塊 → embedding(1536維) → 索引（含 metadata）。Search：Hybrid 搜尋 → MinScore 過濾 → Rerank 重排序 → 注入 system message（含 metadata 來源標注）。indexName 慣例：`{userId}_rag_{guid}`（臨時）、`{userId}_kb_{id}`（知識庫）。
+`RagService` + `RagChatClient`（DelegatingChatClient）+ `SearchEngineFactory`（多 Provider 路由）。Ingest：多格式擷取 → 分塊 → embedding(1536維) → 索引（含 metadata）。Search：Hybrid 搜尋 → MinScore 過濾 → Rerank 重排序 → 注入 system message（含 metadata 來源標注）。indexName 慣例：`{userId}_rag_{guid}`（臨時）、`{userId}_kb_{id}`（知識庫）。
+
+**多 Provider 搜尋路由**：每個 KB 可綁定不同 DataSource（pgvector / qdrant / mongodb / 預設 sqlite），`RagService.SearchAsync(dataSourceId)` 透過 `SearchEngineFactory` 路由到對應引擎。同一次查詢可平行搜尋多個 KB（各自走不同引擎），結果合併去重後回傳。
 
 ### CraftCleaner 資料清洗引擎
 
@@ -351,6 +366,7 @@ Engine 積木（各自獨立，React + Flow + 畫布 Workflow 都可用）
 
 ## Extensibility（速查）
 
+- **新 DB Provider**：在 `extensions/data/` 下建新專案，實作 `AgentCraftLab.Data` 的 15 個 Store 介面 + `ServiceCollectionExtensions`，`Program.cs` 加 switch case
 - **新策略**：實作 `IWorkflowStrategy` + `WorkflowStrategyResolver.Resolve()` 加 case
 - **新內建工具**：`ToolImplementations.cs` 加方法 + `ToolRegistryService` 加 `Register()`（AI Build 自動同步，僅需更新 `.claude/skills/build-flow/node-specs.md`）
 - **新節點類型**：(1) `NodeTypes` 加常數 (2) `NodeTypeRegistry` 加一行 (3) `NodeExecutorRegistry` 加 handler (4) JS `NODE_REGISTRY`

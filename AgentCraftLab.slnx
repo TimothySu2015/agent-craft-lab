@@ -4,9 +4,13 @@
   <Project Path="AgentCraftLab.Autonomous/AgentCraftLab.Autonomous.csproj" />
   <Project Path="AgentCraftLab.Cleaner/AgentCraftLab.Cleaner.csproj" />
   <Project Path="AgentCraftLab.Engine/AgentCraftLab.Engine.csproj" />
-  <Project Path="AgentCraftLab.MongoDB/AgentCraftLab.MongoDB.csproj" />
-  <Project Path="AgentCraftLab.Ocr/AgentCraftLab.Ocr.csproj" />
-  <Project Path="AgentCraftLab.Script/AgentCraftLab.Script.csproj" />
-  <Project Path="AgentCraftLab.Search/AgentCraftLab.Search.csproj" />
   <Project Path="AgentCraftLab.Tests/AgentCraftLab.Tests.csproj" />
+  <Project Path="extensions/data/AgentCraftLab.Data/AgentCraftLab.Data.csproj" />
+  <Project Path="extensions/data/AgentCraftLab.Data.Sqlite/AgentCraftLab.Data.Sqlite.csproj" />
+  <Project Path="extensions/data/AgentCraftLab.Data.MongoDB/AgentCraftLab.Data.MongoDB.csproj" />
+  <Project Path="extensions/data/AgentCraftLab.Data.PostgreSQL/AgentCraftLab.Data.PostgreSQL.csproj" />
+  <Project Path="extensions/data/AgentCraftLab.Data.SqlServer/AgentCraftLab.Data.SqlServer.csproj" />
+  <Project Path="extensions/search/AgentCraftLab.Search/AgentCraftLab.Search.csproj" />
+  <Project Path="extensions/script/AgentCraftLab.Script/AgentCraftLab.Script.csproj" />
+  <Project Path="extensions/ocr/AgentCraftLab.Ocr/AgentCraftLab.Ocr.csproj" />
 </Solution>

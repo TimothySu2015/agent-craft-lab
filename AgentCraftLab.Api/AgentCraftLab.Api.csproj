@@ -19,9 +19,12 @@
     <ProjectReference Include="..\AgentCraftLab.Engine\AgentCraftLab.Engine.csproj" />
     <ProjectReference Include="..\AgentCraftLab.Autonomous\AgentCraftLab.Autonomous.csproj" />
     <ProjectReference Include="..\AgentCraftLab.Autonomous.Flow\AgentCraftLab.Autonomous.Flow.csproj" />
-    <ProjectReference Include="..\AgentCraftLab.Ocr\AgentCraftLab.Ocr.csproj" />
-    <ProjectReference Include="..\AgentCraftLab.Script\AgentCraftLab.Script.csproj" />
-    <ProjectReference Include="..\AgentCraftLab.MongoDB\AgentCraftLab.MongoDB.csproj" />
+    <ProjectReference Include="..\extensions\data\AgentCraftLab.Data.Sqlite\AgentCraftLab.Data.Sqlite.csproj" />
+    <ProjectReference Include="..\extensions\data\AgentCraftLab.Data.MongoDB\AgentCraftLab.Data.MongoDB.csproj" />
+    <ProjectReference Include="..\extensions\data\AgentCraftLab.Data.PostgreSQL\AgentCraftLab.Data.PostgreSQL.csproj" />
+    <ProjectReference Include="..\extensions\data\AgentCraftLab.Data.SqlServer\AgentCraftLab.Data.SqlServer.csproj" />
+    <ProjectReference Include="..\extensions\ocr\AgentCraftLab.Ocr\AgentCraftLab.Ocr.csproj" />
+    <ProjectReference Include="..\extensions\script\AgentCraftLab.Script\AgentCraftLab.Script.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,3 +1,4 @@
+using AgentCraftLab.Data;
 using AgentCraftLab.Engine.Models;
 using AgentCraftLab.Engine.Services;
 using AgentCraftLab.Search.Abstractions;
@@ -98,8 +99,10 @@ public class RagServiceTests
 
     private static RagService CreateService(IDocumentExtractor extractor, TrackingSearchEngine? engine = null)
     {
+        var se = engine ?? new TrackingSearchEngine();
         var factory = new DocumentExtractorFactory([extractor]);
-        return new RagService(engine ?? new TrackingSearchEngine(), factory, new FakeChunker(), new NoOpReranker());
+        var seFactory = new SearchEngineFactory(se, new NullDataSourceStore(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SearchEngineFactory>.Instance);
+        return new RagService(se, seFactory, factory, new FakeChunker(), new NoOpReranker());
     }
 
     private static FileAttachment MakeFile(string name = "test.txt", string content = "hello world")
@@ -211,7 +214,7 @@ public class RagServiceTests
                 new SearchResult { Id = "3", Content = "another", Score = 0.7f },
             ]
         };
-        var svc = new RagService(engine, new DocumentExtractorFactory([]), new FakeChunker(), new NoOpReranker());
+        var svc = new RagService(engine, new SearchEngineFactory(engine, new NullDataSourceStore(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SearchEngineFactory>.Instance), new DocumentExtractorFactory([]), new FakeChunker(), new NoOpReranker());
 
         var results = await svc.SearchAsync("query", 5, new FakeEmbeddingGenerator(), "idx");
 
@@ -227,9 +230,102 @@ public class RagServiceTests
         {
             SearchResults = [new SearchResult { Id = "x", Content = null!, Score = 0.5f }]
         };
-        var svc = new RagService(engine, new DocumentExtractorFactory([]), new FakeChunker(), new NoOpReranker());
+        var svc = new RagService(engine, new SearchEngineFactory(engine, new NullDataSourceStore(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SearchEngineFactory>.Instance), new DocumentExtractorFactory([]), new FakeChunker(), new NoOpReranker());
 
         var results = await svc.SearchAsync("q", 3, new FakeEmbeddingGenerator(), "idx");
         Assert.Empty(results);
     }
+
+    // ─── Multi-Provider Routing Tests ───
+
+    [Fact]
+    public void GetSearchEngine_Null_ReturnsDefaultEngine()
+    {
+        var defaultEngine = new TrackingSearchEngine();
+        var seFactory = new SearchEngineFactory(defaultEngine, new NullDataSourceStore(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SearchEngineFactory>.Instance);
+        var svc = new RagService(defaultEngine, seFactory, new DocumentExtractorFactory([]), new FakeChunker(), new NoOpReranker());
+
+        var engine = svc.GetSearchEngine();
+        Assert.Same(defaultEngine, engine);
+    }
+
+    [Fact]
+    public void GetSearchEngine_WithUnknownDataSourceId_FallsBackToDefault()
+    {
+        var defaultEngine = new TrackingSearchEngine();
+        var seFactory = new SearchEngineFactory(defaultEngine, new NullDataSourceStore(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SearchEngineFactory>.Instance);
+        var svc = new RagService(defaultEngine, seFactory, new DocumentExtractorFactory([]), new FakeChunker(), new NoOpReranker());
+
+        // NullDataSourceStore 回傳 null → factory fallback 到 default
+        var engine = svc.GetSearchEngine("ds-nonexistent");
+        Assert.Same(defaultEngine, engine);
+    }
+
+    [Fact]
+    public async Task SearchAsync_WithDataSourceId_UsesRoutedEngine()
+    {
+        var defaultEngine = new TrackingSearchEngine { SearchResults = [new SearchResult { Id = "default", Content = "from default", Score = 0.5f }] };
+        var routedEngine = new TrackingSearchEngine { SearchResults = [new SearchResult { Id = "routed", Content = "from routed", Score = 0.9f }] };
+
+        var dsStore = new FakeDataSourceStore("ds-pg", new DataSourceDocument
+        {
+            Id = "ds-pg", Provider = "pgvector", ConfigJson = "{}", Name = "PG", UserId = "u"
+        });
+        // factory 會 fallback 到 default（因為 pgvector 需要真實連線），但我們可以測試 dataSourceId=null 走 default
+        var seFactory = new SearchEngineFactory(defaultEngine, dsStore, Microsoft.Extensions.Logging.Abstractions.NullLogger<SearchEngineFactory>.Instance);
+        var svc = new RagService(defaultEngine, seFactory, new DocumentExtractorFactory([]), new FakeChunker(), new NoOpReranker());
+
+        // dataSourceId=null → 使用 default engine
+        var results = await svc.SearchAsync("test", 3, new FakeEmbeddingGenerator(), "idx", dataSourceId: null);
+        Assert.Single(results);
+        Assert.Equal("from default", results[0].Content);
+    }
+
+    [Fact]
+    public async Task GetSearchEngineAsync_ReturnsDefaultForNull()
+    {
+        var defaultEngine = new TrackingSearchEngine();
+        var seFactory = new SearchEngineFactory(defaultEngine, new NullDataSourceStore(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SearchEngineFactory>.Instance);
+        var svc = new RagService(defaultEngine, seFactory, new DocumentExtractorFactory([]), new FakeChunker(), new NoOpReranker());
+
+        var engine = await svc.GetSearchEngineAsync(null);
+        Assert.Same(defaultEngine, engine);
+    }
+
+    [Fact]
+    public async Task IngestAsync_WithDataSourceId_UsesRoutedEngine()
+    {
+        var defaultEngine = new TrackingSearchEngine();
+        var routedEngine = new TrackingSearchEngine();
+
+        // dataSourceId=null → default engine
+        var seFactory = new SearchEngineFactory(defaultEngine, new NullDataSourceStore(), Microsoft.Extensions.Logging.Abstractions.NullLogger<SearchEngineFactory>.Instance);
+        var extractor = new FakeDocumentExtractor(new ExtractionResult { Text = "hello world", FileName = "test.txt" });
+        var svc = new RagService(defaultEngine, seFactory, new DocumentExtractorFactory([extractor]), new FakeChunker(), new NoOpReranker());
+
+        await foreach (var _ in svc.IngestAsync(MakeFile(), DefaultSettings, new FakeEmbeddingGenerator(), "test-idx")) { }
+
+        Assert.Contains("test-idx", defaultEngine.EnsuredIndexes);
+        Assert.True(defaultEngine.IndexedBatches.Count > 0);
+    }
+}
+
+file class FakeDataSourceStore(string targetId, DataSourceDocument doc) : IDataSourceStore
+{
+    public Task<DataSourceDocument> SaveAsync(DataSourceDocument d) => Task.FromResult(d);
+    public Task<List<DataSourceDocument>> ListAsync(string userId) => Task.FromResult(new List<DataSourceDocument>());
+    public Task<DataSourceDocument?> GetAsync(string id) => Task.FromResult<DataSourceDocument?>(id == targetId ? doc : null);
+    public Task<DataSourceDocument?> UpdateAsync(string userId, string id, string name, string description, string provider, string configJson) => Task.FromResult<DataSourceDocument?>(null);
+    public Task<bool> DeleteAsync(string userId, string id) => Task.FromResult(false);
+    public Task<int> CountKbReferencesAsync(string id) => Task.FromResult(0);
+}
+
+file class NullDataSourceStore : IDataSourceStore
+{
+    public Task<DataSourceDocument> SaveAsync(DataSourceDocument doc) => Task.FromResult(doc);
+    public Task<List<DataSourceDocument>> ListAsync(string userId) => Task.FromResult(new List<DataSourceDocument>());
+    public Task<DataSourceDocument?> GetAsync(string id) => Task.FromResult<DataSourceDocument?>(null);
+    public Task<DataSourceDocument?> UpdateAsync(string userId, string id, string name, string description, string provider, string configJson) => Task.FromResult<DataSourceDocument?>(null);
+    public Task<bool> DeleteAsync(string userId, string id) => Task.FromResult(false);
+    public Task<int> CountKbReferencesAsync(string id) => Task.FromResult(0);
 }

@@ -13,7 +13,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest",
+    "test:watch": "vitest",金中
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

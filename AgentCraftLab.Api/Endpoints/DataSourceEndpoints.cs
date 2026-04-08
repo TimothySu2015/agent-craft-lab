@@ -1,5 +1,5 @@
 using System.Text.Json;
-using AgentCraftLab.Engine.Data;
+using AgentCraftLab.Data;
 using AgentCraftLab.Engine.Services;
 using AgentCraftLab.Search.Providers.PgVector;
 using AgentCraftLab.Search.Providers.Qdrant;

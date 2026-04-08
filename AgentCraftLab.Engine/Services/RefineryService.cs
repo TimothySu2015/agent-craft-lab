@@ -4,7 +4,7 @@ using AgentCraftLab.Cleaner.Abstractions;
 using AgentCraftLab.Cleaner.Elements;
 using AgentCraftLab.Cleaner.Renderers;
 using AgentCraftLab.Cleaner.SchemaMapper;
-using AgentCraftLab.Engine.Data;
+using AgentCraftLab.Data;
 using AgentCraftLab.Engine.Models;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;

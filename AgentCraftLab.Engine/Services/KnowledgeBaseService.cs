@@ -1,4 +1,4 @@
-using AgentCraftLab.Engine.Data;
+using AgentCraftLab.Data;
 using AgentCraftLab.Engine.Models;
 using AgentCraftLab.Search.Abstractions;
 using AgentCraftLab.Search.Chunking;

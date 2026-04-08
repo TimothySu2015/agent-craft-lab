@@ -1,3 +1,4 @@
+using AgentCraftLab.Data;
 namespace AgentCraftLab.Engine.Models;
 
 /// <summary>

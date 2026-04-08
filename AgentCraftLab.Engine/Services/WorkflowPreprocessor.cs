@@ -238,6 +238,7 @@ public class WorkflowPreprocessor
         var ragSettings = ragNodes[0].RagConfig ?? new RagSettings();
         var embeddingModel = ragSettings.EmbeddingModel;
         var knowledgeBaseIndexNames = new List<string>();
+        var indexDataSourceMap = new Dictionary<string, string?>();
 
         if (knowledgeBaseIds.Count > 0)
         {
@@ -245,7 +246,11 @@ public class WorkflowPreprocessor
             var kbResults = await Task.WhenAll(kbTasks);
             var kbDocs = kbResults.Where(kb => kb is not null && !kb.IsDeleted).ToList();
 
-            foreach (var kb in kbDocs) knowledgeBaseIndexNames.Add(kb!.IndexName);
+            foreach (var kb in kbDocs)
+            {
+                knowledgeBaseIndexNames.Add(kb!.IndexName);
+                indexDataSourceMap[kb.IndexName] = kb.DataSourceId;
+            }
             if (kbDocs.Count > 0) embeddingModel = kbDocs[0]!.EmbeddingModel;
         }
 
@@ -263,7 +268,8 @@ public class WorkflowPreprocessor
             var userId = await _userContext.GetUserIdAsync();
             indexName = $"{userId}_rag_{Guid.NewGuid():N}";
             await foreach (var evt in _ragService.IngestAsync(
-                request.Attachment!, ragSettings, embeddingGenerator, indexName, cancellationToken))
+                request.Attachment!, ragSettings, embeddingGenerator, indexName,
+                cancellationToken: cancellationToken))
             {
                 yield return (evt, null);
             }
@@ -282,7 +288,8 @@ public class WorkflowPreprocessor
             EmbeddingGenerator = embeddingGenerator,
             SearchEngine = _searchEngine,
             IndexName = indexName,
-            KnowledgeBaseIndexNames = knowledgeBaseIndexNames
+            KnowledgeBaseIndexNames = knowledgeBaseIndexNames,
+            IndexDataSourceMap = indexDataSourceMap
         });
     }
 

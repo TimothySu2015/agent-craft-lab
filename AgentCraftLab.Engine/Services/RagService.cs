@@ -29,7 +29,8 @@ public class RagService
     /// <summary>Reranker 候選擴展倍數（取 topK * 此倍數作為初步檢索量）。</summary>
     private const int RerankExpansionFactor = 3;
 
-    private readonly ISearchEngine _searchEngine;
+    private readonly ISearchEngine _defaultSearchEngine;
+    private readonly SearchEngineFactory _searchEngineFactory;
     private readonly DocumentExtractorFactory _extractorFactory;
     private readonly ITextChunker _chunker;
     private readonly IReranker _reranker;
@@ -37,20 +38,29 @@ public class RagService
 
     public RagService(
         ISearchEngine searchEngine,
+        SearchEngineFactory searchEngineFactory,
         DocumentExtractorFactory extractorFactory,
         ITextChunker chunker,
         IReranker reranker,
         IDocumentCleaner? documentCleaner = null)
     {
-        _searchEngine = searchEngine;
+        _defaultSearchEngine = searchEngine;
+        _searchEngineFactory = searchEngineFactory;
         _extractorFactory = extractorFactory;
         _chunker = chunker;
         _reranker = reranker;
         _documentCleaner = documentCleaner;
     }
 
-    /// <summary>取得底層搜尋引擎（用於臨時索引管理，如 DocRefinery precise mode）。</summary>
-    public ISearchEngine GetSearchEngine() => _searchEngine;
+    /// <summary>取得搜尋引擎（依 dataSourceId 路由，null 回傳預設引擎）。</summary>
+    public ISearchEngine GetSearchEngine(string? dataSourceId = null)
+        => dataSourceId is null
+            ? _defaultSearchEngine
+            : _searchEngineFactory.ResolveAsync(dataSourceId).GetAwaiter().GetResult();
+
+    /// <summary>非同步取得搜尋引擎（依 dataSourceId 路由）。</summary>
+    public async Task<ISearchEngine> GetSearchEngineAsync(string? dataSourceId = null, CancellationToken ct = default)
+        => await _searchEngineFactory.ResolveAsync(dataSourceId, ct);
 
     /// <summary>取得文字分塊器（DocRefinery 檔案索引用）。</summary>
     public ITextChunker GetChunker() => _chunker;
@@ -63,6 +73,7 @@ public class RagService
         RagSettings settings,
         IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator,
         string indexName,
+        string? dataSourceId = null,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         yield return ExecutionEvent.RagProcessing($"Extracting text from {file.FileName}...");
@@ -107,8 +118,9 @@ public class RagService
         var chunks = _chunker.Chunk(textForChunking, settings.ChunkSize, settings.ChunkOverlap);
         yield return ExecutionEvent.RagProcessing($"Created {chunks.Count} chunks. Generating embeddings...");
 
-        // 確保搜尋索引存在
-        await _searchEngine.EnsureIndexAsync(indexName, cancellationToken);
+        // 確保搜尋索引存在（根據 dataSourceId 路由到對應引擎）
+        var searchEngine = await GetSearchEngineAsync(dataSourceId, cancellationToken);
+        await searchEngine.EnsureIndexAsync(indexName, cancellationToken);
 
         // 文件級 metadata（來自 Extractor 自動填充）+ chunk 級 metadata
         var docMetadata = extraction.Metadata;
@@ -147,7 +159,7 @@ public class RagService
                 });
             }
 
-            await _searchEngine.IndexDocumentsAsync(indexName, searchDocs, cancellationToken);
+            await searchEngine.IndexDocumentsAsync(indexName, searchDocs, cancellationToken);
             totalIngested += batch.Count;
             yield return ExecutionEvent.RagProcessing($"Embedded {totalIngested}/{chunkTexts.Count} chunks...");
         }
@@ -167,7 +179,8 @@ public class RagService
         IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator,
         string indexName,
         RagSearchOptions? options = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? dataSourceId = null)
     {
         var opts = options ?? new RagSearchOptions();
 
@@ -196,12 +209,13 @@ public class RagService
             }
         }
 
-        // 平行搜尋所有 queries
+        // 平行搜尋所有 queries（根據 dataSourceId 路由到對應引擎）
+        var searchEngine = await GetSearchEngineAsync(dataSourceId, cancellationToken);
         var searchTasks = queries.Select(async q =>
         {
             var embedding = await embeddingGenerator.GenerateAsync(
                 [q], new EmbeddingGenerationOptions { Dimensions = dims }, cancellationToken);
-            return await _searchEngine.SearchAsync(indexName, new SearchQuery
+            return await searchEngine.SearchAsync(indexName, new SearchQuery
             {
                 Text = q,
                 Vector = embedding[0].Vector,
