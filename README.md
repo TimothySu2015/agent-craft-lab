@@ -2,6 +2,10 @@
 
 [English](README.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
 
+[![Docs](https://img.shields.io/badge/docs-VitePress-646cff?logo=vitepress)](https://timothysu2015.github.io/agent-craft-lab/)
+[![License](https://img.shields.io/badge/license-BSL--1.1-blue)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-10-512bd4?logo=dotnet)](https://dotnet.microsoft.com/)
+
 The open-source AI Agent platform built on .NET — design, test, and deploy agent workflows without leaving the .NET ecosystem.
 
 ![AgentCraftLab Studio](docs/studio-screenshot.png)
