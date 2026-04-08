@@ -580,6 +580,7 @@ result = hash;
 | 新清洗規則 | 實作 `ICleaningRule` + `services.AddCleaningRule<T>()` |
 | 新 Partitioner | 實作 `IPartitioner` + `services.AddPartitioner<T>()` |
 | 新 Schema 模板 | 在 `Data/schema-templates/` 放 JSON 檔案 |
+| 新 DB Provider | `extensions/data/` 新增專案 + 實作 15 個 Store 介面 + `Program.cs` 加 switch case |
 
 ---
 
@@ -671,3 +672,158 @@ services.AddCraftCleanerOcr(async (imageData, langs, ct) =>
     return (result.Text, result.Confidence);
 });
 ```
+
+---
+
+## 10. 新增資料庫 Provider
+
+資料層採用三層分離架構：
+
+| 專案 | 定位 | 依賴 |
+|------|------|------|
+| `AgentCraftLab.Data` | 純抽象層（15 個 Store 介面 + Document 模型） | 零依賴 |
+| `AgentCraftLab.Data.Sqlite` | SQLite 實作（EF Core） | `AgentCraftLab.Data` |
+| `AgentCraftLab.Data.MongoDB` | MongoDB 實作 | `AgentCraftLab.Data` |
+
+所有專案位於 `extensions/data/` 目錄。Engine 核心不依賴 EF Core 或任何特定資料庫，僅參考 `AgentCraftLab.Data` 的介面。
+
+### 步驟 1：建立新專案
+
+在 `extensions/data/` 下建立新專案，例如 `AgentCraftLab.Data.PostgreSql`：
+
+```
+extensions/data/
+├─ AgentCraftLab.Data/                  ← 純抽象（零依賴）
+├─ AgentCraftLab.Data.Sqlite/           ← SQLite 實作
+├─ AgentCraftLab.Data.MongoDB/          ← MongoDB 實作
+└─ AgentCraftLab.Data.PostgreSql/       ← 新增：PostgreSQL 實作
+```
+
+`.csproj` 只需參考抽象層和對應的資料庫套件：
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AgentCraftLab.Data\AgentCraftLab.Data.csproj" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.*" />
+  </ItemGroup>
+</Project>
+```
+
+### 步驟 2：實作 15 個 Store 介面
+
+所有介面定義於 `AgentCraftLab.Data` 命名空間：
+
+| 介面 | 資料內容 |
+|------|---------|
+| `IWorkflowStore` | Workflow 定義 |
+| `ICredentialStore` | 加密的 API 金鑰 |
+| `ISkillStore` | 自訂 Agent 技能 |
+| `ITemplateStore` | Workflow 範本 |
+| `IRequestLogStore` | 執行記錄 |
+| `IKnowledgeBaseStore` | 知識庫元資料 |
+| `IApiKeyStore` | 已發布的 API 金鑰 |
+| `IScheduleStore` | 排程任務 |
+| `IDataSourceStore` | 資料來源設定 |
+| `IExecutionMemoryStore` | 執行記憶（ReAct 經驗） |
+| `IEntityMemoryStore` | 實體記憶（事實） |
+| `IContextualMemoryStore` | 情境記憶（使用者模式） |
+| `ICraftMdStore` | craft.md 內容 |
+| `ICheckpointStore` | Checkpoint 快照 |
+| `IRefineryStore` | DocRefinery 專案/檔案/輸出 |
+
+實作範例：
+
+```csharp
+namespace AgentCraftLab.Data.PostgreSql;
+
+public sealed class PgWorkflowStore : IWorkflowStore
+{
+    public async Task<WorkflowDocument> SaveAsync(
+        string userId, string name, string description,
+        string type, string workflowJson)
+    {
+        // PostgreSQL 實作...
+    }
+
+    // ... 其餘方法
+}
+```
+
+### 步驟 3：建立 ServiceCollectionExtensions
+
+提供 `AddXxxDataProvider()` 擴展方法，一次註冊所有 Store：
+
+```csharp
+namespace AgentCraftLab.Data.PostgreSql;
+
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddPostgreSqlDataProvider(
+        this IServiceCollection services,
+        string connectionString)
+    {
+        // 註冊 DbContext 或連線工廠
+        services.AddDbContext<PgDbContext>(options =>
+            options.UseNpgsql(connectionString));
+
+        // 註冊全部 15 個 Store
+        services.AddSingleton<IWorkflowStore, PgWorkflowStore>();
+        services.AddSingleton<ICredentialStore, PgCredentialStore>();
+        services.AddSingleton<ISkillStore, PgSkillStore>();
+        // ... 其餘 12 個 Store
+
+        return services;
+    }
+
+    public static Task InitializePostgreSqlAsync(
+        this IServiceProvider serviceProvider)
+    {
+        // 建表 / 遷移
+    }
+}
+```
+
+> **注意：** 如果只實作部分 Store（例如 MongoDB 目前實作 8 個），可用 `services.Replace()` 替換已由 SQLite 註冊的 Store。未替換的 Store 會繼續使用 SQLite。啟動時 `ValidateStoreCoverage()` 會列出未覆蓋的 Store 發出警告。
+
+### 步驟 4：Program.cs 加 switch case
+
+檔案：`AgentCraftLab.Api/Program.cs`
+
+```csharp
+var dbProvider = builder.Configuration["Database:Provider"] ?? "sqlite";
+
+switch (dbProvider)
+{
+    case "sqlite":
+        builder.Services.AddSqliteDataProvider("Data/agentcraftlab.db");
+        initializeDbProvider = sp => sp.InitializeSqliteDatabaseAsync();
+        break;
+    case "mongodb":
+        var dbConn = builder.Configuration["Database:ConnectionString"]
+            ?? throw new InvalidOperationException("...");
+        var dbName = builder.Configuration["Database:DatabaseName"] ?? "agentcraftlab";
+        builder.Services.AddMongoDbProvider(dbConn, dbName);
+        initializeDbProvider = sp => sp.InitializeMongoDbAsync();
+        break;
+    case "postgresql":  // <-- 新增
+        var pgConn = builder.Configuration["Database:ConnectionString"]
+            ?? throw new InvalidOperationException("...");
+        builder.Services.AddPostgreSqlDataProvider(pgConn);
+        initializeDbProvider = sp => sp.InitializePostgreSqlAsync();
+        break;
+}
+```
+
+### DI 模式說明
+
+```
+AddAgentCraftEngine()          ← Engine 核心（不含任何資料庫依賴）
+  +
+AddSqliteDataProvider()        ← 或 AddMongoDbProvider() 或自訂 Provider
+```
+
+Engine 透過 `AgentCraftLab.Data` 命名空間的介面注入 Store，不知道底層是哪種資料庫。這使得新增 Provider 完全不需要修改 Engine 程式碼。

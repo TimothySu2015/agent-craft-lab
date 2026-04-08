@@ -579,13 +579,143 @@ The `Name` property determines the global object name in the script, and the key
 | Extend Sandbox | Implement `ISandboxApi` + DI registration |
 | New Cleaning Rule | Implement `ICleaningRule` + `services.AddCleaningRule<T>()` |
 | New Partitioner | Implement `IPartitioner` + `services.AddPartitioner<T>()` |
+| New DB Provider | Create project in `extensions/data/` + implement 15 Store interfaces + DI registration |
 | New Schema Template | Place JSON file in `Data/schema-templates/` |
 
 ---
 
-## 9. CraftCleaner Extensions (AgentCraftLab.Cleaner)
+## 9. Adding a New Database Provider
 
-### 9.1 Adding a Cleaning Rule
+AgentCraftLab uses a **Data Layer Extraction** architecture: all 15 Store interfaces live in a pure abstractions project (`AgentCraftLab.Data`, zero dependencies), and each database provider is an independent project under `extensions/data/`.
+
+### Project Structure
+
+```
+extensions/data/
+├── AgentCraftLab.Data/              # Pure abstractions (15 interfaces, DTOs)
+├── AgentCraftLab.Data.Sqlite/       # SQLite provider (EF Core)
+└── AgentCraftLab.Data.MongoDB/      # MongoDB provider
+```
+
+> **Key design decision:** `AgentCraftLab.Engine` has **no EF Core dependency**. It depends only on `AgentCraftLab.Data` (interfaces). The actual database implementation is composed at the host level via `AddSqliteDataProvider()` or `AddMongoDbProvider()`.
+
+### 15 Store Interfaces (AgentCraftLab.Data namespace)
+
+| Interface | Data |
+|-----------|------|
+| `IWorkflowStore` | Workflow definitions |
+| `ICredentialStore` | Encrypted API keys |
+| `ISkillStore` | Custom agent skills |
+| `ITemplateStore` | Workflow templates |
+| `IRequestLogStore` | Execution logs |
+| `IScheduleStore` | Scheduled tasks |
+| `IDataSourceStore` | Data source metadata |
+| `IKnowledgeBaseStore` | Knowledge base metadata |
+| `IExecutionMemoryStore` | Autonomous execution memory |
+| `ICraftMdStore` | Markdown document store |
+| `ICheckpointStore` | ReAct/Flow checkpoint snapshots |
+| `IEntityMemoryStore` | Entity fact memory |
+| `IContextualMemoryStore` | User pattern memory |
+| `IApiKeyStore` | Published API keys |
+| `IRefineryStore` | DocRefinery projects and outputs |
+
+### Step 1: Create a New Provider Project
+
+Create a new project under `extensions/data/`. For example, `AgentCraftLab.Data.PostgreSQL`:
+
+```
+extensions/data/AgentCraftLab.Data.PostgreSQL/
+├── AgentCraftLab.Data.PostgreSQL.csproj
+├── ServiceCollectionExtensions.cs
+├── PostgreSqlWorkflowStore.cs
+├── PostgreSqlCredentialStore.cs
+└── ... (one class per interface)
+```
+
+The `.csproj` should reference only `AgentCraftLab.Data` and the database client package:
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AgentCraftLab.Data\AgentCraftLab.Data.csproj" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="*" />
+  </ItemGroup>
+</Project>
+```
+
+### Step 2: Implement All 15 Store Interfaces
+
+Each Store class implements the corresponding interface from `AgentCraftLab.Data`:
+
+```csharp
+using AgentCraftLab.Data;
+
+namespace AgentCraftLab.Data.PostgreSQL;
+
+public sealed class PostgreSqlWorkflowStore : IWorkflowStore
+{
+    // Implement all interface methods...
+}
+```
+
+Refer to `AgentCraftLab.Data.Sqlite` for the expected behavior and method contracts.
+
+### Step 3: Create ServiceCollectionExtensions
+
+Provide a single DI extension method that registers all 15 stores:
+
+```csharp
+using AgentCraftLab.Data;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace AgentCraftLab.Data.PostgreSQL;
+
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddPostgreSqlDataProvider(
+        this IServiceCollection services, string connectionString)
+    {
+        // Register all 15 stores
+        services.AddSingleton<IWorkflowStore>(sp => new PostgreSqlWorkflowStore(connectionString));
+        services.AddSingleton<ICredentialStore>(sp => new PostgreSqlCredentialStore(connectionString));
+        // ... repeat for all 15 interfaces
+        return services;
+    }
+}
+```
+
+### Step 4: Add Switch Case in Program.cs
+
+In the host project (e.g., `AgentCraftLab.Api/Program.cs`), add the new provider option:
+
+```csharp
+builder.Services.AddAgentCraftEngine(dataDir: "Data", workingDir: workingDir);
+
+var dbProvider = builder.Configuration.GetValue<string>("Database:Provider");
+switch (dbProvider)
+{
+    case "mongodb":
+        builder.Services.AddMongoDbProvider(dbConn, dbName);
+        break;
+    case "postgresql":
+        builder.Services.AddPostgreSqlDataProvider(connStr);  // <-- new
+        break;
+    default:
+        builder.Services.AddSqliteDataProvider("Data/agentcraftlab.db");
+        break;
+}
+```
+
+The DI pattern is always: `AddAgentCraftEngine()` (registers Engine core, no data layer) + `AddXxxDataProvider()` (registers data layer separately).
+
+---
+
+## 10. CraftCleaner Extensions (AgentCraftLab.Cleaner)
+
+### 10.1 Adding a Cleaning Rule
 
 Implement the `ICleaningRule` interface:
 
@@ -612,7 +742,7 @@ services.AddCraftCleaner();
 services.AddCleaningRule<MyCustomRule>();
 ```
 
-### 9.2 Adding a Partitioner (New Format Support)
+### 10.2 Adding a Partitioner (New Format Support)
 
 Implement the `IPartitioner` interface:
 
@@ -637,7 +767,7 @@ DI registration:
 services.AddPartitioner<RtfPartitioner>();
 ```
 
-### 9.3 Adding a Schema Template
+### 10.3 Adding a Schema Template
 
 Place a JSON file in the `Data/schema-templates/` directory — zero code changes:
 
@@ -660,7 +790,7 @@ Place a JSON file in the `Data/schema-templates/` directory — zero code change
 }
 ```
 
-### 9.4 Replacing the OCR Provider
+### 10.4 Replacing the OCR Provider
 
 Implement `IOcrProvider` or use `AddCraftCleanerOcr()` to bridge:
 

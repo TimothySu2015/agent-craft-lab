@@ -1,3 +1,4 @@
+using AgentCraftLab.Data;
 using AgentCraftLab.Autonomous.Models;
 using AgentCraftLab.Autonomous.Services;
 using AgentCraftLab.Engine.Models;

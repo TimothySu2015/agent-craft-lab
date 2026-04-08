@@ -580,12 +580,149 @@ result = hash;
 | 新しいクリーニングルール | `ICleaningRule` 実装 + `services.AddCleaningRule<T>()` |
 | 新しい Partitioner | `IPartitioner` 実装 + `services.AddPartitioner<T>()` |
 | 新しいスキーマテンプレート | `Data/schema-templates/` に JSON ファイルを配置 |
+| 新しい DB Provider | `extensions/data/` に新規プロジェクト + 15 個の Store インターフェース実装 + `Program.cs` に switch case 追加 |
 
 ---
 
-## 9. CraftCleaner 拡張（AgentCraftLab.Cleaner）
+## 9. 新しいデータベース Provider の追加
 
-### 9.1 クリーニングルールの追加
+AgentCraftLab は**データ層分離アーキテクチャ**を採用しています。15 個の Store インターフェースは純粋な抽象プロジェクト（`AgentCraftLab.Data`、依存関係ゼロ）に定義され、各データベース Provider は `extensions/data/` 配下の独立プロジェクトとして実装されます。
+
+### プロジェクト構成
+
+```
+extensions/data/
+├── AgentCraftLab.Data/              # 純粋な抽象（15 インターフェース、DTO）
+├── AgentCraftLab.Data.Sqlite/       # SQLite Provider（EF Core）
+└── AgentCraftLab.Data.MongoDB/      # MongoDB Provider
+```
+
+> **重要な設計方針：** `AgentCraftLab.Engine` は **EF Core に依存しません**。Engine は `AgentCraftLab.Data`（インターフェースのみ）にのみ依存します。実際のデータベース実装はホストレベルで `AddSqliteDataProvider()` または `AddMongoDbProvider()` を通じて合成されます。
+
+### 15 個の Store インターフェース（AgentCraftLab.Data 名前空間）
+
+| インターフェース | データ内容 |
+|------|------|
+| `IWorkflowStore` | Workflow 定義 |
+| `ICredentialStore` | 暗号化された API キー |
+| `ISkillStore` | カスタム Agent スキル |
+| `ITemplateStore` | Workflow テンプレート |
+| `IRequestLogStore` | 実行ログ |
+| `IScheduleStore` | スケジュールタスク |
+| `IDataSourceStore` | データソースメタデータ |
+| `IKnowledgeBaseStore` | ナレッジベースメタデータ |
+| `IExecutionMemoryStore` | Autonomous 実行メモリ |
+| `ICraftMdStore` | Markdown ドキュメントストア |
+| `ICheckpointStore` | ReAct/Flow チェックポイントスナップショット |
+| `IEntityMemoryStore` | エンティティファクトメモリ |
+| `IContextualMemoryStore` | ユーザーパターンメモリ |
+| `IApiKeyStore` | 公開済み API キー |
+| `IRefineryStore` | DocRefinery プロジェクトと出力 |
+
+### 手順 1：新しい Provider プロジェクトを作成
+
+`extensions/data/` 配下に新しいプロジェクトを作成します。例として `AgentCraftLab.Data.PostgreSQL`：
+
+```
+extensions/data/AgentCraftLab.Data.PostgreSQL/
+├── AgentCraftLab.Data.PostgreSQL.csproj
+├── ServiceCollectionExtensions.cs
+├── PostgreSqlWorkflowStore.cs
+├── PostgreSqlCredentialStore.cs
+└── ... （インターフェースごとに 1 クラス）
+```
+
+`.csproj` で `AgentCraftLab.Data` を参照し、DB ドライバーを追加します：
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AgentCraftLab.Data\AgentCraftLab.Data.csproj" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.*" />
+  </ItemGroup>
+</Project>
+```
+
+### 手順 2：15 個の Store インターフェースを実装
+
+各 Store インターフェースの実装を作成します。`AgentCraftLab.Data.Sqlite` の実装パターンを参考にしてください：
+
+```csharp
+namespace AgentCraftLab.Data.PostgreSQL;
+
+public sealed class PostgreSqlWorkflowStore : IWorkflowStore
+{
+    public async Task<WorkflowDocument> SaveAsync(
+        string userId, string name, string description,
+        string type, string workflowJson)
+    {
+        // PostgreSQL 固有の実装
+    }
+
+    // ... IWorkflowStore の他のメソッド
+}
+```
+
+### 手順 3：ServiceCollectionExtensions を追加
+
+DI 登録用の拡張メソッドを作成します：
+
+```csharp
+namespace AgentCraftLab.Data.PostgreSQL;
+
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddPostgreSqlDataProvider(
+        this IServiceCollection services, string connectionString)
+    {
+        // DbContext の登録
+        services.AddDbContext<PostgreSqlDbContext>(options =>
+            options.UseNpgsql(connectionString));
+
+        // 15 個の Store を登録
+        services.AddSingleton<IWorkflowStore, PostgreSqlWorkflowStore>();
+        services.AddSingleton<ICredentialStore, PostgreSqlCredentialStore>();
+        // ... 残り 13 個の Store ...
+
+        return services;
+    }
+}
+```
+
+### 手順 4：Program.cs に switch case を追加
+
+ファイル：`AgentCraftLab.Api/Program.cs`
+
+```csharp
+var dbProvider = builder.Configuration["Database:Provider"] ?? "sqlite";
+
+switch (dbProvider)
+{
+    case "sqlite":
+        builder.Services.AddSqliteDataProvider("Data/agentcraftlab.db");
+        break;
+    case "mongodb":
+        var connStr = builder.Configuration["Database:ConnectionString"]!;
+        var dbName = builder.Configuration["Database:DatabaseName"] ?? "agentcraftlab";
+        builder.Services.AddMongoDbProvider(connStr, dbName);
+        break;
+    case "postgresql":  // <-- 追加
+        var pgConnStr = builder.Configuration["Database:ConnectionString"]!;
+        builder.Services.AddPostgreSqlDataProvider(pgConnStr);
+        break;
+}
+```
+
+> **注意：** `AddAgentCraftEngine()` と `AddXxxDataProvider()` は別々に呼び出されます。Engine はデータベースの選択を一切知りません — これがデータ層分離の核心です。
+
+---
+
+## 10. CraftCleaner 拡張（AgentCraftLab.Cleaner）
+
+### 10.1 クリーニングルールの追加
 
 `ICleaningRule` インターフェースを実装：
 
@@ -612,7 +749,7 @@ services.AddCraftCleaner();
 services.AddCleaningRule<MyCustomRule>();
 ```
 
-### 9.2 Partitioner の追加（新フォーマット対応）
+### 10.2 Partitioner の追加（新フォーマット対応）
 
 `IPartitioner` インターフェースを実装：
 
@@ -637,7 +774,7 @@ DI 登録：
 services.AddPartitioner<RtfPartitioner>();
 ```
 
-### 9.3 スキーマテンプレートの追加
+### 10.3 スキーマテンプレートの追加
 
 `Data/schema-templates/` ディレクトリに JSON ファイルを配置するだけ — コード変更不要：
 
@@ -660,7 +797,7 @@ services.AddPartitioner<RtfPartitioner>();
 }
 ```
 
-### 9.4 OCR プロバイダーの置換
+### 10.4 OCR プロバイダーの置換
 
 `IOcrProvider` インターフェースを実装するか、`AddCraftCleanerOcr()` でブリッジ：
 

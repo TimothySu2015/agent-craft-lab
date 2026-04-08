@@ -5,9 +5,13 @@ using AgentCraftLab.Api;
 using AgentCraftLab.Api.Diagnostics;
 using AgentCraftLab.Autonomous.Extensions;
 using AgentCraftLab.Autonomous.Flow.Extensions;
-using AgentCraftLab.Engine.Data;
+using AgentCraftLab.Data;
+using AgentCraftLab.Data.Sqlite;
+using AgentCraftLab.Data.MongoDB;
+using AgentCraftLab.Data.PostgreSQL;
+using AgentCraftLab.Data.SqlServer;
 using AgentCraftLab.Engine.Extensions;
-using AgentCraftLab.MongoDB;
+using AgentCraftLab.Search.Extensions;
 using AgentCraftLab.Api.Endpoints;
 using AgentCraftLab.Ocr;
 using AgentCraftLab.Script;
@@ -29,35 +33,50 @@ builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
 builder.Logging.AddFilter("AgentCraftLab", LogLevel.Warning);
 
 var workingDir = Environment.GetEnvironmentVariable("WORKING_DIR") ?? Directory.GetCurrentDirectory();
-builder.Services.AddAgentCraftEngine(workingDir: workingDir);
+builder.Services.AddAgentCraftEngine(dataDir: "Data", workingDir: workingDir);
 
 // 資料庫 Provider（預設 sqlite，可切換 mongodb / mssql / postgresql）
 var dbProvider = builder.Configuration["Database:Provider"] ?? "sqlite";
 Func<IServiceProvider, Task>? initializeDbProvider = null;
 
-if (dbProvider != "sqlite")
+switch (dbProvider)
 {
-    var dbConn = builder.Configuration["Database:ConnectionString"]
-        ?? throw new InvalidOperationException($"Database:Provider={dbProvider} 需要設定 Database:ConnectionString");
-    var dbName = builder.Configuration["Database:DatabaseName"] ?? "agentcraftlab";
-
-    switch (dbProvider)
+    case "sqlite":
+        builder.Services.AddSqliteDataProvider("Data/agentcraftlab.db");
+        initializeDbProvider = sp => sp.InitializeSqliteDatabaseAsync();
+        break;
+    case "mongodb":
     {
-        case "mongodb":
-            builder.Services.AddMongoDbProvider(dbConn, dbName);
-            initializeDbProvider = sp => sp.InitializeMongoDbAsync();
-            break;
-        // case "mssql":
-        //     builder.Services.AddMssqlProvider(dbConn);
-        //     initializeDbProvider = sp => sp.InitializeMssqlAsync();
-        //     break;
-        // case "postgresql":
-        //     builder.Services.AddPostgreSqlProvider(dbConn);
-        //     initializeDbProvider = sp => sp.InitializePostgreSqlAsync();
-        //     break;
-        default:
-            throw new InvalidOperationException($"不支援的 Database:Provider: {dbProvider}");
+        var dbConn = builder.Configuration["Database:ConnectionString"]
+            ?? throw new InvalidOperationException($"Database:Provider={dbProvider} 需要設定 Database:ConnectionString");
+        var dbName = builder.Configuration["Database:DatabaseName"] ?? "agentcraftlab";
+        builder.Services.AddMongoDbProvider(dbConn, dbName);
+        initializeDbProvider = sp => sp.InitializeMongoDbAsync();
+        break;
     }
+    case "postgresql":
+    {
+        var pgConn = builder.Configuration["Database:ConnectionString"]
+            ?? throw new InvalidOperationException($"Database:Provider={dbProvider} 需要設定 Database:ConnectionString");
+        builder.Services.AddPostgreSqlDataProvider(pgConn);
+        // 搜尋引擎也走 pgvector（先註冊搶佔，Engine 的 SQLite fallback 用 TryAdd 不會覆蓋）
+        if (builder.Configuration.GetValue<bool>("Database:UsePgVectorSearch"))
+        {
+            builder.Services.AddCraftSearchPgVector(pgConn, configureOptions: o => o.IndexTtl = null);
+        }
+        initializeDbProvider = sp => sp.InitializePostgreSqlAsync();
+        break;
+    }
+    case "sqlserver":
+    {
+        var sqlConn = builder.Configuration["Database:ConnectionString"]
+            ?? throw new InvalidOperationException($"Database:Provider={dbProvider} 需要設定 Database:ConnectionString");
+        builder.Services.AddSqlServerDataProvider(sqlConn);
+        initializeDbProvider = sp => sp.InitializeSqlServerAsync();
+        break;
+    }
+    default:
+        throw new InvalidOperationException($"不支援的 Database:Provider: {dbProvider}");
 }
 builder.Services.AddSingleton<HumanInputBridgeRegistry>();
 builder.Services.AddSingleton<DebugBridgeRegistry>();
@@ -126,11 +145,12 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-await app.Services.InitializeDatabaseAsync();
+// 先初始化 Data Provider（SQLite DDL / MongoDB indexes），再初始化 Engine（Search + Cleanup）
 if (initializeDbProvider is not null)
 {
     await initializeDbProvider(app.Services);
 }
+await app.Services.InitializeDatabaseAsync();
 app.Logger.LogInformation("Database Provider: {Provider}", dbProvider);
 app.Services.UseOcrTools(workingDirectory: workingDir);
 app.Services.UseCleanerTools(workingDirectory: workingDir);

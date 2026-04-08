@@ -1,5 +1,7 @@
 # AgentCraftLab
 
+[English](README.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
+
 The open-source AI Agent platform built on .NET — design, test, and deploy agent workflows without leaving the .NET ecosystem.
 
 ![AgentCraftLab Studio](docs/studio-screenshot.png)
@@ -32,7 +34,7 @@ If your team runs on .NET and you want AI Agent capabilities — your options ar
 
 **Flow Mode** — AI plans a structured node sequence, executes it, then crystallizes the result into a reusable workflow. The bridge between exploration and production.
 
-**Built-in Search Engine (CraftSearch)** — Full-text search (FTS5) + vector search (Cosine Similarity) + RRF hybrid ranking. Supports PDF, DOCX, PPTX, HTML extraction. No external search service needed.
+**Built-in Search Engine (CraftSearch)** — Full-text + vector + RRF hybrid ranking. 5 providers: SQLite FTS5, PgVector, Qdrant, MongoDB Atlas, InMemory. Per-KB search engine routing — different knowledge bases can use different search backends. Supports PDF, DOCX, PPTX, HTML extraction.
 
 **RAG Pipeline** — Upload documents, auto-extract and chunk, embed, and search. Works with temporary uploads or persistent knowledge bases.
 
@@ -84,19 +86,59 @@ Or use **AI Build** — type a description in the chat panel and let AI generate
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph Frontend["🖥️ Frontend"]
+        Web["React Flow + CopilotKit + shadcn/ui"]
+    end
+    subgraph API["🔌 API Layer"]
+        Api["AgentCraftLab.Api\nAG-UI + REST + A2A + MCP + Teams"]
+    end
+    subgraph Core["⚙️ Core Engine"]
+        Engine["Engine\n5 Strategies · 10 Node Types · Middleware · Hooks"]
+        Auto["Autonomous\nReAct · Sub-agents · 15 Meta-tools"]
+        Flow["Flow\nPlan → Execute → Crystallize"]
+        Cleaner["Cleaner\n7 Formats · Schema Mapper"]
+    end
+    subgraph Extensions["🧩 Extensions"]
+        Data["Data Providers\nSQLite · MongoDB · PostgreSQL · SQL Server"]
+        Search["Search Engine\nFTS5 · PgVector · Qdrant · MongoDB Atlas"]
+        Script["Script Sandbox\nJint JS · Roslyn C#"]
+        OCR["OCR Engine\nTesseract"]
+    end
+
+    Web -->|AG-UI Protocol| Api
+    Api --> Engine
+    Engine --> Auto
+    Engine --> Flow
+    Engine --> Cleaner
+    Engine -.->|Interface Only| Data
+    Engine -.->|ISearchEngine| Search
+    Engine -.->|IScriptEngine| Script
+    Engine -.->|IOcrEngine| OCR
+```
+
+### Project Structure
+
 ```
 AgentCraftLab.sln
-├── AgentCraftLab.Api/               ← .NET API (AG-UI + REST, Minimal API)
-├── AgentCraftLab.Web/               ← React frontend (React Flow + CopilotKit + shadcn/ui)
-├── AgentCraftLab.Engine/            ← Core execution engine (open source)
-├── AgentCraftLab.Autonomous/        ← ReAct agent (sub-agents, tools, safety)
-├── AgentCraftLab.Autonomous.Flow/   ← Flow mode (plan -> execute -> crystallize)
-├── AgentCraftLab.Search/            ← Search engine (FTS5 + vector + RRF)
-├── AgentCraftLab.Script/            ← Script sandbox engine (Jint JS + Roslyn C#)
-├── AgentCraftLab.Ocr/               ← OCR engine (Tesseract)
-├── AgentCraftLab.Cleaner/           ← Data cleaning engine (7 formats + Schema Mapper)
-├── AgentCraftLab.MongoDB/           ← MongoDB provider (optional, replaces SQLite stores)
-└── AgentCraftLab.Tests/             ← Unit tests (1260+)
+├── AgentCraftLab.Api/                              ← .NET API (AG-UI + REST, Minimal API)
+├── AgentCraftLab.Web/                              ← React frontend (React Flow + CopilotKit + shadcn/ui)
+├── AgentCraftLab.Engine/                           ← Core execution engine (no DB dependency)
+├── AgentCraftLab.Autonomous/                       ← ReAct agent (sub-agents, tools, safety)
+├── AgentCraftLab.Autonomous.Flow/                  ← Flow mode (plan -> execute -> crystallize)
+├── AgentCraftLab.Cleaner/                          ← Data cleaning engine (7 formats + Schema Mapper)
+├── extensions/
+│   ├── data/
+│   │   ├── AgentCraftLab.Data/                     ← Data layer abstractions (15 Store interfaces)
+│   │   ├── AgentCraftLab.Data.Sqlite/              ← SQLite provider (default, zero-config)
+│   │   ├── AgentCraftLab.Data.MongoDB/             ← MongoDB provider (optional)
+│   │   ├── AgentCraftLab.Data.PostgreSQL/          ← PostgreSQL provider (optional)
+│   │   └── AgentCraftLab.Data.SqlServer/           ← SQL Server provider (optional)
+│   ├── search/AgentCraftLab.Search/                ← Search engine (FTS5 + PgVector + Qdrant + RRF)
+│   ├── script/AgentCraftLab.Script/                ← Script sandbox (Jint JS + Roslyn C#)
+│   └── ocr/AgentCraftLab.Ocr/                      ← OCR engine (Tesseract)
+└── AgentCraftLab.Tests/                            ← Unit tests (1316)
 ```
 
 ### Engine — Use as a Library
@@ -105,6 +147,7 @@ AgentCraftLab.Engine can be used independently, without the Web UI:
 
 ```csharp
 builder.Services.AddAgentCraftEngine();
+builder.Services.AddSqliteDataProvider("Data/agentcraftlab.db");
 
 // ...
 
@@ -157,7 +200,25 @@ All endpoints are secured with API Key authentication.
 
 ## Database
 
-AgentCraftLab uses **SQLite** by default — zero configuration, no external database needed. Data is stored locally in `Data/agentcraftlab.db`.
+AgentCraftLab uses **SQLite** by default — zero configuration, no external database needed. Switch to an enterprise database with one config change:
+
+| Provider | Config Value | Use Case |
+|----------|-------------|----------|
+| **SQLite** | `sqlite` (default) | Local development, single-user |
+| **MongoDB** | `mongodb` | Document DB, cloud-native |
+| **PostgreSQL** | `postgresql` | Enterprise relational DB |
+| **SQL Server** | `sqlserver` | .NET enterprise, Azure SQL |
+
+```json
+{
+  "Database": {
+    "Provider": "postgresql",
+    "ConnectionString": "Host=localhost;Database=agentcraftlab;..."
+  }
+}
+```
+
+Each knowledge base can use a different search backend (SQLite FTS5, PgVector, Qdrant, or MongoDB Atlas) — configured per-KB via Data Source binding.
 
 ## Built With
 
@@ -165,7 +226,7 @@ AgentCraftLab uses **SQLite** by default — zero configuration, no external dat
 - [React](https://react.dev/) + [React Flow](https://reactflow.dev/) — Visual workflow editor
 - [CopilotKit](https://www.copilotkit.ai/) — AG-UI protocol + chat interface
 - [Microsoft.Agents.AI](https://github.com/microsoft/agent-framework) (1.0 GA) — Agent orchestration framework
-- [SQLite](https://sqlite.org/) + [EF Core](https://learn.microsoft.com/ef/core/) — Local-first database
+- [SQLite](https://sqlite.org/) / [PostgreSQL](https://www.postgresql.org/) / [MongoDB](https://www.mongodb.com/) / [SQL Server](https://www.microsoft.com/sql-server) — Pluggable database providers
 
 ## Contributing
 

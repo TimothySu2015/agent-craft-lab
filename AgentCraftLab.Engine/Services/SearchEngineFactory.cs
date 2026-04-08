@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
-using AgentCraftLab.Engine.Data;
+using AgentCraftLab.Data;
 using AgentCraftLab.Search.Abstractions;
 using AgentCraftLab.Search.Providers.PgVector;
 using AgentCraftLab.Search.Providers.Qdrant;

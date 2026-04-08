@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AgentCraftLab.Data;
 using AgentCraftLab.Engine.Services;
 using Microsoft.Extensions.AI;
 
@@ -55,12 +56,6 @@ public class ChatHistoryEntry
     public string Text { get; set; } = "";
 }
 
-public class ProviderCredential
-{
-    public string ApiKey { get; set; } = "";
-    public string Endpoint { get; set; } = "";
-    public string Model { get; set; } = "";
-}
 
 public class ExecutionEvent
 {
@@ -556,6 +551,8 @@ public class RagContext
     public required AgentCraftLab.Search.Abstractions.ISearchEngine SearchEngine { get; init; }
     public required string IndexName { get; init; }                     // 臨時上傳索引（可為空字串）
     public List<string> KnowledgeBaseIndexNames { get; init; } = [];    // 知識庫索引列表
+    /// <summary>索引名稱 → DataSourceId 映射（用於搜尋時路由到對應引擎，null = 預設引擎）。</summary>
+    public Dictionary<string, string?> IndexDataSourceMap { get; init; } = new();
 }
 
 public class RagSettings

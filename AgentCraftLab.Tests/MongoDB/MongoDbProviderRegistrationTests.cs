@@ -1,6 +1,7 @@
-using AgentCraftLab.Engine.Data;
+using AgentCraftLab.Data;
+using AgentCraftLab.Data.Sqlite;
 using AgentCraftLab.Engine.Extensions;
-using AgentCraftLab.MongoDB;
+using AgentCraftLab.Data.MongoDB;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentCraftLab.Tests.MongoDB;
@@ -11,6 +12,7 @@ public class MongoDbProviderRegistrationTests
     {
         var services = new ServiceCollection();
         services.AddAgentCraftEngine();
+        services.AddSqliteDataProvider();
         services.AddMongoDbProvider("mongodb://localhost:27017", "test");
         return services.BuildServiceProvider();
     }
@@ -24,7 +26,14 @@ public class MongoDbProviderRegistrationTests
     [InlineData(typeof(IKnowledgeBaseStore), typeof(MongoKnowledgeBaseStore))]
     [InlineData(typeof(IApiKeyStore), typeof(MongoApiKeyStore))]
     [InlineData(typeof(IScheduleStore), typeof(MongoScheduleStore))]
-    public void AddMongoDbProvider_Replaces_Store(Type interfaceType, Type expectedType)
+    [InlineData(typeof(IExecutionMemoryStore), typeof(MongoExecutionMemoryStore))]
+    [InlineData(typeof(IEntityMemoryStore), typeof(MongoEntityMemoryStore))]
+    [InlineData(typeof(IContextualMemoryStore), typeof(MongoContextualMemoryStore))]
+    [InlineData(typeof(ICheckpointStore), typeof(MongoCheckpointStore))]
+    [InlineData(typeof(ICraftMdStore), typeof(MongoCraftMdStore))]
+    [InlineData(typeof(IDataSourceStore), typeof(MongoDataSourceStore))]
+    [InlineData(typeof(IRefineryStore), typeof(MongoRefineryStore))]
+    public void AddMongoDbProvider_Replaces_All_15_Stores(Type interfaceType, Type expectedType)
     {
         using var sp = BuildProvider();
         var store = sp.GetRequiredService(interfaceType);
@@ -44,6 +53,7 @@ public class MongoDbProviderRegistrationTests
     {
         var services = new ServiceCollection();
         services.AddAgentCraftEngine();
+        services.AddSqliteDataProvider();
         using var sp = services.BuildServiceProvider();
 
         var store = sp.GetRequiredService<IWorkflowStore>();

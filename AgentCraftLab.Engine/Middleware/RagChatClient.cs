@@ -15,6 +15,7 @@ public class RagChatClient : DelegatingChatClient
     private readonly IEmbeddingGenerator<string, Embedding<float>> _embeddingGenerator;
     private readonly string _indexName;
     private readonly List<string> _knowledgeBaseIndexNames;
+    private readonly Dictionary<string, string?> _indexDataSourceMap;
     private readonly int _topK;
     private readonly RagSearchOptions _searchOptions;
     private readonly Action<List<RagChunk>>? _onCitationsFound;
@@ -29,13 +30,15 @@ public class RagChatClient : DelegatingChatClient
         List<string>? knowledgeBaseIndexNames = null,
         ILogger<RagChatClient>? logger = null,
         RagSearchOptions? searchOptions = null,
-        Action<List<RagChunk>>? onCitationsFound = null) : base(innerClient)
+        Action<List<RagChunk>>? onCitationsFound = null,
+        Dictionary<string, string?>? indexDataSourceMap = null) : base(innerClient)
     {
         _ragService = ragService;
         _embeddingGenerator = embeddingGenerator;
         _indexName = indexName;
         _topK = topK;
         _knowledgeBaseIndexNames = knowledgeBaseIndexNames ?? [];
+        _indexDataSourceMap = indexDataSourceMap ?? new();
         _logger = logger;
         _searchOptions = searchOptions ?? new RagSearchOptions();
         _onCitationsFound = onCitationsFound;
@@ -75,21 +78,23 @@ public class RagChatClient : DelegatingChatClient
 
         try
         {
-            // 收集所有要搜尋的索引
+            // 收集所有要搜尋的索引（每個索引根據 DataSourceId 路由到對應搜尋引擎）
             var searchTasks = new List<Task<List<RagChunk>>>();
 
             if (!string.IsNullOrEmpty(_indexName))
             {
+                _indexDataSourceMap.TryGetValue(_indexName, out var dsId);
                 searchTasks.Add(_ragService.SearchAsync(
                     lastUserMsg, _topK, _embeddingGenerator, _indexName,
-                    _searchOptions, cancellationToken));
+                    _searchOptions, cancellationToken, dsId));
             }
 
             foreach (var kbIndexName in _knowledgeBaseIndexNames)
             {
+                _indexDataSourceMap.TryGetValue(kbIndexName, out var dsId);
                 searchTasks.Add(_ragService.SearchAsync(
                     lastUserMsg, _topK, _embeddingGenerator, kbIndexName,
-                    _searchOptions, cancellationToken));
+                    _searchOptions, cancellationToken, dsId));
             }
 
             if (searchTasks.Count == 0)

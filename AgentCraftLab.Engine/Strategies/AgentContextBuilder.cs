@@ -1,3 +1,4 @@
+using AgentCraftLab.Data;
 using System.ClientModel;
 using System.Collections.Concurrent;
 using AgentCraftLab.Engine.Middleware;
@@ -189,7 +190,8 @@ public class AgentContextBuilder
         return new RagChatClient(
             chatClient, _ragService, ragContext.EmbeddingGenerator, ragContext.IndexName, ragSettings.TopK,
             kbIndexNames, searchOptions: searchOptions,
-            onCitationsFound: citations => LastRagCitations = citations);
+            onCitationsFound: citations => LastRagCitations = citations,
+            indexDataSourceMap: ragContext.IndexDataSourceMap);
     }
 
     private static IChatClient WrapWithTools(IChatClient chatClient, WorkflowNode node, IList<AITool> tools,
