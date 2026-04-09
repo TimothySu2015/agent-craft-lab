@@ -4,49 +4,46 @@
 
 ---
 
-## 1. Solution 總覽 -- Open Core 架構
+## 1. Solution 總覽
 
-AgentCraftLab 採用 Open Core 模式，核心引擎開源，商業功能獨立封裝。
+AgentCraftLab 是一個完全開源的 AI Agent 編排平台，採用模組化架構。
 
 | 專案 | 定位 |
 |------|------|
 | `AgentCraftLab.Api` | 純後端 API（AG-UI + REST，Minimal API 端點，port 5200） |
 | `AgentCraftLab.Web` | React 前端（React Flow + CopilotKit + shadcn/ui，port 5173） |
 | `AgentCraftLab.Search` | 獨立搜尋引擎類別庫（FTS5 + 向量 + RRF 混合搜尋） |
-| `AgentCraftLab.Engine` | 開源核心引擎（SQLite + 單人模式，策略 + 節點 + 工具 + Middleware + Hooks） |
+| `AgentCraftLab.Engine` | 核心引擎（策略 + 節點 + 工具 + Middleware + Hooks） |
 | `AgentCraftLab.Autonomous` | ReAct 迴圈 + Sub-agent 協作 + 12 meta-tools + 安全機制 |
 | `AgentCraftLab.Autonomous.Flow` | Flow 結構化執行（LLM 規劃 -> 7 種節點 -> Crystallize） |
-| `AgentCraftLab.Autonomous.Playground` | CLI 測試控制台（Spectre.Console） |
 | `AgentCraftLab.Script` | 多語言沙箱引擎（Jint JS + Roslyn C#，IScriptEngine / IScriptEngineFactory 介面） |
 | `AgentCraftLab.Ocr` | OCR 引擎（Tesseract，IOcrEngine 介面） |
-| `AgentCraftLab.Commercial` | 商業層（MongoDB + OAuth，不開源） |
-| `AgentCraftLab` | Blazor Web App（舊版 UI，Drawflow 畫布） |
+| `AgentCraftLab.Data` | 資料層抽象（15 Store 介面 + Documents + CredentialProtector，零依賴） |
+| `AgentCraftLab.Data.Sqlite` | SQLite Provider（EF Core，預設） |
+| `AgentCraftLab.Data.MongoDB` | MongoDB Provider（MongoDB.Driver） |
+| `AgentCraftLab.Data.PostgreSQL` | PostgreSQL Provider（EF Core + Npgsql） |
+| `AgentCraftLab.Data.SqlServer` | SQL Server Provider（EF Core + Microsoft.Data.SqlClient） |
 
 **技術棧：** .NET 10 + LangVersion 13.0，使用 `Microsoft.Agents.AI` 系列 API（禁止 Semantic Kernel）。
 
-**功能歸屬決策：** 新功能先問「單人自用是否需要？」-- 需要放 Engine；多人/計費/SSO 放 Commercial；搜尋/擷取/分塊放 Search。
+**功能歸屬決策：** 核心功能放 Engine；搜尋/擷取/分塊放 Search；新 DB Provider 放 `extensions/data/`。
 
 ---
 
-## 2. Open Core 模式切換
+## 2. 資料庫 Provider 切換
 
-系統透過偵測 `ConnectionStrings:MongoDB` 是否存在，在啟動時自動切換模式：
+系統根據 `Database:Provider` 設定，在啟動時選擇資料庫 Provider：
 
 ```
-                  ConnectionStrings:MongoDB 存在？
-                          |
-               +----------+----------+
-               |                     |
-              否                    是
-               |                     |
-        開源模式（預設）         商業模式
-        - SQLite               - MongoDB (Azure DocumentDB)
-        - 無認證               - Google/GitHub OAuth
-        - userId="local"       - 多使用者
-        - Sqlite*Store         - Mongo*Store
+Database:Provider = ?
+    |
+    +-- "sqlite"     --> SQLite（預設，零設定）
+    +-- "mongodb"    --> MongoDB
+    +-- "postgresql" --> PostgreSQL
+    +-- "sqlserver"  --> SQL Server
 ```
 
-所有 Store 介面（IWorkflowStore、ICredentialStore 等）都有 SQLite 和 MongoDB 兩套實作，DI 容器在啟動時根據設定註冊對應實作。
+所有 Store 介面（IWorkflowStore、ICredentialStore 等）都有各 Provider 的對應實作，DI 容器在啟動時根據設定註冊對應實作。
 
 ---
 
@@ -295,7 +292,7 @@ ICredentialStore.SaveAsync()
     |
     | DPAPI 加密（Windows Data Protection API）
     v
-SQLite / MongoDB 儲存（密文）
+資料庫儲存（密文）
 
 --- 執行時 ---
 

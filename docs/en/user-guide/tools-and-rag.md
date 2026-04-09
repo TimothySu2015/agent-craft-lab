@@ -325,7 +325,7 @@ Manage custom Skills via the `/skills` page (Skill Manager):
 - Delete: Remove Skills that are no longer needed
 - View Built-in Skills: View detailed instruction content of built-in Skills
 
-Custom Skill data is stored in `ISkillStore` (SQLite in open-source mode, MongoDB in commercial mode).
+Custom Skill data is stored in `ISkillStore` (the storage backend depends on the configured database provider).
 
 ---
 

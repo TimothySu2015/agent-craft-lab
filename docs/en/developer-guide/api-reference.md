@@ -365,38 +365,7 @@ Query request logs.
 
 ---
 
-## 12. Schedules (Commercial Mode)
-
-Requires commercial mode to be enabled (set `ConnectionStrings:MongoDB`).
-
-Base path: `/api/schedules`
-
-| Method | Path | Description |
-|------|------|------|
-| GET | `/api/schedules` | List the user's schedules |
-| GET | `/api/schedules/{id}` | Get a single schedule |
-| POST | `/api/schedules` | Create or update a schedule |
-| PATCH | `/api/schedules/{id}/toggle` | Enable/disable a schedule |
-| DELETE | `/api/schedules/{id}` | Delete a schedule |
-| GET | `/api/schedules/{id}/logs` | Query execution logs |
-
-**POST Request:**
-```json
-{
-  "id": "string (optional, updates if provided)",
-  "workflowId": "string (required, must be published)",
-  "cronExpression": "0 9 * * * (required)",
-  "timeZone": "UTC",
-  "enabled": true,
-  "defaultInput": "string"
-}
-```
-
-**GET logs Query Parameters:** `limit` (int, default 20).
-
----
-
-## 13. AI Build
+## 12. AI Build
 
 ### POST /api/flow-builder
 

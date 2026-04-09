@@ -365,38 +365,7 @@ HTTP API ツール定義をテストします。
 
 ---
 
-## 12. スケジュール（商用モード）
-
-商用モードの有効化（`ConnectionStrings:MongoDB` の設定）が必要です。
-
-ベースパス：`/api/schedules`
-
-| メソッド | パス | 説明 |
-|------|------|------|
-| GET | `/api/schedules` | ユーザーのスケジュールを一覧表示 |
-| GET | `/api/schedules/{id}` | 単一のスケジュールを取得 |
-| POST | `/api/schedules` | スケジュールを作成または更新 |
-| PATCH | `/api/schedules/{id}/toggle` | スケジュールを有効化/無効化 |
-| DELETE | `/api/schedules/{id}` | スケジュールを削除 |
-| GET | `/api/schedules/{id}/logs` | 実行ログを照会 |
-
-**POST Request：**
-```json
-{
-  "id": "string (オプション、指定時は更新)",
-  "workflowId": "string (必須、公開済みである必要あり)",
-  "cronExpression": "0 9 * * * (必須)",
-  "timeZone": "UTC",
-  "enabled": true,
-  "defaultInput": "string"
-}
-```
-
-**GET logs Query パラメーター：** `limit`（int、デフォルト 20）。
-
----
-
-## 13. AI Build
+## 12. AI Build
 
 ### POST /api/flow-builder
 

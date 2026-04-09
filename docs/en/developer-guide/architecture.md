@@ -4,50 +4,46 @@ This document is intended for developers who want to understand or extend AgentC
 
 ---
 
-## 1. Solution Overview -- Open Core Architecture
+## 1. Solution Overview
 
-AgentCraftLab adopts an Open Core model, where the core engine is open source and commercial features are independently packaged.
+AgentCraftLab is a fully open-source AI Agent orchestration platform with a modular architecture.
 
 | Project | Purpose |
 |------|------|
 | `AgentCraftLab.Api` | Pure backend API (AG-UI + REST, Minimal API endpoints, port 5200) |
 | `AgentCraftLab.Web` | React frontend (React Flow + CopilotKit + shadcn/ui, port 5173) |
 | `AgentCraftLab.Search` | Standalone search engine library (FTS5 + vector + RRF hybrid search) |
-| `AgentCraftLab.Engine` | Open source core engine (SQLite + single-user mode, strategies + nodes + tools + Middleware + Hooks) |
+| `AgentCraftLab.Engine` | Core engine (strategies + nodes + tools + Middleware + Hooks) |
 | `AgentCraftLab.Autonomous` | ReAct loop + Sub-agent collaboration + 12 meta-tools + safety mechanisms |
 | `AgentCraftLab.Autonomous.Flow` | Flow structured execution (LLM planning -> 7 node types -> Crystallize) |
-| `AgentCraftLab.Autonomous.Playground` | CLI test console (Spectre.Console) |
 | `AgentCraftLab.Script` | Multi-language sandbox engine (Jint JS + Roslyn C#, IScriptEngine / IScriptEngineFactory interfaces) |
 | `AgentCraftLab.Ocr` | OCR engine (Tesseract, IOcrEngine interface) |
-| `AgentCraftLab.Commercial` | Commercial layer (MongoDB + OAuth, not open source) |
-| `AgentCraftLab` | Blazor Web App (legacy UI, Drawflow canvas) |
+| `AgentCraftLab.Data` | Data layer abstraction (15 Store interfaces + Documents + CredentialProtector, zero dependencies) |
+| `AgentCraftLab.Data.Sqlite` | SQLite Provider (EF Core, default) |
+| `AgentCraftLab.Data.MongoDB` | MongoDB Provider (MongoDB.Driver) |
+| `AgentCraftLab.Data.PostgreSQL` | PostgreSQL Provider (EF Core + Npgsql) |
+| `AgentCraftLab.Data.SqlServer` | SQL Server Provider (EF Core + Microsoft.Data.SqlClient) |
 
 **Tech Stack:** .NET 10 + LangVersion 13.0, using `Microsoft.Agents.AI` series APIs (Semantic Kernel is prohibited).
 
-**Feature Placement Decision:** For new features, first ask "Is this needed for single-user self-hosting?" -- If yes, put it in Engine; multi-user/billing/SSO goes in Commercial; search/extraction/chunking goes in Search.
+**Feature Placement Decision:** Core features go in Engine; search/extraction/chunking goes in Search; new DB providers go in `extensions/data/`.
 
 ---
 
-## 2. Open Core Mode Switching
+## 2. Database Provider Switching
 
-The system detects whether `ConnectionStrings:MongoDB` is present at startup to automatically switch modes:
+The system selects the database provider based on the `Database:Provider` configuration at startup:
 
 ```
-                  ConnectionStrings:MongoDB present?
-                          |
-               +----------+----------+
-               |                     |
-              No                    Yes
-               |                     |
-        Open Source Mode         Commercial Mode
-        (default)
-        - SQLite               - MongoDB (Azure DocumentDB)
-        - No authentication    - Google/GitHub OAuth
-        - userId="local"       - Multi-user
-        - Sqlite*Store         - Mongo*Store
+Database:Provider = ?
+    |
+    +-- "sqlite"     --> SQLite (default, zero configuration)
+    +-- "mongodb"    --> MongoDB
+    +-- "postgresql" --> PostgreSQL
+    +-- "sqlserver"  --> SQL Server
 ```
 
-All Store interfaces (IWorkflowStore, ICredentialStore, etc.) have both SQLite and MongoDB implementations. The DI container registers the appropriate implementation at startup based on configuration.
+All Store interfaces (IWorkflowStore, ICredentialStore, etc.) have implementations for each provider. The DI container registers the appropriate implementation at startup based on configuration.
 
 ---
 
@@ -296,7 +292,7 @@ ICredentialStore.SaveAsync()
     |
     | DPAPI encryption (Windows Data Protection API)
     v
-SQLite / MongoDB storage (ciphertext)
+Database storage (ciphertext)
 
 --- At Runtime ---
 

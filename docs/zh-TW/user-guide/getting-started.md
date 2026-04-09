@@ -64,7 +64,7 @@ npm run dev:vite
 
 前往 **http://localhost:5173** -- 你應該會看到 Workflow Studio 介面。
 
-> 開源模式下無需登入，系統以 `local` 使用者身份運行。
+> 無需登入，系統以 `local` 使用者身份運行。
 
 ---
 

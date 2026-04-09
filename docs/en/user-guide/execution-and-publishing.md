@@ -117,17 +117,7 @@ Go to the `/api-keys` page to manage API keys.
 
 **Revoking a Key:** Keys can be revoked at any time from the API Keys list. Revocation takes effect immediately, and the key can no longer be used for any requests.
 
-### 2.3 Schedule Management (Commercial Mode)
-
-Go to the `/schedules` page to manage scheduled tasks. This feature is only available in commercial mode (MongoDB + OAuth).
-
-Features include:
-
-- **Create Schedule** -- Set a cron expression, target workflow, and input parameters
-- **Enable/Disable** -- Control whether a schedule is active via a toggle switch
-- **Execution History** -- View the execution results and timestamps of each scheduled trigger
-
-### 2.4 Service Tester
+### 2.3 Service Tester
 
 Go to the `/service-tester` page to test published services or external endpoints. It features a dual-panel design (settings panel + conversation panel) and supports 5 protocols:
 
@@ -141,7 +131,7 @@ Go to the `/service-tester` page to test published services or external endpoint
 
 Select a published workflow or enter an external endpoint URL to conduct interactive testing in the Chat panel.
 
-### 2.5 Request Logs
+### 2.4 Request Logs
 
 Go to the `/request-logs` page to view execution records and analytics. You can inspect the request content, response results, and execution time of each API call for debugging and performance analysis.
 
@@ -153,7 +143,7 @@ Go to the `/request-logs` page to view execution records and analytics. You can 
 
 Go to the `/settings` page for personal settings, which includes the following sections:
 
-**Profile:** Personal profile settings. In commercial mode, displays OAuth login information.
+**Profile:** Personal profile settings.
 
 **Language:** Switch the interface language. Currently supports English (en) and Traditional Chinese (zh-TW).
 
@@ -174,13 +164,3 @@ During workflow execution, the backend reads decrypted credentials from `ICreden
 
 Set token usage budget limits to avoid unexpectedly high costs. Budget limits can be configured per model or globally.
 
----
-
-## Appendix: Open-Source Mode vs. Commercial Mode Differences
-
-| Item | Open-Source Mode (Default) | Commercial Mode |
-|------|---------------------------|-----------------|
-| Database | SQLite | MongoDB (Azure DocumentDB) |
-| Authentication | No login required (userId="local") | Google / GitHub OAuth |
-| Schedule Management | Not available | Available |
-| Activation Method | Default | Set `ConnectionStrings:MongoDB` |
