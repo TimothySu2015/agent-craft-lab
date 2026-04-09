@@ -4,50 +4,46 @@
 
 ---
 
-## 1. Solution 概要 -- Open Core アーキテクチャ
+## 1. Solution 概要
 
-AgentCraftLab は Open Core モデルを採用しており、コアエンジンはオープンソース、商用機能は独立してパッケージ化されています。
+AgentCraftLab は完全オープンソースの AI Agent オーケストレーションプラットフォームであり、モジュラーアーキテクチャを採用しています。
 
 | プロジェクト | 位置づけ |
 |------|------|
 | `AgentCraftLab.Api` | 純粋なバックエンド API（AG-UI + REST、Minimal API エンドポイント、port 5200） |
 | `AgentCraftLab.Web` | React フロントエンド（React Flow + CopilotKit + shadcn/ui、port 5173） |
 | `AgentCraftLab.Search` | 独立した検索エンジンクラスライブラリ（FTS5 + ベクトル + RRF ハイブリッド検索） |
-| `AgentCraftLab.Engine` | オープンソースコアエンジン（SQLite + シングルユーザーモード、ストラテジー + ノード + ツール + ミドルウェア + Hooks） |
+| `AgentCraftLab.Engine` | コアエンジン（ストラテジー + ノード + ツール + ミドルウェア + Hooks） |
 | `AgentCraftLab.Autonomous` | ReAct ループ + Sub-agent 連携 + 12 meta-tools + セキュリティメカニズム |
 | `AgentCraftLab.Autonomous.Flow` | Flow 構造化実行（LLM プランニング -> 7 種ノード -> Crystallize） |
-| `AgentCraftLab.Autonomous.Playground` | CLI テストコンソール（Spectre.Console） |
 | `AgentCraftLab.Script` | マルチ言語サンドボックスエンジン（Jint JS + Roslyn C#、IScriptEngine / IScriptEngineFactory インターフェース） |
 | `AgentCraftLab.Ocr` | OCR エンジン（Tesseract、IOcrEngine インターフェース） |
-| `AgentCraftLab.Commercial` | 商用レイヤー（MongoDB + OAuth、非公開） |
-| `AgentCraftLab` | Blazor Web App（旧版 UI、Drawflow キャンバス） |
+| `AgentCraftLab.Data` | データ層抽象（15 Store インターフェース + Documents + CredentialProtector、ゼロ依存） |
+| `AgentCraftLab.Data.Sqlite` | SQLite Provider（EF Core、デフォルト） |
+| `AgentCraftLab.Data.MongoDB` | MongoDB Provider（MongoDB.Driver） |
+| `AgentCraftLab.Data.PostgreSQL` | PostgreSQL Provider（EF Core + Npgsql） |
+| `AgentCraftLab.Data.SqlServer` | SQL Server Provider（EF Core + Microsoft.Data.SqlClient） |
 
 **技術スタック：** .NET 10 + LangVersion 13.0、`Microsoft.Agents.AI` シリーズ API を使用（Semantic Kernel は禁止）。
 
-**機能の帰属判断：** 新機能はまず「シングルユーザーで必要か？」と問う -- 必要なら Engine へ、マルチユーザー/課金/SSO なら Commercial へ、検索/抽出/チャンク分割なら Search へ配置します。
+**機能の帰属判断：** コア機能は Engine へ、検索/抽出/チャンク分割は Search へ、新しい DB Provider は `extensions/data/` へ配置します。
 
 ---
 
-## 2. Open Core モード切替
+## 2. データベース Provider 切替
 
-システムは `ConnectionStrings:MongoDB` の存在を検出し、起動時にモードを自動切替します：
+システムは `Database:Provider` 設定に基づいて、起動時にデータベース Provider を選択します：
 
 ```
-                  ConnectionStrings:MongoDB が存在するか？
-                          |
-               +----------+----------+
-               |                     |
-              いいえ                はい
-               |                     |
-        オープンソースモード        商用モード
-        （デフォルト）
-        - SQLite               - MongoDB (Azure DocumentDB)
-        - 認証なし             - Google/GitHub OAuth
-        - userId="local"       - マルチユーザー
-        - Sqlite*Store         - Mongo*Store
+Database:Provider = ?
+    |
+    +-- "sqlite"     --> SQLite（デフォルト、ゼロ設定）
+    +-- "mongodb"    --> MongoDB
+    +-- "postgresql" --> PostgreSQL
+    +-- "sqlserver"  --> SQL Server
 ```
 
-すべての Store インターフェース（IWorkflowStore、ICredentialStore など）には SQLite と MongoDB の 2 つの実装があり、DI コンテナが起動時に設定に応じて対応する実装を登録します。
+すべての Store インターフェース（IWorkflowStore、ICredentialStore など）には各 Provider の対応する実装があり、DI コンテナが起動時に設定に応じて対応する実装を登録します。
 
 ---
 
@@ -296,7 +292,7 @@ ICredentialStore.SaveAsync()
     |
     | DPAPI 暗号化（Windows Data Protection API）
     v
-SQLite / MongoDB ストレージ（暗号文）
+データベースストレージ（暗号文）
 
 --- 実行時 ---
 

@@ -64,7 +64,7 @@ npm run dev:vite
 
 Navigate to **http://localhost:5173** -- you should see the Workflow Studio interface.
 
-> In open-source mode, no login is required. The system runs under the `local` user identity.
+> No login is required. The system runs under the `local` user identity.
 
 ---
 

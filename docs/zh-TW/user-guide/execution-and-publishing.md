@@ -117,17 +117,7 @@ Input Modes 決定了外部呼叫者可以傳送哪些格式的資料給該 Work
 
 **撤銷 Key：** 在 API Keys 列表中可隨時撤銷不再使用的金鑰，撤銷後立即生效，該 Key 將無法再用於任何請求。
 
-### 2.3 排程管理（商業模式）
-
-前往 `/schedules` 頁面管理排程任務。此功能僅在商業模式（MongoDB + OAuth）下可用。
-
-功能包含：
-
-- **建立排程** -- 設定 cron 表達式、目標 Workflow、輸入參數
-- **啟用/停用** -- 透過 Toggle 開關控制排程是否生效
-- **執行記錄** -- 查看每次排程觸發的執行結果與時間
-
-### 2.4 Service Tester
+### 2.3 Service Tester
 
 前往 `/service-tester` 頁面測試已發布的服務或外部端點。採用雙面板設計（設定面板 + 對話面板），支援 5 種協定：
 
@@ -141,7 +131,7 @@ Input Modes 決定了外部呼叫者可以傳送哪些格式的資料給該 Work
 
 選擇已發布的 Workflow 或輸入外部端點 URL，即可在 Chat 面板中進行互動式測試。
 
-### 2.5 Request Logs
+### 2.4 Request Logs
 
 前往 `/request-logs` 頁面查看執行記錄與分析。可檢視每次 API 呼叫的請求內容、回應結果、執行時間等資訊，用於除錯與效能分析。
 
@@ -153,7 +143,7 @@ Input Modes 決定了外部呼叫者可以傳送哪些格式的資料給該 Work
 
 前往 `/settings` 頁面進行個人設定，包含以下區塊：
 
-**Profile：** 個人資料設定。在商業模式下顯示 OAuth 登入資訊。
+**Profile：** 個人資料設定。
 
 **語系：** 切換介面語言，目前支援英文（en）與繁體中文（zh-TW）。
 
@@ -174,13 +164,3 @@ Workflow 執行時，後端透過 `ResolveCredentialsAsync()` 從 `ICredentialSt
 
 設定 Token 使用預算上限，避免意外的高額費用。可依模型或整體設定預算限制。
 
----
-
-## 附錄：開源模式與商業模式差異
-
-| 項目 | 開源模式（預設） | 商業模式 |
-|------|-----------------|---------|
-| 資料庫 | SQLite | MongoDB (Azure DocumentDB) |
-| 認證 | 免登入（userId="local"） | Google / GitHub OAuth |
-| 排程管理 | 不可用 | 可用 |
-| 啟用方式 | 預設 | 設定 `ConnectionStrings:MongoDB` |

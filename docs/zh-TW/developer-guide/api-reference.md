@@ -365,38 +365,7 @@ AG-UI 協定端點以 SSE（Server-Sent Events）串流回傳執行事件。
 
 ---
 
-## 12. 排程（商業模式）
-
-需啟用商業模式（設定 `ConnectionStrings:MongoDB`）。
-
-基礎路徑：`/api/schedules`
-
-| 方法 | 路徑 | 說明 |
-|------|------|------|
-| GET | `/api/schedules` | 列出使用者的排程 |
-| GET | `/api/schedules/{id}` | 取得單一排程 |
-| POST | `/api/schedules` | 建立或更新排程 |
-| PATCH | `/api/schedules/{id}/toggle` | 啟用/停用排程 |
-| DELETE | `/api/schedules/{id}` | 刪除排程 |
-| GET | `/api/schedules/{id}/logs` | 查詢執行記錄 |
-
-**POST Request：**
-```json
-{
-  "id": "string (選填，有則更新)",
-  "workflowId": "string (必填，需已發布)",
-  "cronExpression": "0 9 * * * (必填)",
-  "timeZone": "UTC",
-  "enabled": true,
-  "defaultInput": "string"
-}
-```
-
-**GET logs Query 參數：** `limit`（int，預設 20）。
-
----
-
-## 13. AI Build
+## 12. AI Build
 
 ### POST /api/flow-builder
 
