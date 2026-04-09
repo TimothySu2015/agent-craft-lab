@@ -3,7 +3,7 @@
 [English](README.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md)
 
 [![Docs](https://img.shields.io/badge/docs-VitePress-646cff?logo=vitepress)](https://timothysu2015.github.io/agent-craft-lab/)
-[![License](https://img.shields.io/badge/license-BSL--1.1-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10-512bd4?logo=dotnet)](https://dotnet.microsoft.com/)
 
 基於 .NET 打造的開源 AI Agent 平台 — 在 .NET 生態系中完成 Agent 工作流程的設計、測試與部署。
