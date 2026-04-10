@@ -3,6 +3,7 @@ using AgentCraftLab.Search.Chunking;
 using AgentCraftLab.Search.Extraction;
 using AgentCraftLab.Search.Providers.InMemory;
 using AgentCraftLab.Search.Providers.PgVector;
+using AgentCraftLab.Search.Providers.Qdrant;
 using AgentCraftLab.Search.Providers.Sqlite;
 using AgentCraftLab.Search.Reranking;
 using Microsoft.EntityFrameworkCore;
@@ -57,6 +58,11 @@ public static class SearchServiceExtensions
 
         // 重排序（預設不做任何事，可用 AddReranker<T>() 替換）
         services.TryAddSingleton<IReranker, NoOpReranker>();
+
+        // 搜尋引擎 Provider（registry pattern — 新增 Provider 只需註冊 ISearchEngineProvider）
+        services.AddSingleton<ISearchEngineProvider, SqliteSearchEngineProvider>();
+        services.AddSingleton<ISearchEngineProvider, PgVectorSearchEngineProvider>();
+        services.AddSingleton<ISearchEngineProvider, QdrantSearchEngineProvider>();
 
         return services;
     }

@@ -33,6 +33,8 @@
     "uploadFile": "上傳檔案",
     "uploaded": "已上傳",
     "uploadFailed": "上傳失敗",
+    "noDataSources": "尚未設定資料來源連線。",
+    "selectDataSource": "-- 請選擇資料來源 --",
     "settingsImmutableHint": "Embedding 模型、分塊大小與重疊建立後無法修改。",
     "confirmDelete": "刪除知識庫「{{name}}」？所有檔案和索引資料將被移除。",
     "confirmDeleteFile": "刪除檔案「{{name}}」？其索引分塊將從知識庫中移除。",
@@ -436,7 +438,8 @@
       "username": "Username",
       "password": "Password",
       "url": "URL",
-      "apiKey": "API Key"
+      "apiKey": "API Key",
+      "dbPath": "資料庫路徑"
     },
     "goToSettings": "前往 Settings 管理連線..."
   },

@@ -33,6 +33,8 @@
     "uploadFile": "Upload File",
     "uploaded": "Uploaded",
     "uploadFailed": "Upload failed",
+    "noDataSources": "No Data Sources configured.",
+    "selectDataSource": "-- Select a Data Source --",
     "settingsImmutableHint": "Embedding model, chunk size, and overlap cannot be changed after creation.",
     "confirmDelete": "Delete knowledge base \"{{name}}\"? All files and indexed data will be removed.",
     "confirmDeleteFile": "Delete file \"{{name}}\"? Its indexed chunks will be removed from the knowledge base.",
@@ -436,7 +438,8 @@
       "username": "Username",
       "password": "Password",
       "url": "URL",
-      "apiKey": "API Key"
+      "apiKey": "API Key",
+      "dbPath": "Database Path"
     },
     "goToSettings": "Go to Settings to manage connections..."
   },

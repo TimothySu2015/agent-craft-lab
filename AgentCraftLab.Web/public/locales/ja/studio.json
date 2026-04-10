@@ -33,6 +33,8 @@
     "uploadFile": "ファイルをアップロード",
     "uploaded": "アップロード済み",
     "uploadFailed": "アップロード失敗",
+    "noDataSources": "データソース接続が設定されていません。",
+    "selectDataSource": "-- データソースを選択 --",
     "settingsImmutableHint": "Embedding モデル、チャンクサイズ、オーバーラップは作成後に変更できません。",
     "confirmDelete": "ナレッジベース「{{name}}」を削除しますか？すべてのファイルとインデックスデータが削除されます。",
     "confirmDeleteFile": "ファイル「{{name}}」を削除しますか？インデックス済みのチャンクがナレッジベースから削除されます。",
@@ -435,7 +437,8 @@
       "username": "ユーザー名",
       "password": "パスワード",
       "url": "URL",
-      "apiKey": "API キー"
+      "apiKey": "API キー",
+      "dbPath": "データベースパス"
     },
     "goToSettings": "設定ページで接続を管理..."
   },

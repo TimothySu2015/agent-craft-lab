@@ -1,44 +1,55 @@
 using System.Collections.Concurrent;
-using System.Text.Json;
 using AgentCraftLab.Data;
 using AgentCraftLab.Search.Abstractions;
-using AgentCraftLab.Search.Providers.PgVector;
-using AgentCraftLab.Search.Providers.Qdrant;
 using Microsoft.Extensions.Logging;
 
 namespace AgentCraftLab.Engine.Services;
 
 /// <summary>
 /// 根據 DataSource 設定解析或快取對應的 ISearchEngine 實例。
-/// DataSourceId 為 null 時回傳全域預設 SQLite。
-/// Phase 5/6 實作 pgvector/qdrant 時，在 CreateEngine 加入對應分支即可。
+/// 透過 ISearchEngineProvider 集合解耦具體 Provider — 新增 Provider 只需註冊 ISearchEngineProvider，不需改此類。
+/// DataSourceId 為 null 時，為向下相容既有 KB，自動建立指向預設路徑的 SQLite 引擎。
 /// </summary>
-public class SearchEngineFactory
+public class SearchEngineFactory : ISearchEngineFactory
 {
-    private readonly ISearchEngine _defaultEngine;
     private readonly IDataSourceStore _store;
     private readonly ILogger<SearchEngineFactory> _logger;
+    private readonly Dictionary<string, ISearchEngineProvider> _providers;
+    private readonly ISearchEngine? _overrideEngine;
     private readonly ConcurrentDictionary<string, ISearchEngine> _cache = new();
-    private static readonly JsonSerializerOptions JsonOpts = new() { PropertyNameCaseInsensitive = true };
+
+    /// <summary>Legacy fallback 用的快取 key。</summary>
+    private const string LegacyFallbackKey = "__legacy_sqlite__";
 
     public SearchEngineFactory(
-        ISearchEngine defaultEngine,
         IDataSourceStore store,
+        IEnumerable<ISearchEngineProvider> providers,
         ILogger<SearchEngineFactory> logger)
     {
-        _defaultEngine = defaultEngine;
         _store = store;
         _logger = logger;
+        _providers = providers.ToDictionary(p => p.ProviderName, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
-    /// 解析 DataSourceId 對應的 ISearchEngine。null = 預設 SQLite。
+    /// 測試用建構子 — 傳入 overrideEngine 作為 legacy fallback 的替代。
     /// </summary>
+    internal SearchEngineFactory(
+        IDataSourceStore store,
+        IEnumerable<ISearchEngineProvider> providers,
+        ILogger<SearchEngineFactory> logger,
+        ISearchEngine overrideEngine)
+        : this(store, providers, logger)
+    {
+        _overrideEngine = overrideEngine;
+    }
+
+    /// <inheritdoc />
     public async Task<ISearchEngine> ResolveAsync(string? dataSourceId, CancellationToken ct = default)
     {
         if (string.IsNullOrEmpty(dataSourceId))
         {
-            return _defaultEngine;
+            return GetOrCreateLegacyEngine();
         }
 
         if (_cache.TryGetValue(dataSourceId, out var cached))
@@ -49,8 +60,8 @@ public class SearchEngineFactory
         var ds = await _store.GetAsync(dataSourceId);
         if (ds is null)
         {
-            _logger.LogWarning("DataSource {Id} not found, falling back to default", dataSourceId);
-            return _defaultEngine;
+            throw new InvalidOperationException(
+                $"DataSource '{dataSourceId}' not found. Please check your Data Source settings.");
         }
 
         var engine = CreateEngine(ds);
@@ -58,7 +69,7 @@ public class SearchEngineFactory
         return engine;
     }
 
-    /// <summary>清除快取（DataSource 更新/刪除時呼叫）。</summary>
+    /// <inheritdoc />
     public void Invalidate(string dataSourceId)
     {
         _cache.TryRemove(dataSourceId, out _);
@@ -66,23 +77,39 @@ public class SearchEngineFactory
 
     private ISearchEngine CreateEngine(DataSourceDocument ds)
     {
-        return ds.Provider switch
+        if (!_providers.TryGetValue(ds.Provider, out var provider))
         {
-            "pgvector" => CreatePgVector(ds.ConfigJson),
-            "qdrant" => CreateQdrant(ds.ConfigJson),
-            _ => _defaultEngine  // sqlite 或未知 Provider → 用預設
-        };
+            var supported = string.Join(", ", _providers.Keys.Order());
+            throw new InvalidOperationException(
+                $"Unsupported search provider: '{ds.Provider}'. Supported: {supported}.");
+        }
+
+        return provider.Create(ds.ConfigJson);
     }
 
-    private static PgVectorSearchEngine CreatePgVector(string configJson)
+    /// <summary>
+    /// 向下相容：既有 KB 的 DataSourceId 為 null 時，使用 sqlite provider 建立預設引擎。
+    /// </summary>
+    private ISearchEngine GetOrCreateLegacyEngine()
     {
-        var config = JsonSerializer.Deserialize<PgVectorConfig>(configJson, JsonOpts) ?? new PgVectorConfig();
-        return new PgVectorSearchEngine(config);
-    }
+        if (_overrideEngine is not null)
+        {
+            return _overrideEngine;
+        }
 
-    private static QdrantSearchEngine CreateQdrant(string configJson)
-    {
-        var config = JsonSerializer.Deserialize<QdrantConfig>(configJson, JsonOpts) ?? new QdrantConfig();
-        return new QdrantSearchEngine(config);
+        return _cache.GetOrAdd(LegacyFallbackKey, _ =>
+        {
+            _logger.LogWarning(
+                "Using legacy SQLite search engine (DataSourceId is null). " +
+                "Please create a DataSource in Settings and bind your Knowledge Bases to it.");
+
+            if (!_providers.TryGetValue("sqlite", out var sqliteProvider))
+            {
+                throw new InvalidOperationException(
+                    "No SQLite search engine provider registered. Cannot create legacy fallback engine.");
+            }
+
+            return sqliteProvider.Create("{}");
+        });
     }
 }

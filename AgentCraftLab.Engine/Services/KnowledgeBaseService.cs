@@ -14,8 +14,7 @@ namespace AgentCraftLab.Engine.Services;
 public class KnowledgeBaseService
 {
     private readonly IKnowledgeBaseStore _store;
-    private readonly ISearchEngine _searchEngine;
-    private readonly SearchEngineFactory _searchEngineFactory;
+    private readonly ISearchEngineFactory _searchEngineFactory;
     private readonly DocumentExtractorFactory _extractorFactory;
     private readonly ITextChunker _chunker;
     private readonly StructuralChunker _structuralChunker;
@@ -23,14 +22,12 @@ public class KnowledgeBaseService
 
     public KnowledgeBaseService(
         IKnowledgeBaseStore store,
-        ISearchEngine searchEngine,
-        SearchEngineFactory searchEngineFactory,
+        ISearchEngineFactory searchEngineFactory,
         DocumentExtractorFactory extractorFactory,
         ITextChunker chunker,
         ILogger<KnowledgeBaseService> logger)
     {
         _store = store;
-        _searchEngine = searchEngine;
         _searchEngineFactory = searchEngineFactory;
         _extractorFactory = extractorFactory;
         _chunker = chunker;
@@ -258,6 +255,22 @@ public class KnowledgeBaseService
             {
                 _logger.LogWarning(ex, "Failed to cleanup knowledge base: {Id}", kb.Id);
             }
+        }
+
+        // 清理 _rag_ 臨時索引（24 小時 TTL）
+        try
+        {
+            var engine = await _searchEngineFactory.ResolveAsync(null, cancellationToken);
+            var indexes = await engine.ListIndexesAsync(cancellationToken);
+            var cutoff = DateTimeOffset.UtcNow.AddHours(-24);
+            foreach (var idx in indexes.Where(i => i.Name.Contains("_rag_") && i.CreatedAt < cutoff))
+            {
+                await engine.DeleteIndexAsync(idx.Name, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to cleanup stale _rag_ indexes");
         }
     }
 }

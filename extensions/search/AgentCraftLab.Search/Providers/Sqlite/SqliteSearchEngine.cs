@@ -27,6 +27,51 @@ public class SqliteSearchEngine : ISearchEngine
         _logger = logger;
     }
 
+    /// <summary>
+    /// 工廠方法 — 在 DI 容器外建立 SqliteSearchEngine（SearchEngineFactory 用）。
+    /// 內部自建 ServiceProvider（含 SearchDbContext），並初始化 FTS5 虛擬表。
+    /// </summary>
+    public static SqliteSearchEngine Create(string dbPath, ILoggerFactory? loggerFactory = null)
+    {
+        var dir = Path.GetDirectoryName(dbPath);
+        if (!string.IsNullOrEmpty(dir))
+        {
+            Directory.CreateDirectory(dir);
+        }
+
+        var services = new ServiceCollection();
+        services.AddDbContext<SearchDbContext>(opt =>
+            opt.UseSqlite($"Data Source={dbPath};Cache=Shared"));
+        if (loggerFactory is not null)
+        {
+            services.AddSingleton(loggerFactory);
+        }
+        else
+        {
+            services.AddLogging();
+        }
+
+        var sp = services.BuildServiceProvider();
+
+        // 初始化 DB（建表 + FTS5）
+        using (var scope = sp.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SearchDbContext>();
+            db.Database.EnsureCreated();
+            db.Database.ExecuteSqlRaw("PRAGMA journal_mode=DELETE");
+            db.Database.ExecuteSqlRaw("PRAGMA synchronous=NORMAL");
+            db.Database.ExecuteSqlRaw("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS SearchChunksFts
+                USING fts5(ChunkId UNINDEXED, IndexName UNINDEXED, Content, tokenize='trigram')
+                """);
+        }
+
+        var options = new SearchEngineOptions { IndexTtl = null };
+        var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger<SqliteSearchEngine>();
+        var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+        return new SqliteSearchEngine(scopeFactory, options, logger);
+    }
+
     public async Task EnsureIndexAsync(string indexName, CancellationToken ct = default)
     {
         using var scope = _scopeFactory.CreateScope();

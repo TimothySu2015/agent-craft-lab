@@ -114,7 +114,7 @@ export function DataSourceSection({ SectionCard }: DataSourceSectionProps) {
       await fetchDataSources()
     } catch (err: any) {
       if (err?.code === 'DS_IN_USE') {
-        alert(t('dataSource.inUse', { count: err.params?.count ?? '?' }))
+        notify.error(t('dataSource.inUse', { count: err.params?.count ?? '?' }))
       } else {
         console.error('Failed to delete data source:', err)
         notify.error(tn('deleteFailed.dataSource'), { description: (err as any)?.message })

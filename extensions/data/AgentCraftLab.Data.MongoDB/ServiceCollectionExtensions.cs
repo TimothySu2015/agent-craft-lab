@@ -1,5 +1,6 @@
 using AgentCraftLab.Data;
 using AgentCraftLab.Search.Abstractions;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,12 @@ public static class ServiceCollectionExtensions
         string connectionString,
         string databaseName = "agentcraftlab")
     {
+        var keysDir = new DirectoryInfo(Path.Combine("Data", "keys"));
+        keysDir.Create();
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(keysDir);
+        services.AddSingleton<CredentialProtector>();
+
         services.AddSingleton(new MongoDbContext(connectionString, databaseName));
 
         services.Replace(ServiceDescriptor.Singleton<IWorkflowStore, MongoWorkflowStore>());
