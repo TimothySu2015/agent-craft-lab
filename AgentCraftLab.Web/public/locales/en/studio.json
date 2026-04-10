@@ -101,7 +101,13 @@
     "successRate": "Success Rate",
     "avgResponse": "Avg Response",
     "errors": "Errors",
-    "noLogs": "No logs found for this time range."
+    "noLogs": "No logs found for this time range.",
+    "colTime": "Time",
+    "colProtocol": "Protocol",
+    "colWorkflow": "Workflow",
+    "colMessage": "Message",
+    "colMs": "Ms",
+    "colStatus": "Status"
   },
   "services": {
     "noPublished": "No published services yet. Publish a workflow from the Studio.",
@@ -110,7 +116,32 @@
   "apiKeys": {
     "noKeys": "No API keys yet. Create one to enable external access.",
     "createKey": "Create Key",
-    "revoke": "Revoke"
+    "revoke": "Revoke",
+    "createTitle": "Create API Key",
+    "empty": "No API keys yet. Create one to enable external access.",
+    "nameRequired": "Name is required",
+    "confirmRevoke": "Revoke this API key? It will no longer be accepted.",
+    "createdBanner": "API Key created! Copy it now — it will not be shown again.",
+    "usage": "Usage",
+    "usageDesc": "Include the API key in request headers:",
+    "usageBearer": "Or use {{header}} header. Agent Card discovery endpoints (GET) remain public.",
+    "fieldName": "Name *",
+    "fieldScope": "Scope (Workflow IDs, comma separated)",
+    "fieldScopePlaceholder": "Leave empty for all workflows",
+    "fieldExpires": "Expires At",
+    "fieldNamePlaceholder": "e.g. Production Key",
+    "colName": "Name",
+    "colKeyPrefix": "Key Prefix",
+    "colScope": "Scope",
+    "colStatus": "Status",
+    "colLastUsed": "Last Used",
+    "colExpires": "Expires",
+    "colCreated": "Created",
+    "allWorkflows": "All workflows",
+    "never": "Never",
+    "statusActive": "Active",
+    "statusExpired": "Expired",
+    "statusRevoked": "Revoked"
   },
   "middlewareConfig": {
     "title": "Middleware Configuration",

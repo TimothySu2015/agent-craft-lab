@@ -20,7 +20,7 @@ interface LogEntry {
 }
 
 export function RequestLogsPage() {
-  const { t } = useTranslation()
+  const { t } = useTranslation(['studio', 'common'])
   const [timeRange, setTimeRange] = useState('24h')
   const [protocol, setProtocol] = useState('all')
   const [summary, setSummary] = useState<Summary>({ totalCalls: 0, successCount: 0, errorCount: 0, avgResponseMs: 0 })
@@ -78,10 +78,10 @@ export function RequestLogsPage() {
       <div className="flex-1 overflow-y-auto p-6">
         {/* Stat Cards */}
         <div className="grid grid-cols-4 gap-3 mb-6">
-          <StatCard value={(summary?.totalCalls ?? 0).toString()} label="Total Calls" color="text-blue-400" />
-          <StatCard value={`${successRate}%`} label="Success Rate" color="text-green-400" />
-          <StatCard value={(summary?.avgResponseMs ?? 0) > 0 ? `${(summary.avgResponseMs / 1000).toFixed(1)}s` : '—'} label="Avg Response" color="text-yellow-400" />
-          <StatCard value={(summary?.errorCount ?? 0).toString()} label="Errors" color="text-red-400" />
+          <StatCard value={(summary?.totalCalls ?? 0).toString()} label={t('logs.totalCalls')} color="text-blue-400" />
+          <StatCard value={`${successRate}%`} label={t('logs.successRate')} color="text-green-400" />
+          <StatCard value={(summary?.avgResponseMs ?? 0) > 0 ? `${(summary.avgResponseMs / 1000).toFixed(1)}s` : '—'} label={t('logs.avgResponse')} color="text-yellow-400" />
+          <StatCard value={(summary?.errorCount ?? 0).toString()} label={t('logs.errors')} color="text-red-400" />
         </div>
 
         {/* Log Table */}
@@ -89,12 +89,12 @@ export function RequestLogsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-card">
-                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Time</th>
-                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Protocol</th>
-                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Workflow</th>
-                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Message</th>
-                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Ms</th>
-                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Status</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('logs.colTime')}</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('logs.colProtocol')}</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('logs.colWorkflow')}</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('logs.colMessage')}</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('logs.colMs')}</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('logs.colStatus')}</th>
               </tr>
             </thead>
             <tbody>

@@ -101,7 +101,13 @@
     "successRate": "成功率",
     "avgResponse": "平均回應",
     "errors": "錯誤數",
-    "noLogs": "此時間範圍內無日誌。"
+    "noLogs": "此時間範圍內無日誌。",
+    "colTime": "時間",
+    "colProtocol": "協定",
+    "colWorkflow": "工作流程",
+    "colMessage": "訊息",
+    "colMs": "毫秒",
+    "colStatus": "狀態"
   },
   "services": {
     "noPublished": "尚無已發布的服務。請在 Studio 中發布 Workflow。",
@@ -110,7 +116,32 @@
   "apiKeys": {
     "noKeys": "尚無 API 金鑰。建立一組以啟用外部存取。",
     "createKey": "建立金鑰",
-    "revoke": "撤銷"
+    "revoke": "撤銷",
+    "createTitle": "建立 API 金鑰",
+    "empty": "尚無 API 金鑰。建立一組以啟用外部存取。",
+    "nameRequired": "名稱為必填",
+    "confirmRevoke": "撤銷此 API 金鑰？撤銷後將無法再使用。",
+    "createdBanner": "API 金鑰已建立！請立即複製，此金鑰不會再次顯示。",
+    "usage": "使用方式",
+    "usageDesc": "在請求標頭中包含 API 金鑰：",
+    "usageBearer": "或使用 {{header}} 標頭。Agent Card 探索端點 (GET) 維持公開。",
+    "fieldName": "名稱 *",
+    "fieldScope": "範圍（Workflow ID，逗號分隔）",
+    "fieldScopePlaceholder": "留空表示所有 Workflow",
+    "fieldExpires": "到期日",
+    "fieldNamePlaceholder": "例如：Production Key",
+    "colName": "名稱",
+    "colKeyPrefix": "金鑰前綴",
+    "colScope": "範圍",
+    "colStatus": "狀態",
+    "colLastUsed": "最後使用",
+    "colExpires": "到期日",
+    "colCreated": "建立時間",
+    "allWorkflows": "所有 Workflow",
+    "never": "從未使用",
+    "statusActive": "啟用中",
+    "statusExpired": "已過期",
+    "statusRevoked": "已撤銷"
   },
   "middlewareConfig": {
     "title": "中介層設定",

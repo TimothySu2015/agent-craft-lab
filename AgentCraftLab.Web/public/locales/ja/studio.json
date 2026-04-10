@@ -101,7 +101,13 @@
     "successRate": "成功率",
     "avgResponse": "平均応答時間",
     "errors": "エラー数",
-    "noLogs": "この期間のログは見つかりません。"
+    "noLogs": "この期間のログは見つかりません。",
+    "colTime": "時刻",
+    "colProtocol": "プロトコル",
+    "colWorkflow": "ワークフロー",
+    "colMessage": "メッセージ",
+    "colMs": "ミリ秒",
+    "colStatus": "ステータス"
   },
   "services": {
     "noPublished": "公開サービスがありません。Studio から Workflow を公開してください。",
@@ -110,7 +116,32 @@
   "apiKeys": {
     "noKeys": "API キーがありません。外部アクセスを有効にするには作成してください。",
     "createKey": "キーを作成",
-    "revoke": "取り消し"
+    "revoke": "取り消し",
+    "createTitle": "API キーを作成",
+    "empty": "API キーがありません。外部アクセスを有効にするには作成してください。",
+    "nameRequired": "名前は必須です",
+    "confirmRevoke": "この API キーを取り消しますか？取り消すと使用できなくなります。",
+    "createdBanner": "API キーが作成されました！今すぐコピーしてください。再度表示されません。",
+    "usage": "使用方法",
+    "usageDesc": "リクエストヘッダーに API キーを含めてください：",
+    "usageBearer": "または {{header}} ヘッダーを使用。Agent Card ディスカバリエンドポイント (GET) は公開のままです。",
+    "fieldName": "名前 *",
+    "fieldScope": "スコープ（ワークフロー ID、カンマ区切り）",
+    "fieldScopePlaceholder": "空欄ですべてのワークフロー",
+    "fieldExpires": "有効期限",
+    "fieldNamePlaceholder": "例：Production Key",
+    "colName": "名前",
+    "colKeyPrefix": "キープレフィックス",
+    "colScope": "スコープ",
+    "colStatus": "ステータス",
+    "colLastUsed": "最終使用",
+    "colExpires": "有効期限",
+    "colCreated": "作成日",
+    "allWorkflows": "すべてのワークフロー",
+    "never": "未使用",
+    "statusActive": "有効",
+    "statusExpired": "期限切れ",
+    "statusRevoked": "取り消し済み"
   },
   "middlewareConfig": {
     "title": "ミドルウェア設定",
