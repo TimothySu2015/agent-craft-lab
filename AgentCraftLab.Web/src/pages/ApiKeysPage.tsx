@@ -113,13 +113,13 @@ export function ApiKeysPage() {
       <div className="flex items-center justify-between border-b border-border bg-card px-5 shrink-0 h-[41px]">
         <div className="flex items-center gap-2">
           <Key size={16} className="text-yellow-400" />
-          <h1 className="text-sm font-semibold text-foreground">{t('nav.apiKeys')}</h1>
+          <h1 className="text-sm font-semibold text-foreground">{t('common:nav.apiKeys')}</h1>
         </div>
         <button
           onClick={() => { setShowForm(true); setError(null) }}
           className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 transition-colors cursor-pointer"
         >
-          <Plus size={13} /> {t('create')}
+          <Plus size={13} /> {t('common:create')}
         </button>
       </div>
 
@@ -194,13 +194,13 @@ export function ApiKeysPage() {
                   disabled={creating || !name.trim()}
                   className="rounded-md bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50 transition-colors cursor-pointer"
                 >
-                  {creating ? '...' : t('create')}
+                  {creating ? '...' : t('common:create')}
                 </button>
                 <button
                   onClick={() => setShowForm(false)}
                   className="rounded-md border border-border px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
-                  {t('cancel')}
+                  {t('common:cancel')}
                 </button>
               </div>
             </div>
@@ -209,7 +209,7 @@ export function ApiKeysPage() {
 
         {/* Key List */}
         {loading ? (
-          <p className="text-xs text-muted-foreground text-center py-8">{t('loading')}</p>
+          <p className="text-xs text-muted-foreground text-center py-8">{t('common:loading')}</p>
         ) : keys.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-8">{t('apiKeys.empty')}</p>
         ) : (

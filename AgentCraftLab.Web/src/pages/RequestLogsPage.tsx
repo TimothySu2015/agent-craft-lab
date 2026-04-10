@@ -56,16 +56,16 @@ export function RequestLogsPage() {
       <div className="flex items-center justify-between border-b border-border bg-card px-5 shrink-0 h-[41px]">
         <div className="flex items-center gap-2">
           <BarChart3 size={16} className="text-violet-400" />
-          <h1 className="text-sm font-semibold text-foreground">{t('nav.logs')}</h1>
+          <h1 className="text-sm font-semibold text-foreground">{t('common:nav.logs')}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <select className="field-input w-auto text-[11px] py-1 px-2" value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
+          <select className="field-input text-[11px] py-1 px-2" style={{ width: 140 }} value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
             <option value="1h">{t('logs.last1h')}</option>
             <option value="24h">{t('logs.last24h')}</option>
             <option value="7d">{t('logs.last7d')}</option>
             <option value="30d">{t('logs.last30d')}</option>
           </select>
-          <select className="field-input w-auto text-[11px] py-1 px-2" value={protocol} onChange={(e) => setProtocol(e.target.value)}>
+          <select className="field-input text-[11px] py-1 px-2" style={{ width: 140 }} value={protocol} onChange={(e) => setProtocol(e.target.value)}>
             <option value="all">{t('logs.allProtocols')}</option>
             <option value="api">API</option>
             <option value="a2a">A2A</option>
@@ -99,7 +99,7 @@ export function RequestLogsPage() {
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={6} className="px-3 py-8 text-center text-xs text-muted-foreground">{t('loading')}</td></tr>
+                <tr><td colSpan={6} className="px-3 py-8 text-center text-xs text-muted-foreground">{t('common:loading')}</td></tr>
               )}
               {!loading && logs.length === 0 && (
                 <tr><td colSpan={6} className="px-3 py-8 text-center text-xs text-muted-foreground">{t('logs.empty')}</td></tr>

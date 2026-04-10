@@ -218,7 +218,7 @@ export function KnowledgeBasePage() {
           onClick={() => setShowCreate(true)}
           className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 transition-colors cursor-pointer"
         >
-          <Plus size={13} /> {t('create')}
+          <Plus size={13} /> {t('common:create')}
         </button>
       </div>
 
@@ -500,7 +500,7 @@ export function KnowledgeBasePage() {
                 disabled={!newName.trim() || !newDataSourceId}
                 className="w-full rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50 transition-colors cursor-pointer"
               >
-                {t('create')}
+                {t('common:create')}
               </button>
             </div>
           </div>
