@@ -21,19 +21,19 @@ const STATUS_STYLE: Record<string, string> = {
   revoked: 'bg-red-500/15 text-red-400',
 }
 
-function fmtDate(iso: string | null): string {
-  if (!iso) return 'Never'
+function fmtDate(iso: string | null, fallback: string): string {
+  if (!iso) return fallback
   return new Date(iso).toLocaleDateString()
 }
 
-function fmtDateTime(iso: string | null): string {
-  if (!iso) return 'Never'
+function fmtDateTime(iso: string | null, fallback: string): string {
+  if (!iso) return fallback
   const d = new Date(iso)
   return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
 }
 
 export function ApiKeysPage() {
-  const { t } = useTranslation()
+  const { t } = useTranslation(['studio', 'common'])
   const { t: tn } = useTranslation('notifications')
   const { confirm, confirmDialog } = useConfirmDialog()
   const [keys, setKeys] = useState<ApiKeyInfo[]>([])
@@ -137,7 +137,7 @@ export function ApiKeysPage() {
           <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 px-4 py-3">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle size={14} className="text-yellow-400" />
-              <span className="text-xs font-semibold text-yellow-400">API Key created! Copy it now — it will not be shown again.</span>
+              <span className="text-xs font-semibold text-yellow-400">{t('apiKeys.createdBanner')}</span>
             </div>
             <div className="flex items-center gap-2">
               <code className="flex-1 rounded bg-background px-3 py-2 text-xs font-mono text-foreground break-all">{rawKey}</code>
@@ -160,26 +160,26 @@ export function ApiKeysPage() {
             <div className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-[10px] text-muted-foreground mb-1">Name *</label>
+                  <label className="block text-[10px] text-muted-foreground mb-1">{t('apiKeys.fieldName')}</label>
                   <input
                     className="field-input"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Production Key"
+                    placeholder={t('apiKeys.fieldNamePlaceholder')}
                     autoFocus
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] text-muted-foreground mb-1">Scope (Workflow IDs, comma separated)</label>
+                  <label className="block text-[10px] text-muted-foreground mb-1">{t('apiKeys.fieldScope')}</label>
                   <input
                     className="field-input font-mono text-[10px]"
                     value={scope}
                     onChange={(e) => setScope(e.target.value)}
-                    placeholder="Leave empty for all workflows"
+                    placeholder={t('apiKeys.fieldScopePlaceholder')}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-muted-foreground mb-1">Expires At</label>
+                  <label className="block text-[10px] text-muted-foreground mb-1">{t('apiKeys.fieldExpires')}</label>
                   <input
                     type="date"
                     className="field-input"
@@ -217,13 +217,13 @@ export function ApiKeysPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-card">
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Name</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Key Prefix</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Scope</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Status</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Last Used</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Expires</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Created</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('apiKeys.colName')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('apiKeys.colKeyPrefix')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('apiKeys.colScope')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('apiKeys.colStatus')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('apiKeys.colLastUsed')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('apiKeys.colExpires')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('apiKeys.colCreated')}</th>
                   <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground"></th>
                 </tr>
               </thead>
@@ -237,21 +237,21 @@ export function ApiKeysPage() {
                         <code className="text-[10px] text-blue-400">{k.keyPrefix}...</code>
                       </td>
                       <td className="px-3 py-2.5 text-[10px] text-muted-foreground">
-                        {k.scopedWorkflowIds || 'All workflows'}
+                        {k.scopedWorkflowIds || t('apiKeys.allWorkflows')}
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium capitalize ${STATUS_STYLE[status]}`}>
-                          {status}
+                        <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${STATUS_STYLE[status]}`}>
+                          {t(`apiKeys.status${status.charAt(0).toUpperCase() + status.slice(1)}`)}
                         </span>
                       </td>
-                      <td className="px-3 py-2.5 text-[10px] text-muted-foreground">{fmtDateTime(k.lastUsedAt)}</td>
-                      <td className="px-3 py-2.5 text-[10px] text-muted-foreground">{fmtDate(k.expiresAt)}</td>
-                      <td className="px-3 py-2.5 text-[10px] text-muted-foreground">{fmtDate(k.createdAt)}</td>
+                      <td className="px-3 py-2.5 text-[10px] text-muted-foreground">{fmtDateTime(k.lastUsedAt, t('apiKeys.never'))}</td>
+                      <td className="px-3 py-2.5 text-[10px] text-muted-foreground">{fmtDate(k.expiresAt, t('apiKeys.never'))}</td>
+                      <td className="px-3 py-2.5 text-[10px] text-muted-foreground">{fmtDate(k.createdAt, '-')}</td>
                       <td className="px-3 py-2.5">
                         {!k.isRevoked && (
                           <button
                             onClick={() => handleRevoke(k.id)}
-                            title="Revoke"
+                            title={t('apiKeys.revoke')}
                             className="rounded p-1 text-muted-foreground hover:text-red-400 hover:bg-secondary transition-colors cursor-pointer"
                           >
                             <Ban size={13} />
@@ -274,7 +274,7 @@ export function ApiKeysPage() {
             curl -X POST https://your-host/api/&lt;workflow-id&gt; -H "X-Api-Key: ack_..." -d '{"{"}message":"hello"{"}"}'
           </code>
           <p className="mt-2 text-[10px] text-muted-foreground">
-            Or use <code className="text-blue-400">Authorization: Bearer ack_...</code> header. Agent Card discovery endpoints (GET) remain public.
+            {t('apiKeys.usageBearer', { header: 'Authorization: Bearer ack_...' })}
           </p>
         </div>
       </div>

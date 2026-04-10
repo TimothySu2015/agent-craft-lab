@@ -78,13 +78,8 @@ export function SchedulesPage() {
       setPublishedWorkflows(wfs.filter((w) => w.isPublished))
       setUnavailable(false)
     } catch (err: any) {
-      // 開源模式下 /api/schedules 不存在，回傳 404
-      if (err?.code === 'UNKNOWN' || err?.message?.includes('404') || err?.message?.includes('Not Found')) {
-        setUnavailable(true)
-      } else {
-        console.error('Failed to load schedules:', err)
-        notify.error(tn('loadFailed.schedules'))
-      }
+      console.error('Failed to load schedules:', err)
+      notify.error(tn('loadFailed.schedules'))
     } finally {
       setLoading(false)
     }

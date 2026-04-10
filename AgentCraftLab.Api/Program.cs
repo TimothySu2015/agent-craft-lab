@@ -188,6 +188,8 @@ app.MapKnowledgeBaseEndpoints(jsonOptions);
 app.MapDataSourceEndpoints();
 app.MapSkillEndpoints();
 app.MapTemplateEndpoints();
+app.MapApiKeyEndpoints();
+app.MapScheduleEndpoints();
 app.MapAnalyticsEndpoints();
 app.MapTraceEndpoints();
 app.MapScriptGeneratorEndpoints();
