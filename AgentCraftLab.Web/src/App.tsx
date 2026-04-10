@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Suspense } from 'react'
+import { Suspense, useEffect } from 'react'
+import { useAppConfigStore } from '@/stores/app-config-store'
 import { Toaster } from 'sonner'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { AppShell } from '@/components/layout/AppShell'
@@ -16,6 +17,9 @@ import { SchedulesPage } from '@/pages/SchedulesPage'
 import { DocRefineryPage } from '@/pages/DocRefineryPage'
 
 export default function App() {
+  const fetchConfig = useAppConfigStore((s) => s.fetchConfig)
+  useEffect(() => { fetchConfig() }, [fetchConfig])
+
   return (
     <ErrorBoundary>
       <Toaster position="bottom-right" theme="dark" visibleToasts={3} gap={8} offset={16} richColors closeButton />

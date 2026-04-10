@@ -14,6 +14,7 @@ import { AiBuildPanel } from './AiBuildPanel'
 import { StableChatInput, chatInputFileRef, type PendingFile } from './ChatInput'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { useCredentialStore } from '@/stores/credential-store'
+import { useAppConfigStore } from '@/stores/app-config-store'
 import { useCoAgentStore } from '@/stores/coagent-store'
 import { toWorkflowPayloadJson } from '@/lib/workflow-payload'
 
@@ -33,6 +34,8 @@ export function ChatPanel({ onCollapse }: ChatPanelProps) {
   const resetChatSession = useWorkflowStore((s) => s.resetChatSession)
   const actionsEnabled = useCredentialStore((s) => s.copilotActionsEnabled)
   const setActionsEnabled = useCredentialStore((s) => s.setCopilotActionsEnabled)
+  const toProviderCredentials = useCredentialStore((s) => s.toProviderCredentials)
+  const credentialMode = useAppConfigStore((s) => s.credentialMode)
   const resetCoAgentState = useCoAgentStore((s) => s.reset)
   const lastExecutionId = useCoAgentStore((s) => s.state?.executionId)
   const [resumeExecutionId, setResumeExecutionId] = useState<string | null>(null)
@@ -144,6 +147,7 @@ export function ChatPanel({ onCollapse }: ChatPanelProps) {
           properties={{
             locale: i18n.language,
             workflowJson,
+            ...(credentialMode === 'browser' && { credentials: toProviderCredentials() }),
             ...(pendingFile && { fileId: pendingFile.fileId }),
             ...(resumeExecutionId && { resumeExecutionId }),
             ...(debugMode && { debugMode: 'true' }),

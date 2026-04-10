@@ -1,11 +1,12 @@
 import { useTranslation } from 'react-i18next'
 import { Settings, User, Palette, Cpu, KeyRound, Wallet, Wrench, Shield } from 'lucide-react'
-import { PROVIDERS, TOOL_CREDENTIAL_PROVIDERS } from '@/lib/providers'
+import { CLOUD_PROVIDERS, LOCAL_PROVIDERS, TOOL_CREDENTIAL_PROVIDERS } from '@/lib/providers'
 import { useSettingsStore } from '@/stores/settings-store'
 import { useCredentialFields } from '@/hooks/useCredentialFields'
 import { ProviderRow } from '@/components/shared/ProviderRow'
 import { DataSourceSection } from '@/components/settings/DataSourceSection'
 import { cn } from '@/lib/utils'
+import { useAppConfigStore } from '@/stores/app-config-store'
 
 function SectionCard({ icon: Icon, title, description, children, iconColor = 'text-primary' }: {
   icon: React.ElementType; title: string; description?: string; children: React.ReactNode; iconColor?: string
@@ -31,10 +32,12 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 export function SettingsPage() {
   const { t, i18n } = useTranslation(['studio', 'common'])
   const s = useSettingsStore()
-  const { creds, expandedId, setExpandedId, updateCred, handleSaveAll, storedCredentials } = useCredentialFields()
+  const { creds, expandedId, setExpandedId, updateCred, handleSave, handleRemove, savingId, storedCredentials } = useCredentialFields()
+  const credentialMode = useAppConfigStore((s) => s.credentialMode)
 
   const providerGroups = [
-    { labelKey: 'studio:credentials.llmProviders', providers: PROVIDERS },
+    { labelKey: 'studio:credentials.cloudProviders', providers: CLOUD_PROVIDERS },
+    { labelKey: 'studio:credentials.localProviders', providers: LOCAL_PROVIDERS },
     { labelKey: 'studio:credentials.searchTools', providers: TOOL_CREDENTIAL_PROVIDERS },
   ]
 
@@ -44,17 +47,18 @@ export function SettingsPage() {
   }
 
   // Configured LLM providers for Default Model dropdown
-  const configuredProviders = PROVIDERS.filter((p) => creds[p.id]?.apiKey || storedCredentials[p.id]?.apiKey || storedCredentials[p.id]?.saved)
+  const allProviders = [...CLOUD_PROVIDERS, ...LOCAL_PROVIDERS]
+  const configuredProviders = allProviders.filter((p) => creds[p.id]?.apiKey || storedCredentials[p.id]?.apiKey || storedCredentials[p.id]?.saved)
 
   const handleProviderChange = (providerId: string) => {
     s.setDefaultProvider(providerId)
-    const provider = PROVIDERS.find((p) => p.id === providerId)
+    const provider = allProviders.find((p) => p.id === providerId)
     if (provider && provider.models.length > 0) {
       s.setDefaultModel(provider.models[0])
     }
   }
 
-  const selectedProviderModels = PROVIDERS.find((p) => p.id === s.defaultProvider)?.models ?? []
+  const selectedProviderModels = allProviders.find((p) => p.id === s.defaultProvider)?.models ?? []
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -173,13 +177,14 @@ export function SettingsPage() {
           {/* ─── Credentials ─── */}
           <SectionCard icon={KeyRound} title={t('studio:personal.credentials')}
             description={t('studio:personal.credentialsDesc')} iconColor="text-amber-400">
+            {credentialMode === 'browser' && (
+              <div className="mb-3 rounded-md bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-xs text-amber-300">
+                {t('studio:credentials.browserModeNotice')}
+              </div>
+            )}
             <div className="flex items-center gap-2 mb-3">
               <Shield size={13} className="text-muted-foreground" />
               <p className="text-[11px] text-muted-foreground flex-1">{t('studio:credentials.description')}</p>
-              <button onClick={handleSaveAll}
-                className="rounded-md bg-primary px-3 py-1 text-[11px] font-medium text-primary-foreground hover:opacity-90 cursor-pointer">
-                {t('common:save')}
-              </button>
             </div>
             {providerGroups.map((group) => (
               <div key={group.labelKey} className="mb-3">
@@ -190,6 +195,9 @@ export function SettingsPage() {
                       isExpanded={expandedId === provider.id}
                       onToggle={() => setExpandedId(expandedId === provider.id ? null : provider.id)}
                       onUpdate={(field, value) => updateCred(provider.id, field, value)}
+                      onSave={() => handleSave(provider.id)}
+                      onRemove={() => handleRemove(provider.id)}
+                      saving={savingId === provider.id}
                       hasBorder={i > 0} t={t} />
                   ))}
                 </div>

@@ -126,6 +126,8 @@ describe('ProviderRow', () => {
     isExpanded: false,
     onToggle: vi.fn(),
     onUpdate: vi.fn(),
+    onSave: vi.fn(),
+    onRemove: vi.fn(),
     hasBorder: false,
     t: (key: string) => key,
   }
@@ -179,5 +181,34 @@ describe('ProviderRow', () => {
     const eyeButton = input.parentElement!.querySelector('button')!
     fireEvent.click(eyeButton)
     expect(onUpdate).toHaveBeenCalledWith('showKey', true)
+  })
+
+  it('shows save button when expanded', () => {
+    render(<ProviderRow {...defaultProps} isExpanded={true} />)
+    expect(screen.getByText('common:save')).toBeDefined()
+  })
+
+  it('calls onSave when save button clicked', () => {
+    const onSave = vi.fn()
+    render(<ProviderRow {...defaultProps} isExpanded={true} onSave={onSave} />)
+    fireEvent.click(screen.getByText('common:save'))
+    expect(onSave).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows remove button only when saved', () => {
+    render(<ProviderRow {...defaultProps} isExpanded={true} cred={{ ...cred, saved: true }} />)
+    expect(screen.getByText('common:remove')).toBeDefined()
+  })
+
+  it('hides remove button when not saved', () => {
+    render(<ProviderRow {...defaultProps} isExpanded={true} cred={{ ...cred, saved: false }} />)
+    expect(screen.queryByText('common:remove')).toBeNull()
+  })
+
+  it('calls onRemove when remove button clicked', () => {
+    const onRemove = vi.fn()
+    render(<ProviderRow {...defaultProps} isExpanded={true} cred={{ ...cred, saved: true }} onRemove={onRemove} />)
+    fireEvent.click(screen.getByText('common:remove'))
+    expect(onRemove).toHaveBeenCalledTimes(1)
   })
 })

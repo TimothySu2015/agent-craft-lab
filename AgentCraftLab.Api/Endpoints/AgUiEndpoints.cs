@@ -229,13 +229,23 @@ public static class AgUiEndpoints
     // ─── Helper ───
 
     /// <summary>
-    /// 優先從後端 ICredentialStore 讀取（DPAPI 加密），
-    /// fallback 到前端 forwardedProps 以維持向後相容。
+    /// 根據 Credential:Mode 解析 API Key：
+    /// - browser mode：優先 forwardedProps（前端 sessionStorage 帶入），fallback DB
+    /// - database mode：優先 ICredentialStore（DPAPI 加密），fallback forwardedProps
     /// </summary>
     internal static async Task<Dictionary<string, ProviderCredential>> ResolveCredentialsAsync(
         HttpContext ctx, Dictionary<string, object> props, JsonSerializerOptions jsonOptions)
     {
-        // 透過 ServiceProvider 解析（AG-UI 端點手動處理 body，無法使用 [FromServices] 注入）
+        var credMode = ctx.RequestServices.GetService<CredentialModeConfig>();
+
+        // Browser mode：優先從 forwardedProps 取（前端 sessionStorage → request）
+        if (credMode?.IsBrowserMode == true)
+        {
+            var fromProps = ExtractCredentials(props, jsonOptions);
+            if (fromProps.Count > 0) return fromProps;
+        }
+
+        // Database mode（或 browser fallback）：從 ICredentialStore 讀取
         var credStore = ctx.RequestServices.GetService<ICredentialStore>();
         var userCtx = ctx.RequestServices.GetService<IUserContext>();
 
@@ -246,7 +256,7 @@ public static class AgUiEndpoints
             if (stored.Count > 0) return stored;
         }
 
-        // Fallback：前端 forwardedProps（向後相容）
+        // Fallback：forwardedProps（database mode 的向後相容）
         return ExtractCredentials(props, jsonOptions);
     }
 

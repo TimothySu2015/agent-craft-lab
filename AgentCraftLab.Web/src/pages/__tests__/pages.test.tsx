@@ -65,10 +65,11 @@ vi.mock('@/hooks/useCredentialFields', () => ({
     expandedId: null,
     setExpandedId: vi.fn(),
     updateCred: vi.fn(),
-    handleSaveAll: vi.fn(),
+    handleSave: vi.fn(),
+    handleRemove: vi.fn(),
+    savingId: null,
     configuredCount: 0,
     storedCredentials: {},
-    saving: false,
   }),
 }))
 
@@ -82,9 +83,15 @@ vi.mock('@/components/shared/ExpandableTextarea', () => ({
 
 vi.mock('@/lib/providers', () => ({
   PROVIDERS: [],
+  CLOUD_PROVIDERS: [],
+  LOCAL_PROVIDERS: [],
   TOOL_CREDENTIAL_PROVIDERS: [],
   CREDENTIAL_PROVIDERS: [],
   getModelsForProvider: () => [],
+}))
+
+vi.mock('@/stores/app-config-store', () => ({
+  useAppConfigStore: (selector: any) => selector({ credentialMode: 'database', loaded: true, fetchConfig: vi.fn() }),
 }))
 
 vi.mock('@/lib/utils', () => ({

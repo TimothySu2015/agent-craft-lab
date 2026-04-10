@@ -10,9 +10,10 @@ export function useCredentialFields() {
   const storedCredentials = useCredentialStore((s) => s.credentials)
   const loadFromBackend = useCredentialStore((s) => s.loadFromBackend)
   const saveToBackend = useCredentialStore((s) => s.saveToBackend)
+  const removeCredential = useCredentialStore((s) => s.removeCredential)
   const setCredential = useCredentialStore((s) => s.setCredential)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [savingId, setSavingId] = useState<string | null>(null)
 
   const providerMap = useMemo(
     () => new Map<string, ProviderConfig>(allProviders.map((p) => [p.id, p])),
@@ -31,7 +32,7 @@ export function useCredentialFields() {
         endpoint: stored?.endpoint ?? (p.needsEndpoint ? (p.defaultEndpoint ?? '') : ''),
         model: stored?.model ?? (p.models[0] ?? ''),
         showKey: false,
-        saved: !!stored?.saved || !!stored?.apiKey,
+        saved: !!stored?.saved,
       }
     }
     return init
@@ -48,8 +49,11 @@ export function useCredentialFields() {
             ...next[p.id],
             endpoint: stored.endpoint || next[p.id].endpoint,
             model: stored.model || next[p.id].model,
-            saved: !!stored.saved || !!stored.apiKey,
+            saved: !!stored.saved,
           }
+        } else {
+          // credential 被移除後重置 saved 狀態
+          next[p.id] = { ...next[p.id], saved: false }
         }
       }
       return next
@@ -57,39 +61,50 @@ export function useCredentialFields() {
   }, [storedCredentials])
 
   const updateCred = (id: string, field: keyof CredentialFieldState, value: string | boolean) => {
-    setCreds((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value, saved: false } }))
+    setCreds((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }))
   }
 
-  const handleSaveAll = async () => {
-    setSaving(true)
+  const handleSave = async (providerId: string) => {
+    setSavingId(providerId)
     try {
-      for (const [key, entry] of Object.entries(creds)) {
-        const def = providerMap.get(key)
-        const shouldSaveToBackend = entry.apiKey || (def?.keyOptional && entry.endpoint)
-        if (shouldSaveToBackend) {
-          const apiKey = entry.apiKey || def?.defaultApiKey || ''
-          await saveToBackend(key, { apiKey, endpoint: entry.endpoint, model: entry.model })
-        } else {
-          setCredential(key, { apiKey: '', endpoint: entry.endpoint, model: entry.model })
-        }
+      const entry = creds[providerId]
+      const def = providerMap.get(providerId)
+      const apiKey = entry.apiKey || def?.defaultApiKey || ''
+      const shouldSave = apiKey || (def?.keyOptional && entry.endpoint)
+      if (shouldSave) {
+        await saveToBackend(providerId, { apiKey, endpoint: entry.endpoint, model: entry.model })
+        setCreds((prev) => ({ ...prev, [providerId]: { ...prev[providerId], apiKey: '', saved: true } }))
+      } else {
+        setCredential(providerId, { apiKey: '', endpoint: entry.endpoint, model: entry.model })
       }
-      setCreds((prev) => {
-        const next = { ...prev }
-        for (const key of Object.keys(next)) {
-          const def = providerMap.get(key)
-          const isSaved = next[key].apiKey || (def?.keyOptional && next[key].endpoint)
-          if (isSaved) next[key] = { ...next[key], saved: true }
-        }
-        return next
-      })
     } finally {
-      setSaving(false)
+      setSavingId(null)
+    }
+  }
+
+  const handleRemove = async (providerId: string) => {
+    setSavingId(providerId)
+    try {
+      await removeCredential(providerId)
+      const def = providerMap.get(providerId)
+      setCreds((prev) => ({
+        ...prev,
+        [providerId]: {
+          apiKey: '',
+          endpoint: def?.needsEndpoint ? (def.defaultEndpoint ?? '') : '',
+          model: def?.models[0] ?? '',
+          showKey: false,
+          saved: false,
+        },
+      }))
+    } finally {
+      setSavingId(null)
     }
   }
 
   const configuredCount = Object.entries(creds).filter(
-    ([key, c]) => c.apiKey || storedCredentials[key]?.saved || (providerMap.get(key)?.keyOptional && c.endpoint)
+    ([, c]) => c.saved
   ).length
 
-  return { creds, expandedId, setExpandedId, updateCred, handleSaveAll, configuredCount, storedCredentials, saving }
+  return { creds, expandedId, setExpandedId, updateCred, handleSave, handleRemove, savingId, configuredCount, storedCredentials }
 }
