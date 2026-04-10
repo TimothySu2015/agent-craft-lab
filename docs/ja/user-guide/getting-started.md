@@ -17,16 +17,73 @@
 
 ---
 
-## 2. クイックスタート
+## 2. Docker デプロイ（推奨）
 
-### 2.1 ソースコードの取得
+Docker を使えば最速で起動できます。ローカルに .NET や Node.js をインストールする必要はありません。
+
+### 2.1 前提条件
+
+| 項目 | 最低バージョン |
+|------|----------|
+| Docker | 20.10+ |
+| Docker Compose | v2.0+ |
+
+### 2.2 ワンコマンドで起動
+
+```bash
+git clone https://github.com/TimothySu2015/agent-craft-lab.git
+cd agent-craft-lab
+cp .env.example .env
+# .env を編集して LLM API Key を追加（例: OPENAI_API_KEY）
+docker compose up --build
+```
+
+ビルド完了後、**http://localhost:3000** を開いて Workflow Studio にアクセスできます。
+
+### 2.3 設定
+
+`.env` ファイルを編集してカスタマイズ：
+
+| 変数 | デフォルト | 説明 |
+|------|-----------|------|
+| `WEB_PORT` | 3000 | Web UI ポート |
+| `API_PORT` | 5200 | API ポート |
+| `DATABASE_PROVIDER` | sqlite | データベース Provider（sqlite / postgresql / mongodb / sqlserver） |
+| `OPENAI_API_KEY` | - | OpenAI API Key |
+| `AZURE_OPENAI_API_KEY` | - | Azure OpenAI API Key |
+| `AZURE_OPENAI_ENDPOINT` | - | Azure OpenAI Endpoint |
+
+### 2.4 データの永続化
+
+すべてのデータは `Data/` ディレクトリ（Docker ボリュームとしてマウント）に保存されます：
+- SQLite データベース
+- 暗号化された認証情報（Data Protection キー）
+- アップロードされたファイル
+
+コンテナを再起動してもデータは保持されます。
+
+### 2.5 PostgreSQL の使用（オプション）
+
+```bash
+DATABASE_PROVIDER=postgresql \
+DATABASE_CONNECTION_STRING="Host=postgres;Port=5432;Database=agentcraftlab;Username=agentcraftlab;Password=changeme" \
+docker compose --profile postgres up --build
+```
+
+---
+
+## 3. ローカル開発セットアップ
+
+Docker を使わずにローカルで開発する場合：
+
+### 3.1 ソースコードの取得
 
 ```bash
 git clone https://github.com/your-org/AgentCraftLab.git
 cd AgentCraftLab
 ```
 
-### 2.2 フロントエンドの依存パッケージをインストール
+### 3.2 フロントエンドの依存パッケージをインストール
 
 ```bash
 cd AgentCraftLab.Web
@@ -34,7 +91,7 @@ npm install
 cd ..
 ```
 
-### 2.3 3つのサービスを起動
+### 3.3 3つのサービスを起動
 
 AgentCraftLab はフロントエンドとバックエンドが分離したアーキテクチャを採用しており、3つのターミナルを同時に起動する必要があります。
 
@@ -60,7 +117,7 @@ cd AgentCraftLab.Web
 npm run dev:vite
 ```
 
-### 2.4 ブラウザを開く
+### 3.4 ブラウザを開く
 
 **http://localhost:5173** にアクセスしてください。Workflow Studio のインターフェースが表示されます。
 
@@ -68,7 +125,7 @@ npm run dev:vite
 
 ---
 
-## 3. API Credentials の設定
+## 4. API Credentials の設定
 
 LLM エージェントを含むワークフローを実行する前に、少なくとも1つの AI モデルの API Key を設定する必要があります。
 

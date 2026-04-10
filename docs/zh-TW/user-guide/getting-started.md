@@ -17,16 +17,73 @@
 
 ---
 
-## 2. 快速啟動
+## 2. Docker 部署（推薦）
 
-### 2.1 取得原始碼
+最快的啟動方式是使用 Docker——不需要在本地安裝 .NET 或 Node.js。
+
+### 2.1 前置需求
+
+| 項目 | 最低版本 |
+|------|----------|
+| Docker | 20.10+ |
+| Docker Compose | v2.0+ |
+
+### 2.2 一鍵啟動
+
+```bash
+git clone https://github.com/TimothySu2015/agent-craft-lab.git
+cd agent-craft-lab
+cp .env.example .env
+# 編輯 .env 加入你的 LLM API Key（如 OPENAI_API_KEY）
+docker compose up --build
+```
+
+建置完成後，開啟 **http://localhost:3000** 即可使用 Workflow Studio。
+
+### 2.3 設定說明
+
+編輯 `.env` 檔案自訂設定：
+
+| 變數 | 預設值 | 說明 |
+|------|--------|------|
+| `WEB_PORT` | 3000 | Web UI 連接埠 |
+| `API_PORT` | 5200 | API 連接埠 |
+| `DATABASE_PROVIDER` | sqlite | 資料庫 Provider（sqlite / postgresql / mongodb / sqlserver） |
+| `OPENAI_API_KEY` | - | OpenAI API Key |
+| `AZURE_OPENAI_API_KEY` | - | Azure OpenAI API Key |
+| `AZURE_OPENAI_ENDPOINT` | - | Azure OpenAI Endpoint |
+
+### 2.4 資料持久化
+
+所有資料存放在 `Data/` 目錄（掛載為 Docker volume）：
+- SQLite 資料庫
+- 加密憑證（Data Protection keys）
+- 上傳檔案
+
+資料在容器重啟後仍然保留。
+
+### 2.5 使用 PostgreSQL（可選）
+
+```bash
+DATABASE_PROVIDER=postgresql \
+DATABASE_CONNECTION_STRING="Host=postgres;Port=5432;Database=agentcraftlab;Username=agentcraftlab;Password=changeme" \
+docker compose --profile postgres up --build
+```
+
+---
+
+## 3. 本地開發啟動
+
+如果你偏好不使用 Docker 在本地開發：
+
+### 3.1 取得原始碼
 
 ```bash
 git clone https://github.com/your-org/AgentCraftLab.git
 cd AgentCraftLab
 ```
 
-### 2.2 安裝前端相依套件
+### 3.2 安裝前端相依套件
 
 ```bash
 cd AgentCraftLab.Web
@@ -34,7 +91,7 @@ npm install
 cd ..
 ```
 
-### 2.3 啟動三個服務
+### 3.3 啟動三個服務
 
 AgentCraftLab 採用前後端分離架構，需要同時啟動三個 Terminal：
 
@@ -60,7 +117,7 @@ cd AgentCraftLab.Web
 npm run dev:vite
 ```
 
-### 2.4 開啟瀏覽器
+### 3.4 開啟瀏覽器
 
 前往 **http://localhost:5173** -- 你應該會看到 Workflow Studio 介面。
 
@@ -68,7 +125,7 @@ npm run dev:vite
 
 ---
 
-## 3. 設定 API Credentials
+## 4. 設定 API Credentials
 
 在執行任何包含 LLM Agent 的工作流之前，你需要先設定至少一組 AI 模型的 API Key。
 

@@ -227,21 +227,24 @@ app.MapGet("/info", () => Results.Ok(new
     endpoints = new[] { "/ag-ui (workflow)", "/ag-ui/goal (autonomous)", "/api/* (REST)" }
 }));
 
+app.MapGet("/healthz", () => Results.Ok(new { status = "healthy", database = dbProvider }));
+
 // ============================================================
 // 啟動
 // ============================================================
-const int port = 5200;
-app.Urls.Add($"http://localhost:{port}");
+var port = Environment.GetEnvironmentVariable("API_PORT") ?? "5200";
+var listenHost = Environment.GetEnvironmentVariable("API_LISTEN_HOST") ?? "localhost";
+app.Urls.Add($"http://{listenHost}:{port}");
 
 var modeLabel = executionMode == "flow" ? "Flow" : "ReAct";
 Console.WriteLine($"""
 
   AgentCraftLab API
   Mode:       {modeLabel}
-  AG-UI:      http://localhost:{port}/ag-ui
-  Autonomous: http://localhost:{port}/ag-ui/goal
-  REST:       http://localhost:{port}/api/*
-  React dev:  http://localhost:5173
+  AG-UI:      http://{listenHost}:{port}/ag-ui
+  Autonomous: http://{listenHost}:{port}/ag-ui/goal
+  REST:       http://{listenHost}:{port}/api/*
+  Health:     http://{listenHost}:{port}/healthz
 
 """);
 

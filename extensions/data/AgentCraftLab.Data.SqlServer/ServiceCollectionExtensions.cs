@@ -1,5 +1,6 @@
 using AgentCraftLab.Data;
 using AgentCraftLab.Search.Abstractions;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,7 +17,10 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddSqlServerDataProvider(this IServiceCollection services, string connectionString)
     {
-        services.AddDataProtection();
+        var keysDir = new DirectoryInfo(Path.Combine("Data", "keys"));
+        keysDir.Create();
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(keysDir);
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(connectionString));
         services.AddSingleton<CredentialProtector>();
