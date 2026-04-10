@@ -49,6 +49,14 @@ public class MongoDbProviderRegistrationTests
     }
 
     [Fact]
+    public void AddMongoDbProvider_Registers_CredentialProtector()
+    {
+        using var sp = BuildProvider();
+        var protector = sp.GetRequiredService<CredentialProtector>();
+        Assert.NotNull(protector);
+    }
+
+    [Fact]
     public void Without_MongoDbProvider_Uses_SqliteStores()
     {
         var services = new ServiceCollection();

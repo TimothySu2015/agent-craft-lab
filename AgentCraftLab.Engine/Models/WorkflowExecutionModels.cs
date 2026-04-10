@@ -548,7 +548,7 @@ public class RagContext
     public required List<WorkflowNode> RagNodes { get; init; }
     public required List<WorkflowConnection> WorkflowConnections { get; init; }
     public required IEmbeddingGenerator<string, Embedding<float>> EmbeddingGenerator { get; init; }
-    public required AgentCraftLab.Search.Abstractions.ISearchEngine SearchEngine { get; init; }
+    public AgentCraftLab.Search.Abstractions.ISearchEngine? SearchEngine { get; init; }
     public required string IndexName { get; init; }                     // 臨時上傳索引（可為空字串）
     public List<string> KnowledgeBaseIndexNames { get; init; } = [];    // 知識庫索引列表
     /// <summary>索引名稱 → DataSourceId 映射（用於搜尋時路由到對應引擎，null = 預設引擎）。</summary>

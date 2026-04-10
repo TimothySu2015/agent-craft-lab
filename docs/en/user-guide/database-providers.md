@@ -173,19 +173,7 @@ info: AgentCraftLab  Database Provider: postgresql
 
 ### PgVector Search (Optional)
 
-If you have the [pgvector](https://github.com/pgvector/pgvector) extension installed, you can enable vector-based RAG search:
-
-```json
-{
-  "Database": {
-    "Provider": "postgresql",
-    "ConnectionString": "Host=localhost;Port=5432;Database=agentcraftlab;Username=user;Password=pass",
-    "UsePgVectorSearch": true
-  }
-}
-```
-
-This replaces the default SQLite FTS5 search engine with PgVector for semantic similarity search in RAG pipelines.
+If you have the [pgvector](https://github.com/pgvector/pgvector) extension installed, you can add a PgVector data source via **Settings → Data Sources** in the frontend, then bind your knowledge base to it. No additional `appsettings.json` configuration is needed.
 
 ---
 
@@ -227,7 +215,9 @@ AgentCraftLab supports routing RAG search queries to different search engines on
 
 ### How It Works
 
-- Each Knowledge Base can be bound to a **DataSource**, which specifies which search engine to use.
+- Users must first create a Data Source connection in **Settings → Data Sources**, then select it when creating a Knowledge Base.
+- **New KBs** require a DataSource to be selected (cannot be empty).
+- **Existing KBs** with no DataSource (legacy) automatically use the default SQLite engine for backward compatibility.
 - `SearchEngineFactory` routes search requests based on the `DataSourceId`, selecting the appropriate search provider for each KB.
 - When a query spans multiple KBs, searches execute **in parallel** across different providers, and results are **merged** before being returned.
 

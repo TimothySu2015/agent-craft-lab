@@ -29,22 +29,19 @@ public class RagService
     /// <summary>Reranker 候選擴展倍數（取 topK * 此倍數作為初步檢索量）。</summary>
     private const int RerankExpansionFactor = 3;
 
-    private readonly ISearchEngine _defaultSearchEngine;
-    private readonly SearchEngineFactory _searchEngineFactory;
+    private readonly ISearchEngineFactory _searchEngineFactory;
     private readonly DocumentExtractorFactory _extractorFactory;
     private readonly ITextChunker _chunker;
     private readonly IReranker _reranker;
     private readonly IDocumentCleaner? _documentCleaner;
 
     public RagService(
-        ISearchEngine searchEngine,
-        SearchEngineFactory searchEngineFactory,
+        ISearchEngineFactory searchEngineFactory,
         DocumentExtractorFactory extractorFactory,
         ITextChunker chunker,
         IReranker reranker,
         IDocumentCleaner? documentCleaner = null)
     {
-        _defaultSearchEngine = searchEngine;
         _searchEngineFactory = searchEngineFactory;
         _extractorFactory = extractorFactory;
         _chunker = chunker;
@@ -52,11 +49,9 @@ public class RagService
         _documentCleaner = documentCleaner;
     }
 
-    /// <summary>取得搜尋引擎（依 dataSourceId 路由，null 回傳預設引擎）。</summary>
+    /// <summary>取得搜尋引擎（依 dataSourceId 路由）。</summary>
     public ISearchEngine GetSearchEngine(string? dataSourceId = null)
-        => dataSourceId is null
-            ? _defaultSearchEngine
-            : _searchEngineFactory.ResolveAsync(dataSourceId).GetAwaiter().GetResult();
+        => _searchEngineFactory.ResolveAsync(dataSourceId).GetAwaiter().GetResult();
 
     /// <summary>非同步取得搜尋引擎（依 dataSourceId 路由）。</summary>
     public async Task<ISearchEngine> GetSearchEngineAsync(string? dataSourceId = null, CancellationToken ct = default)

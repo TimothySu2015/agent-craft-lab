@@ -3,6 +3,7 @@ using AgentCraftLab.Data;
 using AgentCraftLab.Engine.Middleware;
 using AgentCraftLab.Engine.Pii;
 using AgentCraftLab.Engine.Services;
+using AgentCraftLab.Search.Abstractions;
 using AgentCraftLab.Search.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -44,11 +45,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<McpClientService>();
         services.AddSingleton<A2AClientService>();
         services.AddSingleton<HttpApiToolService>();
-        // CraftSearch 搜尋引擎（擷取器 + 分塊器 + SQLite 持久化）
+        // CraftSearch 基礎設施（擷取器 + 分塊器 + reranker，不含搜尋引擎實例）
+        // 搜尋引擎由 SearchEngineFactory 根據使用者建立的 DataSource 動態建立
         services.AddCraftSearch();
-        services.AddCraftSearchSqlite(
-            dbPath: Path.Combine(dataDir, "craftsearch.db"),
-            configureOptions: o => o.IndexTtl = null);  // 停用 Search 層自動清理，改由 Engine 選擇性清理
         // CraftCleaner 資料清洗引擎（Partition → Clean，RagService 可選使用）
         services.AddCraftCleaner();
         // Schema Mapper（LLM 結構化擷取 + 模板管理）
@@ -56,7 +55,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<RagService>();
         services.AddSingleton<KnowledgeBaseService>();
         services.AddSingleton<RefineryService>();
-        services.AddSingleton<SearchEngineFactory>();
+        services.AddSingleton<ISearchEngineFactory, SearchEngineFactory>();
         services.AddSingleton<A2AServerService>();
         services.AddSingleton<McpServerService>();
         services.AddScoped<HumanInputBridge>();
@@ -116,26 +115,13 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// 初始化引擎層服務（CraftSearch 搜尋引擎 + 選擇性清理）。
-    /// SQLite DDL 遷移已移至 AgentCraftLab.Data.Sqlite.InitializeSqliteDatabaseAsync()。
+    /// 初始化引擎層服務（選擇性清理軟刪除的知識庫和 Refinery 專案）。
+    /// 搜尋引擎不再全域初始化，改由 SearchEngineFactory 根據 DataSource 動態建立。
     /// </summary>
     public static async Task InitializeDatabaseAsync(this IServiceProvider serviceProvider)
     {
-        // 初始化 CraftSearch 搜尋引擎 SQLite 資料庫（建表 + FTS5 虛擬表）
-        await serviceProvider.InitializeSearchDatabaseAsync();
-
-        // 選擇性清理：只刪除 _rag_ 臨時索引（保留 _kb_ 知識庫索引）+ 軟刪除知識庫清理
         try
         {
-            var searchEngine = serviceProvider.GetRequiredService<Search.Abstractions.ISearchEngine>();
-            var indexes = await searchEngine.ListIndexesAsync();
-            var ttl = TimeSpan.FromHours(24);
-            var cutoff = DateTimeOffset.UtcNow - ttl;
-            foreach (var idx in indexes.Where(i => i.Name.Contains("_rag_") && i.CreatedAt < cutoff))
-            {
-                await searchEngine.DeleteIndexAsync(idx.Name);
-            }
-
             var kbService = serviceProvider.GetRequiredService<KnowledgeBaseService>();
             await kbService.CleanupDeletedAsync();
 

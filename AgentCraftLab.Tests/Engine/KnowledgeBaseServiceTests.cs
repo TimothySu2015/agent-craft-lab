@@ -179,9 +179,9 @@ public class KnowledgeBaseServiceTests
         store ??= new InMemoryKnowledgeBaseStore();
         engine ??= new TrackingSearchEngine();
         var dsStore = new InMemoryDataSourceStore();
-        var factory = new SearchEngineFactory(engine, dsStore, NullLogger<SearchEngineFactory>.Instance);
+        var factory = new SearchEngineFactory(dsStore, [], NullLogger<SearchEngineFactory>.Instance, engine);
         var ext = extractor ?? new FakeDocumentExtractor(new ExtractionResult { Text = "test content", FileName = "f.txt" });
-        return new KnowledgeBaseService(store, engine, factory, new DocumentExtractorFactory([ext]), new FakeChunker(),
+        return new KnowledgeBaseService(store, factory, new DocumentExtractorFactory([ext]), new FakeChunker(),
             NullLogger<KnowledgeBaseService>.Instance);
     }
 

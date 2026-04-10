@@ -24,7 +24,7 @@ public class WorkflowPreprocessor
     private readonly A2AClientService _a2aClient;
     private readonly HttpApiToolService _httpApiTool;
     private readonly RagService _ragService;
-    private readonly ISearchEngine _searchEngine;
+    private readonly ISearchEngine? _searchEngine;
     private readonly HumanInputBridge _humanBridge;
     private readonly IAutonomousNodeExecutor? _autonomousExecutor;
     private readonly Data.IKnowledgeBaseStore _kbStore;
@@ -40,13 +40,13 @@ public class WorkflowPreprocessor
         A2AClientService a2aClient,
         HttpApiToolService httpApiTool,
         RagService ragService,
-        ISearchEngine searchEngine,
         HumanInputBridge humanBridge,
         Data.IKnowledgeBaseStore kbStore,
         ILogger<WorkflowPreprocessor> logger,
-        IAutonomousNodeExecutor? autonomousExecutor = null)
+        IAutonomousNodeExecutor? autonomousExecutor = null,
+        ISearchEngine? searchEngine = null)
         : this(toolRegistry, skillRegistry, skillStore, userContext, mcpClient, a2aClient,
-            httpApiTool, ragService, searchEngine, humanBridge, kbStore, (ILogger)logger, autonomousExecutor) { }
+            httpApiTool, ragService, humanBridge, kbStore, (ILogger)logger, autonomousExecutor, searchEngine) { }
 
     /// <summary>內部建構子（接受泛型 ILogger，供向後相容建構使用）。</summary>
     internal WorkflowPreprocessor(
@@ -58,11 +58,11 @@ public class WorkflowPreprocessor
         A2AClientService a2aClient,
         HttpApiToolService httpApiTool,
         RagService ragService,
-        ISearchEngine searchEngine,
         HumanInputBridge humanBridge,
         Data.IKnowledgeBaseStore kbStore,
         ILogger logger,
-        IAutonomousNodeExecutor? autonomousExecutor = null)
+        IAutonomousNodeExecutor? autonomousExecutor = null,
+        ISearchEngine? searchEngine = null)
     {
         _toolRegistry = toolRegistry;
         _skillRegistry = skillRegistry;

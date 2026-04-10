@@ -26,7 +26,9 @@ export const providers: ProviderDef[] = [
     id: 'sqlite',
     labelKey: 'dataSource.provider.sqlite',
     descriptionKey: 'dataSource.provider.sqliteDesc',
-    fields: [],
+    fields: [
+      { key: 'dbPath', labelKey: 'dataSource.field.dbPath', type: 'text', required: false, defaultValue: 'Data/craftsearch.db', gridSpan: 2 },
+    ],
     testable: false,
   },
   {

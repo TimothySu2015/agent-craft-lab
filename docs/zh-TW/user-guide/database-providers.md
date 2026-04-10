@@ -175,23 +175,7 @@ info: AgentCraftLab  Database Provider: postgresql
 
 ### PgVector 搜尋（選用）
 
-若 PostgreSQL 已安裝 pgvector 擴充套件，可將 RAG 搜尋引擎從預設的 SQLite FTS5 切換為 PgVector，享受向量搜尋能力：
-
-```json
-{
-  "Database": {
-    "Provider": "postgresql",
-    "ConnectionString": "Host=localhost;Port=5432;Database=agentcraftlab;Username=user;Password=pass",
-    "UsePgVectorSearch": true
-  }
-}
-```
-
-啟用後，PgVector 搜尋引擎會搶先註冊，取代 Engine 預設的 SQLite 搜尋。支援：
-
-- **向量搜尋** — 語意相似度（cosine similarity）
-- **全文搜尋** — PostgreSQL tsvector
-- **RRF 混合搜尋** — 結合向量與全文（k=60）
+若 PostgreSQL 已安裝 pgvector 擴充套件，可透過前端 **Settings → Data Sources** 新增 PgVector 資料來源，再將知識庫綁定該資料來源即可啟用向量搜尋。無需在 `appsettings.json` 額外設定。
 
 ---
 
@@ -242,9 +226,10 @@ AgentCraftLab 的 RAG 搜尋引擎支援多 Provider 路由。不同的知識庫
 
 ### 運作原理
 
-`SearchEngineFactory` 根據知識庫綁定的 `DataSourceId` 解析對應的搜尋引擎：
+使用者必須先在 **Settings → Data Sources** 建立資料來源連線，再於建立知識庫時選擇綁定的 DataSource。`SearchEngineFactory` 根據知識庫綁定的 `DataSourceId` 解析對應的搜尋引擎：
 
-- **DataSourceId 為空** → 使用全域預設搜尋引擎（SQLite FTS5，或啟用 `UsePgVectorSearch` 時為 PgVector）
+- **新建 KB** → 必須選擇 DataSource（不可為空）
+- **既有 KB（DataSourceId 為空）** → 向下相容，自動使用預設路徑的 SQLite 引擎
 - **DataSourceId 有值** → 從 `IDataSourceStore` 查詢 DataSource 設定，根據 `Provider` 欄位建立對應引擎
 
 ### 支援的搜尋 Provider

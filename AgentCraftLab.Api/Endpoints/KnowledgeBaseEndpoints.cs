@@ -24,6 +24,12 @@ public static class KnowledgeBaseEndpoints
                 return Results.BadRequest(new ApiError("KB_NAME_REQUIRED", "Name is required"));
             }
 
+            if (string.IsNullOrWhiteSpace(req.DataSourceId))
+            {
+                return Results.BadRequest(new ApiError("KB_DATASOURCE_REQUIRED",
+                    "A DataSource must be selected. Create a DataSource in Settings first."));
+            }
+
             var userId = await userCtx.GetUserIdAsync();
             var doc = await kbService.CreateAsync(
                 userId, req.Name, req.Description ?? "",

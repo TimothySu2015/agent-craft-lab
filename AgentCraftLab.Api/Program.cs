@@ -11,7 +11,6 @@ using AgentCraftLab.Data.MongoDB;
 using AgentCraftLab.Data.PostgreSQL;
 using AgentCraftLab.Data.SqlServer;
 using AgentCraftLab.Engine.Extensions;
-using AgentCraftLab.Search.Extensions;
 using AgentCraftLab.Api.Endpoints;
 using AgentCraftLab.Ocr;
 using AgentCraftLab.Script;
@@ -59,11 +58,6 @@ switch (dbProvider)
         var pgConn = builder.Configuration["Database:ConnectionString"]
             ?? throw new InvalidOperationException($"Database:Provider={dbProvider} 需要設定 Database:ConnectionString");
         builder.Services.AddPostgreSqlDataProvider(pgConn);
-        // 搜尋引擎也走 pgvector（先註冊搶佔，Engine 的 SQLite fallback 用 TryAdd 不會覆蓋）
-        if (builder.Configuration.GetValue<bool>("Database:UsePgVectorSearch"))
-        {
-            builder.Services.AddCraftSearchPgVector(pgConn, configureOptions: o => o.IndexTtl = null);
-        }
         initializeDbProvider = sp => sp.InitializePostgreSqlAsync();
         break;
     }

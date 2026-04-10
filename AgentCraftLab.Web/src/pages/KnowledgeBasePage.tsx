@@ -19,6 +19,7 @@ interface KbDocument {
   chunkStrategy: string;
   fileCount: number;
   totalChunks: number;
+  dataSourceId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -91,6 +92,12 @@ export function KnowledgeBasePage() {
 
   useEffect(() => { fetchKbs(); fetchDataSources() }, [fetchKbs, fetchDataSources])
 
+  const dsName = (dsId?: string) => {
+    if (!dsId) return 'SQLite (Legacy)'
+    const ds = dataSources.find(d => d.id === dsId)
+    return ds ? `${ds.name} (${ds.provider})` : dsId
+  }
+
   const fetchFiles = useCallback(async (kbId: string) => {
     setFilesLoading(true)
     try {
@@ -110,9 +117,10 @@ export function KnowledgeBasePage() {
 
   const handleCreate = async () => {
     if (!newName.trim()) return
+    if (!newDataSourceId) return
     try {
       await api.knowledgeBases.create({
-        name: newName, description: newDesc, dataSourceId: newDataSourceId || undefined,
+        name: newName, description: newDesc, dataSourceId: newDataSourceId,
         embeddingModel: newEmbeddingModel, chunkSize: newChunkSize, chunkOverlap: newChunkOverlap,
         chunkStrategy: newChunkStrategy,
       })
@@ -277,9 +285,12 @@ export function KnowledgeBasePage() {
                   {kb.description && (
                     <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{kb.description}</p>
                   )}
-                  <div className="flex items-center gap-4 text-[10px] text-muted-foreground mb-2">
+                  <div className="flex items-center gap-4 text-[10px] text-muted-foreground mb-1">
                     <span className="flex items-center gap-1"><FileText size={11} /> {kb.fileCount ?? 0} {t('kb.files')}</span>
                     <span className="flex items-center gap-1"><Database size={11} /> {kb.totalChunks ?? 0} {t('kb.chunks')}</span>
+                  </div>
+                  <div className="text-[9px] text-muted-foreground/70 mb-1 truncate">
+                    {dsName(kb.dataSourceId)}
                   </div>
                   <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
                     <Clock size={10} /> {fmtDate(kb.updatedAt)}
@@ -318,6 +329,9 @@ export function KnowledgeBasePage() {
                 <div className="text-[9px] text-muted-foreground">{selectedKb.fileCount ?? 0} files, {selectedKb.totalChunks ?? 0} chunks</div>
                 <div className="text-[8px] text-muted-foreground/70 mt-0.5">
                   {selectedKb.embeddingModel} · {selectedKb.chunkStrategy === 'structural' ? t('kb.chunkStructural') : t('kb.chunkFixed')} · {selectedKb.chunkSize}
+                </div>
+                <div className="text-[8px] text-muted-foreground/70 mt-0.5">
+                  {t('dataSource.title')}: {dsName(selectedKb.dataSourceId)}
                 </div>
                 {files.length > 0 && (
                   <div className="text-[8px] text-muted-foreground/70 mt-0.5">
@@ -412,19 +426,34 @@ export function KnowledgeBasePage() {
               </div>
               <div>
                 <label className="block text-[10px] text-muted-foreground mb-1">{t('dataSource.field.provider')}</label>
-                <select className="field-input" value={newDataSourceId} onChange={(e) => setNewDataSourceId(e.target.value)}>
-                  <option value="">{t('dataSource.provider.sqlite')}</option>
-                  {dataSources.map(ds => (
-                    <option key={ds.id} value={ds.id}>{ds.name} ({ds.provider})</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => navigate('/settings')}
-                  className="mt-1 flex items-center gap-1 text-[9px] text-muted-foreground hover:text-blue-400 transition-colors cursor-pointer"
-                >
-                  <Settings size={10} /> {t('dataSource.goToSettings')}
-                </button>
+                {dataSources.length === 0 ? (
+                  <div className="rounded border border-yellow-500/30 bg-yellow-500/5 p-2 text-[10px] text-yellow-400">
+                    {t('kb.noDataSources')}
+                    <button
+                      type="button"
+                      onClick={() => navigate('/settings')}
+                      className="ml-1 underline hover:text-yellow-300 transition-colors cursor-pointer"
+                    >
+                      {t('dataSource.goToSettings')}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <select className="field-input" value={newDataSourceId} onChange={(e) => setNewDataSourceId(e.target.value)}>
+                      <option value="" disabled>{t('kb.selectDataSource')}</option>
+                      {dataSources.map(ds => (
+                        <option key={ds.id} value={ds.id}>{ds.name} ({ds.provider})</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/settings')}
+                      className="mt-1 flex items-center gap-1 text-[9px] text-muted-foreground hover:text-blue-400 transition-colors cursor-pointer"
+                    >
+                      <Settings size={10} /> {t('dataSource.goToSettings')}
+                    </button>
+                  </>
+                )}
               </div>
               <div>
                 <label className="block text-[10px] text-muted-foreground mb-1">{t('studio:form.embeddingModel')}</label>
@@ -468,7 +497,7 @@ export function KnowledgeBasePage() {
               <p className="text-[9px] text-muted-foreground/70 italic">{t('kb.settingsImmutableHint')}</p>
               <button
                 onClick={handleCreate}
-                disabled={!newName.trim()}
+                disabled={!newName.trim() || !newDataSourceId}
                 className="w-full rounded-md bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-50 transition-colors cursor-pointer"
               >
                 {t('create')}
