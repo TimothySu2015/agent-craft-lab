@@ -93,6 +93,14 @@ builder.Services.AddSingleton<AgentCraftLab.Autonomous.Services.IToolCodeRunner>
     return new AgentCraftLab.Api.Services.ScriptEngineToolCodeRunner(engine);
 });
 
+// ── Credential Mode ──
+var credentialMode = builder.Configuration["Credential:Mode"]?.ToLowerInvariant() ?? "database";
+if (credentialMode is not "database" and not "browser")
+{
+    throw new InvalidOperationException($"Invalid Credential:Mode: '{credentialMode}'. Must be 'database' or 'browser'.");
+}
+builder.Services.AddSingleton(new CredentialModeConfig(credentialMode));
+
 var executionMode = builder.Configuration["ExecutionMode"]?.ToLowerInvariant() ?? "react";
 if (executionMode == "flow")
 {
@@ -218,6 +226,7 @@ app.MapGet("/info", () => Results.Ok(new
     protocol = "AG-UI",
     version = "1.0.0",
     mode = executionMode,
+    credentialMode,
     endpoints = new[] { "/ag-ui (workflow)", "/ag-ui/goal (autonomous)", "/api/* (REST)" }
 }));
 
@@ -231,15 +240,24 @@ var listenHost = Environment.GetEnvironmentVariable("API_LISTEN_HOST") ?? "local
 app.Urls.Add($"http://{listenHost}:{port}");
 
 var modeLabel = executionMode == "flow" ? "Flow" : "ReAct";
+var credLabel = credentialMode == "browser" ? "Browser (sessionStorage)" : "Database (encrypted)";
 Console.WriteLine($"""
 
   AgentCraftLab API
   Mode:       {modeLabel}
+  Credential: {credLabel}
   AG-UI:      http://{listenHost}:{port}/ag-ui
   Autonomous: http://{listenHost}:{port}/ag-ui/goal
   REST:       http://{listenHost}:{port}/api/*
   Health:     http://{listenHost}:{port}/healthz
 
 """);
+
+if (credentialMode == "browser")
+{
+    Console.WriteLine("  [WARN] Credential mode is 'browser' — API keys are NOT stored server-side.");
+    Console.WriteLine("         A2A, MCP, and Teams servers require database mode to function.");
+    Console.WriteLine();
+}
 
 await app.RunAsync();

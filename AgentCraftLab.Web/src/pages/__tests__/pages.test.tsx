@@ -65,10 +65,11 @@ vi.mock('@/hooks/useCredentialFields', () => ({
     expandedId: null,
     setExpandedId: vi.fn(),
     updateCred: vi.fn(),
-    handleSaveAll: vi.fn(),
+    handleSave: vi.fn(),
+    handleRemove: vi.fn(),
+    savingId: null,
     configuredCount: 0,
     storedCredentials: {},
-    saving: false,
   }),
 }))
 

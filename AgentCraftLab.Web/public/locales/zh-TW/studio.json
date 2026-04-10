@@ -450,7 +450,10 @@
     "unsaved": "未儲存",
     "notSet": "未設定",
     "llmProviders": "LLM 提供者",
-    "searchTools": "搜尋與工具"
+    "cloudProviders": "雲端提供者",
+    "localProviders": "地端推理",
+    "searchTools": "搜尋與工具",
+    "browserModeNotice": "瀏覽器模式：金鑰僅存於瀏覽器工作階段，關閉分頁即清除。"
   },
   "docRefinery": {
     "title": "文件精煉",

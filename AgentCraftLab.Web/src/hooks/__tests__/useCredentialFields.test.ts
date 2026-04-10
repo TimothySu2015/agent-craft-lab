@@ -18,6 +18,7 @@ vi.mock('@/lib/providers', () => ({
 
 const mockLoadFromBackend = vi.fn()
 const mockSaveToBackend = vi.fn().mockResolvedValue(undefined)
+const mockRemoveCredential = vi.fn().mockResolvedValue(undefined)
 const mockSetCredential = vi.fn()
 let mockCredentials: Record<string, any> = {}
 
@@ -26,6 +27,7 @@ vi.mock('@/stores/credential-store', () => ({
     credentials: mockCredentials,
     loadFromBackend: mockLoadFromBackend,
     saveToBackend: mockSaveToBackend,
+    removeCredential: mockRemoveCredential,
     setCredential: mockSetCredential,
   }),
 }))
@@ -63,7 +65,7 @@ describe('useCredentialFields', () => {
     expect(mockLoadFromBackend).toHaveBeenCalled()
   })
 
-  it('updateCred sets field and marks saved false', () => {
+  it('updateCred sets field value', () => {
     const { result } = renderHook(() => useCredentialFields())
 
     act(() => {
@@ -71,12 +73,11 @@ describe('useCredentialFields', () => {
     })
 
     expect(result.current.creds['openai'].apiKey).toBe('sk-new-key')
-    expect(result.current.creds['openai'].saved).toBe(false)
   })
 
-  it('configuredCount reflects entries with apiKey', () => {
+  it('configuredCount reflects saved entries', () => {
     mockCredentials = {
-      openai: { apiKey: 'sk-test', endpoint: '', model: 'gpt-4o' },
+      openai: { apiKey: '', endpoint: '', model: 'gpt-4o', saved: true },
     }
 
     const { result } = renderHook(() => useCredentialFields())
@@ -84,7 +85,7 @@ describe('useCredentialFields', () => {
     expect(result.current.configuredCount).toBe(1)
   })
 
-  it('handleSaveAll calls saveToBackend for entries with apiKey', async () => {
+  it('handleSave calls saveToBackend for provider with apiKey', async () => {
     const { result } = renderHook(() => useCredentialFields())
 
     act(() => {
@@ -92,7 +93,7 @@ describe('useCredentialFields', () => {
     })
 
     await act(async () => {
-      await result.current.handleSaveAll()
+      await result.current.handleSave('openai')
     })
 
     expect(mockSaveToBackend).toHaveBeenCalledWith(
@@ -101,26 +102,33 @@ describe('useCredentialFields', () => {
     )
   })
 
-  it('handleSaveAll calls setCredential for entries without apiKey', async () => {
+  it('handleSave calls setCredential for provider without apiKey', async () => {
     const { result } = renderHook(() => useCredentialFields())
 
     await act(async () => {
-      await result.current.handleSaveAll()
+      await result.current.handleSave('openai')
     })
 
-    // All providers have no apiKey by default, so setCredential should be called for each
     expect(mockSetCredential).toHaveBeenCalledWith(
       'openai',
       expect.objectContaining({ apiKey: '' }),
     )
-    expect(mockSetCredential).toHaveBeenCalledWith(
-      'azure-openai',
-      expect.objectContaining({ apiKey: '' }),
-    )
-    expect(mockSetCredential).toHaveBeenCalledWith(
-      'tavily',
-      expect.objectContaining({ apiKey: '' }),
-    )
+  })
+
+  it('handleRemove calls removeCredential and resets state', async () => {
+    mockCredentials = {
+      openai: { apiKey: '', endpoint: '', model: 'gpt-4o', saved: true, backendId: 'cred-1' },
+    }
+
+    const { result } = renderHook(() => useCredentialFields())
+
+    await act(async () => {
+      await result.current.handleRemove('openai')
+    })
+
+    expect(mockRemoveCredential).toHaveBeenCalledWith('openai')
+    expect(result.current.creds['openai'].saved).toBe(false)
+    expect(result.current.creds['openai'].apiKey).toBe('')
   })
 
   it('expandedId starts as null and can be set', () => {

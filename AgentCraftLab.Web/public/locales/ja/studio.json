@@ -449,7 +449,10 @@
     "unsaved": "未保存",
     "notSet": "未設定",
     "llmProviders": "LLM プロバイダー",
-    "searchTools": "検索とツール"
+    "cloudProviders": "クラウドプロバイダー",
+    "localProviders": "ローカル推論",
+    "searchTools": "検索とツール",
+    "browserModeNotice": "ブラウザモード：キーはブラウザセッションにのみ保存され、タブを閉じると削除されます。"
   },
   "docRefinery": {
     "title": "ドキュメント精製",

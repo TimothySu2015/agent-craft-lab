@@ -450,7 +450,10 @@
     "unsaved": "Unsaved",
     "notSet": "Not set",
     "llmProviders": "LLM Providers",
-    "searchTools": "Search & Tools"
+    "cloudProviders": "Cloud Providers",
+    "localProviders": "Local Inference",
+    "searchTools": "Search & Tools",
+    "browserModeNotice": "Browser mode: Keys are stored in your browser session only and will be cleared when you close this tab."
   },
   "docRefinery": {
     "title": "Doc Refinery",

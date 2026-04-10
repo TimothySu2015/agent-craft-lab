@@ -1,4 +1,4 @@
-import { Eye, EyeOff, ChevronDown, ChevronRight } from 'lucide-react'
+import { Eye, EyeOff, ChevronDown, ChevronRight, Loader2, Trash2 } from 'lucide-react'
 import type { ProviderConfig } from '@/lib/providers'
 import { cn } from '@/lib/utils'
 
@@ -16,12 +16,15 @@ interface ProviderRowProps {
   isExpanded: boolean
   onToggle: () => void
   onUpdate: (field: keyof CredentialFieldState, value: string | boolean) => void
+  onSave: () => void
+  onRemove: () => void
+  saving?: boolean
   hasBorder: boolean
   t: (key: string) => string
 }
 
-export function ProviderRow({ provider, cred, isExpanded, onToggle, onUpdate, hasBorder, t }: ProviderRowProps) {
-  const isConfigured = !!cred.apiKey || !!cred.saved || (!!provider.keyOptional && !!cred.endpoint)
+export function ProviderRow({ provider, cred, isExpanded, onToggle, onUpdate, onSave, onRemove, saving, hasBorder, t }: ProviderRowProps) {
+  const isConfigured = !!cred.saved
   return (
     <div className={cn(hasBorder && 'border-t border-border')}>
       <button onClick={onToggle}
@@ -31,8 +34,8 @@ export function ProviderRow({ provider, cred, isExpanded, onToggle, onUpdate, ha
         <span className="text-sm font-medium text-foreground flex-1 text-left">{provider.name}</span>
         {isConfigured && cred.model && <span className="text-[10px] text-muted-foreground font-mono">{cred.model}</span>}
         <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium',
-          isConfigured ? (cred.saved ? 'bg-green-500/10 text-green-400' : 'bg-amber-500/10 text-amber-400') : 'bg-muted/30 text-muted-foreground')}>
-          {isConfigured ? (cred.saved ? t('studio:credentials.configured') : t('studio:credentials.unsaved')) : t('studio:credentials.notSet')}
+          isConfigured ? 'bg-green-500/10 text-green-400' : 'bg-muted/30 text-muted-foreground')}>
+          {isConfigured ? t('studio:credentials.configured') : t('studio:credentials.notSet')}
         </span>
       </button>
 
@@ -68,6 +71,20 @@ export function ProviderRow({ provider, cred, isExpanded, onToggle, onUpdate, ha
                 </select>
               </div>
             )}
+            <div className="flex items-center gap-2 pt-1">
+              <button onClick={onSave} disabled={saving}
+                className="rounded-md bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 cursor-pointer flex items-center gap-1">
+                {saving && <Loader2 size={11} className="animate-spin" />}
+                {t('common:save')}
+              </button>
+              {cred.saved && (
+                <button onClick={onRemove} disabled={saving}
+                  className="rounded-md border border-red-500/30 px-3 py-1.5 text-[11px] font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-50 cursor-pointer flex items-center gap-1">
+                  <Trash2 size={11} />
+                  {t('common:remove')}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
