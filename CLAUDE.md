@@ -179,13 +179,26 @@ WorkflowExecutionService.ExecuteAsync(request)         ← 精簡編排器（~18
 
 `AgentContextBuilder.ResolveToolsAsync()` 合併：Tool Catalog（內建）+ MCP Servers + A2A Agents + HTTP APIs + OCR + Script
 
-### Credentials — 後端加密儲存
+### Credentials — 雙模式儲存
+
+`Credential:Mode` 設定（`appsettings.json` 或環境變數 `Credential__Mode`）：
+
+| 模式 | 說明 |
+|------|------|
+| `database`（預設） | API Key 加密存 DB（ASP.NET Data Protection），前端不持有明文 |
+| `browser` | API Key 存瀏覽器 `sessionStorage`，關分頁即清除，執行時透過 forwardedProps 帶入 |
 
 ```
-Settings 頁面 → api.credentials.save() → POST /api/credentials（DPAPI 加密）
-AG-UI 執行 → ResolveCredentialsAsync() → ICredentialStore.GetDecryptedCredentialsAsync()
-前端不再傳送 API Key（localStorage 不存明文，saved flag 判斷）
+database mode:
+  Settings 頁面 → POST /api/credentials（Data Protection 加密）
+  AG-UI 執行 → ResolveCredentialsAsync() → ICredentialStore.GetDecryptedCredentialsAsync()
+
+browser mode:
+  Settings 頁面 → sessionStorage（前端自管）
+  AG-UI 執行 → ResolveCredentialsAsync() → forwardedProps.credentials（前端帶入）
 ```
+
+`/info` 端點回傳 `credentialMode`，前端 `app-config-store` 啟動時取得，決定儲存策略。
 
 ### Chat 附件上傳 — 獨立上傳管線
 

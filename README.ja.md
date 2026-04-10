@@ -76,7 +76,16 @@ npm run dev:all
 
 ### LLM 認証情報の設定
 
-サイドバーの **Credentials** に移動し、LLM プロバイダ（Azure OpenAI、OpenAI、Anthropic、Ollama など）を追加してください。
+**Settings → Credentials** で LLM プロバイダ（Azure OpenAI、OpenAI、Anthropic、Ollama など）を追加してください。
+
+**認証情報モード** — AgentCraftLab は 2 つの認証情報保存モードをサポートしています：
+
+| モード | 設定 | 説明 |
+|--------|------|------|
+| `database`（デフォルト） | `Credential:Mode=database` | API キーを DB に暗号化保存（ASP.NET Data Protection）。セルフホスト向け。 |
+| `browser` | `Credential:Mode=browser` | API キーをブラウザの `sessionStorage` にのみ保存、タブを閉じると削除。公開デモ向け。 |
+
+`appsettings.json`、環境変数 `Credential__Mode`、または Docker `CREDENTIAL_MODE` で設定できます。
 
 ### 4. 最初のワークフローを作成
 
