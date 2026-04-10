@@ -17,6 +17,7 @@
 | | AgentCraftLab | Flowise | Dify | n8n |
 |---|:---:|:---:|:---:|:---:|
 | .NET native | O | X | X | X |
+| Docker 一鍵啟動 | O | O | O | O |
 | No Docker required | O | X | X | X |
 | Visual workflow editor | O | O | O | O |
 | MCP + A2A protocols | O | Partial | Partial | X |
@@ -48,34 +49,32 @@
 
 ## 快速開始
 
-### 前置需求
+### 方式 A：Docker（推薦）
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Node.js 20+](https://nodejs.org/)
-- 一組 LLM API 金鑰（Azure OpenAI、OpenAI 或相容的提供者）
+```bash
+git clone https://github.com/TimothySu2015/agent-craft-lab.git
+cd agent-craft-lab
+cp .env.example .env
+# 編輯 .env 加入你的 LLM API Key（如 OPENAI_API_KEY）
+docker compose up --build
+```
 
-### 1. 複製並安裝
+在瀏覽器開啟 `http://localhost:3000`。
+
+### 方式 B：本地開發
+
+**前置需求：** [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) + [Node.js 20+](https://nodejs.org/)
 
 ```bash
 git clone https://github.com/TimothySu2015/agent-craft-lab.git
 cd agent-craft-lab/AgentCraftLab.Web
 npm install
-```
-
-### 2. 啟動所有服務
-
-```bash
 npm run dev:all
 ```
 
-這會同時啟動三個服務：
-- **.NET API** — `http://localhost:5200`（AG-UI + REST 端點）
-- **CopilotKit Runtime** — `http://localhost:4000`
-- **React 開發伺服器** — `http://localhost:5173`
-
 在瀏覽器開啟 `http://localhost:5173`。
 
-### 3. 設定 LLM 憑證
+### 設定 LLM 憑證
 
 在側邊欄點選 **Credentials**，新增你的 LLM 提供者（Azure OpenAI、OpenAI、Anthropic、Ollama 等）。
 

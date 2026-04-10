@@ -17,6 +17,7 @@ If your team runs on .NET and you want AI Agent capabilities — your options ar
 | | AgentCraftLab | Flowise | Dify | n8n |
 |---|:---:|:---:|:---:|:---:|
 | .NET native | O | X | X | X |
+| Docker one-command start | O | O | O | O |
 | No Docker required | O | X | X | X |
 | Visual workflow editor | O | O | O | O |
 | MCP + A2A protocols | O | Partial | Partial | X |
@@ -48,34 +49,32 @@ If your team runs on .NET and you want AI Agent capabilities — your options ar
 
 ## Quick Start
 
-### Prerequisites
+### Option A: Docker (Recommended)
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Node.js 20+](https://nodejs.org/)
-- An LLM API key (Azure OpenAI, OpenAI, or compatible providers)
+```bash
+git clone https://github.com/TimothySu2015/agent-craft-lab.git
+cd agent-craft-lab
+cp .env.example .env
+# Edit .env to add your LLM API key (e.g. OPENAI_API_KEY)
+docker compose up --build
+```
 
-### 1. Clone and Install
+Open `http://localhost:3000` in your browser.
+
+### Option B: Local Development
+
+**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) + [Node.js 20+](https://nodejs.org/)
 
 ```bash
 git clone https://github.com/TimothySu2015/agent-craft-lab.git
 cd agent-craft-lab/AgentCraftLab.Web
 npm install
-```
-
-### 2. Start All Services
-
-```bash
 npm run dev:all
 ```
 
-This launches three services concurrently:
-- **.NET API** — `http://localhost:5200` (AG-UI + REST endpoints)
-- **CopilotKit Runtime** — `http://localhost:4000`
-- **React Dev Server** — `http://localhost:5173`
-
 Open `http://localhost:5173` in your browser.
 
-### 3. Configure LLM Credentials
+### Configure LLM Credentials
 
 Navigate to **Credentials** in the sidebar and add your LLM provider (Azure OpenAI, OpenAI, Anthropic, Ollama, etc.).
 

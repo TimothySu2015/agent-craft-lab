@@ -17,16 +17,73 @@ This guide will help you launch AgentCraftLab in just a few minutes, create and 
 
 ---
 
-## 2. Quick Start
+## 2. Docker Deployment (Recommended)
 
-### 2.1 Get the Source Code
+The quickest way to get started is with Docker -- no need to install .NET or Node.js locally.
+
+### 2.1 Prerequisites
+
+| Item | Minimum Version |
+|------|-----------------|
+| Docker | 20.10+ |
+| Docker Compose | v2.0+ |
+
+### 2.2 Start with One Command
+
+```bash
+git clone https://github.com/TimothySu2015/agent-craft-lab.git
+cd agent-craft-lab
+cp .env.example .env
+# Edit .env to add your LLM API key (e.g. OPENAI_API_KEY)
+docker compose up --build
+```
+
+Once the build is complete, open **http://localhost:3000** to access the Workflow Studio.
+
+### 2.3 Configuration
+
+Edit the `.env` file to customize:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WEB_PORT` | 3000 | Web UI port |
+| `API_PORT` | 5200 | API port |
+| `DATABASE_PROVIDER` | sqlite | Database provider (sqlite / postgresql / mongodb / sqlserver) |
+| `OPENAI_API_KEY` | - | OpenAI API Key |
+| `AZURE_OPENAI_API_KEY` | - | Azure OpenAI API Key |
+| `AZURE_OPENAI_ENDPOINT` | - | Azure OpenAI Endpoint |
+
+### 2.4 Data Persistence
+
+All data is stored in the `Data/` directory (mounted as a Docker volume):
+- SQLite database
+- Encrypted credentials (Data Protection keys)
+- Uploaded files
+
+Data persists across container restarts.
+
+### 2.5 Using PostgreSQL (Optional)
+
+```bash
+DATABASE_PROVIDER=postgresql \
+DATABASE_CONNECTION_STRING="Host=postgres;Port=5432;Database=agentcraftlab;Username=agentcraftlab;Password=changeme" \
+docker compose --profile postgres up --build
+```
+
+---
+
+## 3. Local Development Setup
+
+If you prefer to develop locally without Docker:
+
+### 3.1 Get the Source Code
 
 ```bash
 git clone https://github.com/your-org/AgentCraftLab.git
 cd AgentCraftLab
 ```
 
-### 2.2 Install Frontend Dependencies
+### 3.2 Install Frontend Dependencies
 
 ```bash
 cd AgentCraftLab.Web
@@ -34,7 +91,7 @@ npm install
 cd ..
 ```
 
-### 2.3 Start the Three Services
+### 3.3 Start the Three Services
 
 AgentCraftLab uses a frontend-backend separation architecture and requires three Terminals running simultaneously:
 
@@ -60,7 +117,7 @@ cd AgentCraftLab.Web
 npm run dev:vite
 ```
 
-### 2.4 Open the Browser
+### 3.4 Open the Browser
 
 Navigate to **http://localhost:5173** -- you should see the Workflow Studio interface.
 
@@ -68,7 +125,7 @@ Navigate to **http://localhost:5173** -- you should see the Workflow Studio inte
 
 ---
 
-## 3. Configure API Credentials
+## 4. Configure API Credentials
 
 Before running any workflow that includes LLM Agent nodes, you need to set up at least one AI model API Key.
 

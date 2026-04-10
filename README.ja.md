@@ -17,6 +17,7 @@
 | | AgentCraftLab | Flowise | Dify | n8n |
 |---|:---:|:---:|:---:|:---:|
 | .NET native | O | X | X | X |
+| Docker ワンコマンド起動 | O | O | O | O |
 | No Docker required | O | X | X | X |
 | Visual workflow editor | O | O | O | O |
 | MCP + A2A protocols | O | Partial | Partial | X |
@@ -48,34 +49,32 @@
 
 ## クイックスタート
 
-### 前提条件
+### 方法 A：Docker（推奨）
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Node.js 20+](https://nodejs.org/)
-- LLM API キー（Azure OpenAI、OpenAI、または互換プロバイダ）
+```bash
+git clone https://github.com/TimothySu2015/agent-craft-lab.git
+cd agent-craft-lab
+cp .env.example .env
+# .env を編集して LLM API Key を追加（例: OPENAI_API_KEY）
+docker compose up --build
+```
 
-### 1. クローンとインストール
+ブラウザで `http://localhost:3000` を開いてください。
+
+### 方法 B：ローカル開発
+
+**前提条件：** [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) + [Node.js 20+](https://nodejs.org/)
 
 ```bash
 git clone https://github.com/TimothySu2015/agent-craft-lab.git
 cd agent-craft-lab/AgentCraftLab.Web
 npm install
-```
-
-### 2. すべてのサービスを起動
-
-```bash
 npm run dev:all
 ```
 
-3 つのサービスが同時に起動します：
-- **.NET API** — `http://localhost:5200`（AG-UI + REST エンドポイント）
-- **CopilotKit Runtime** — `http://localhost:4000`
-- **React Dev Server** — `http://localhost:5173`
-
 ブラウザで `http://localhost:5173` を開いてください。
 
-### 3. LLM 認証情報の設定
+### LLM 認証情報の設定
 
 サイドバーの **Credentials** に移動し、LLM プロバイダ（Azure OpenAI、OpenAI、Anthropic、Ollama など）を追加してください。
 

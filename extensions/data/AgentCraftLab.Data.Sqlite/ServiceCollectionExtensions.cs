@@ -1,5 +1,6 @@
 using AgentCraftLab.Data;
 using AgentCraftLab.Search.Abstractions;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,7 +17,10 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddSqliteDataProvider(this IServiceCollection services, string dbPath = "Data/agentcraftlab.db")
     {
-        services.AddDataProtection();
+        var keysDir = new DirectoryInfo(Path.Combine("Data", "keys"));
+        keysDir.Create();
+        services.AddDataProtection()
+            .PersistKeysToFileSystem(keysDir);
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlite($"Data Source={dbPath}"));
         services.AddSingleton<CredentialProtector>();
