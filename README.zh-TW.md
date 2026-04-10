@@ -76,7 +76,16 @@ npm run dev:all
 
 ### 設定 LLM 憑證
 
-在側邊欄點選 **Credentials**，新增你的 LLM 提供者（Azure OpenAI、OpenAI、Anthropic、Ollama 等）。
+在 **Settings → Credentials** 新增你的 LLM 提供者（Azure OpenAI、OpenAI、Anthropic、Ollama 等）。
+
+**憑證模式** — AgentCraftLab 支援兩種憑證儲存模式：
+
+| 模式 | 設定 | 說明 |
+|------|------|------|
+| `database`（預設） | `Credential:Mode=database` | API Key 加密存入資料庫（ASP.NET Data Protection）。適用自建平台。 |
+| `browser` | `Credential:Mode=browser` | API Key 僅存於瀏覽器 `sessionStorage`，關閉分頁即清除。適用公開 Demo。 |
+
+可透過 `appsettings.json`、環境變數 `Credential__Mode`、或 Docker `CREDENTIAL_MODE` 設定。
 
 ### 4. 建立第一個工作流程
 

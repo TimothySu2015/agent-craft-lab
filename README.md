@@ -76,7 +76,16 @@ Open `http://localhost:5173` in your browser.
 
 ### Configure LLM Credentials
 
-Navigate to **Credentials** in the sidebar and add your LLM provider (Azure OpenAI, OpenAI, Anthropic, Ollama, etc.).
+Navigate to **Settings → Credentials** and add your LLM provider (Azure OpenAI, OpenAI, Anthropic, Ollama, etc.).
+
+**Credential Mode** — AgentCraftLab supports two credential storage modes:
+
+| Mode | Config | Description |
+|------|--------|-------------|
+| `database` (default) | `Credential:Mode=database` | API keys encrypted in DB (ASP.NET Data Protection). For self-hosted deployments. |
+| `browser` | `Credential:Mode=browser` | API keys stored in browser `sessionStorage` only, cleared on tab close. For public demo/playground. |
+
+Set via `appsettings.json`, environment variable `Credential__Mode`, or Docker `CREDENTIAL_MODE`.
 
 ### 4. Create Your First Workflow
 
