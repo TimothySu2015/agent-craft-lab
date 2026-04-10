@@ -83,9 +83,15 @@ vi.mock('@/components/shared/ExpandableTextarea', () => ({
 
 vi.mock('@/lib/providers', () => ({
   PROVIDERS: [],
+  CLOUD_PROVIDERS: [],
+  LOCAL_PROVIDERS: [],
   TOOL_CREDENTIAL_PROVIDERS: [],
   CREDENTIAL_PROVIDERS: [],
   getModelsForProvider: () => [],
+}))
+
+vi.mock('@/stores/app-config-store', () => ({
+  useAppConfigStore: (selector: any) => selector({ credentialMode: 'database', loaded: true, fetchConfig: vi.fn() }),
 }))
 
 vi.mock('@/lib/utils', () => ({
