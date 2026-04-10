@@ -137,7 +137,7 @@ export default defineConfig({
       pattern: 'https://github.com/TimothySu2015/agent-craft-lab/edit/main/docs/:path',
     },
     footer: {
-      message: 'Released under the BSL-1.1 License.',
+      message: 'Released under the Apache-2.0 License.',
       copyright: 'Copyright 2025-present AgentCraftLab Contributors',
     },
     outline: {
