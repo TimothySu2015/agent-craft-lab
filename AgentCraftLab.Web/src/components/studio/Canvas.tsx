@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next'
 import { nodeTypes } from './nodes'
 import { useConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { useWorkflowStore } from '@/stores/workflow-store'
+import { useSettingsStore } from '@/stores/settings-store'
 import { NODE_REGISTRY } from './nodes/registry'
 import type { NodeType } from '@/types/workflow'
 
@@ -29,6 +30,10 @@ interface ContextMenu {
 
 function CanvasInner() {
   const { t } = useTranslation('studio')
+  const theme = useSettingsStore((s) => s.theme)
+  const resolvedTheme = theme === 'system'
+    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : theme
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const { screenToFlowPosition, fitView } = useReactFlow()
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
@@ -161,7 +166,7 @@ function CanvasInner() {
         onContextMenu={onContextMenu}
         onNodeContextMenu={onNodeContextMenu}
         isValidConnection={isValidConnection}
-        colorMode="dark"
+        colorMode={resolvedTheme}
         fitView
         snapToGrid
         snapGrid={[20, 20]}
@@ -174,7 +179,7 @@ function CanvasInner() {
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--accent)" />
         <MiniMap
           style={{ background: 'var(--card)', borderRadius: '8px' }}
-          maskColor="rgba(15,23,42,0.7)"
+          maskColor={resolvedTheme === 'dark' ? 'rgba(15,23,42,0.7)' : 'rgba(241,245,249,0.7)'}
         />
         <Controls
           style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px' }}

@@ -117,8 +117,7 @@ export function SettingsPage() {
                 <div className="flex gap-2">
                   {([
                     ['dark', t('studio:personal.themeDark'), false],
-                    ['light', t('studio:personal.themeLight'), true],
-                    ['system', t('studio:personal.themeSystem'), true],
+                    ['light', t('studio:personal.themeLight'), false],
                   ] as const).map(([value, label, comingSoon]) => (
                     <button key={value}
                       onClick={() => !comingSoon && s.setTheme(value as 'dark' | 'light' | 'system')}
