@@ -92,10 +92,17 @@ public sealed class AgentNodeExecutor : INodeExecutor
         var chatOptions = ImperativeWorkflowStrategy.BuildResponseFormatOptions(node);
         var contextPrefix = ContextPassingHelper.BuildContextPrefix(state, nodeId);
 
-        // F5: 解析 instructions 中的 {{node:step_name}} 跨節點引用（超過門檻時壓縮）
-        // 取用 NodeInstructions（含 skills/format suffix）而非 raw node.Instructions
+        // 解析 instructions 中的變數引用：{{sys:}}/{{var:}}/{{env:}} + {{node:}}
         var rawInstructions = state.AgentContext.NodeInstructions?.GetValueOrDefault(nodeId)
             ?? AgentContextBuilder.BuildInstructions(node.Instructions, node.OutputFormat);
+
+        // 1. 解析 {{sys:}}/{{var:}}/{{env:}} 變數
+        if (NodeReferenceResolver.HasVariableReferences(rawInstructions))
+        {
+            rawInstructions = NodeReferenceResolver.ResolveVariables(rawInstructions, state.SystemVariables, state.Variables, state.EnvironmentVariables);
+        }
+
+        // 2. 解析 {{node:step_name}} 跨節點引用（超過門檻時壓縮）
         string? resolvedInstructions = null;
         if (NodeReferenceResolver.HasReferences(rawInstructions) && state.NodeResults.Count > 0)
         {

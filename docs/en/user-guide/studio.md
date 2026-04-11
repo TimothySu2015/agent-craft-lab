@@ -139,6 +139,32 @@ AI Build uses a partial update priority strategy (incremental updates), performi
 
 Click the gear icon in the toolbar to open the settings dialog, where you can configure:
 
+### Variables
+
+Define workflow variables in the **Variables** tab. Variables can be referenced in any node using the `{{prefix:name}}` syntax.
+
+| Layer | Syntax | Description |
+|-------|--------|-------------|
+| System | `{{sys:user_id}}` | Read-only system variables: `user_id`, `timestamp`, `execution_id`, `workflow_name`, `user_message` |
+| Workflow | `{{var:counter}}` | User-defined variables with name, type, and default value |
+| Environment | `{{env:API_URL}}` | Server environment variables (requires `AGENTCRAFTLAB_` prefix) |
+| Node Output | `{{node:Agent-1}}` | Output of a previous node (existing feature) |
+
+**Defining variables**: Open Workflow Settings → Variables tab → Add Variable. Set name, type (`string` / `number` / `boolean` / `json`), and default value.
+
+**Referencing variables**: Type `{{` in any instruction or expression field to trigger autocomplete with all available variables.
+
+**Writing variables from Code nodes**: In JavaScript, use `$variables.name` to read. To write back, return JSON with `__variables__` and `__output__` keys:
+```javascript
+const count = parseInt($variables.counter || '0') + 1;
+return JSON.stringify({
+  __variables__: { counter: String(count) },
+  __output__: `Processed ${count} items`
+});
+```
+
+**Environment variables**: Set `AGENTCRAFTLAB_API_URL=https://...` on the server, then reference as `{{env:API_URL}}` (prefix is stripped automatically).
+
 ### Middleware
 
 Sequentially wraps the Agent's ChatClient, providing enterprise-grade security and observability:

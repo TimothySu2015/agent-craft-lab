@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Services;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 
@@ -23,6 +24,12 @@ public sealed class HumanNodeExecutor : INodeExecutor
         }
 
         var prompt = string.IsNullOrWhiteSpace(node.Prompt) ? "Please provide your input:" : node.Prompt;
+
+        // 解析 prompt 中的變數引用
+        if (NodeReferenceResolver.HasVariableReferences(prompt))
+        {
+            prompt = NodeReferenceResolver.ResolveVariables(prompt, state.SystemVariables, state.Variables, state.EnvironmentVariables);
+        }
         var inputType = string.IsNullOrWhiteSpace(node.InputType) ? "text" : node.InputType;
         var choices = node.Choices ?? "";
 

@@ -9,6 +9,7 @@ import { ToolPickerDialog } from './ToolPickerDialog'
 import { SkillPickerDialog } from './SkillPickerDialog'
 import { MiddlewareConfigDialog } from './MiddlewareConfigDialog'
 import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
+import { useVariableSuggestions } from '@/hooks/useVariableSuggestions'
 import type { PromptRefinerResult } from '@/components/shared/PromptRefinerDialog'
 import type { AgentNodeData, NodeData } from '@/types/workflow'
 
@@ -19,6 +20,7 @@ interface Props {
 
 export function AgentForm({ data, onUpdate }: Props) {
   const { t } = useTranslation('studio')
+  const suggestions = useVariableSuggestions()
   const providerModels = getModelsForProvider(data.provider)
   const credentials = useCredentialStore((s) => s.credentials)
   const hasKey = (id: string) => !!credentials[id]?.apiKey || !!credentials[id]?.saved
@@ -93,6 +95,7 @@ export function AgentForm({ data, onUpdate }: Props) {
           label={`${data.name || 'Agent'} — Instructions`}
           language="markdown"
           onOptimize={handleOptimize}
+          suggestions={suggestions}
         />
       </Field>
 

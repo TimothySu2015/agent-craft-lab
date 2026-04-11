@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Plus, X as XIcon } from 'lucide-react'
 import { Field } from '../PropertiesPanel'
 import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
+import { useVariableSuggestions } from '@/hooks/useVariableSuggestions'
 import { api } from '@/lib/api'
 import { notify } from '@/lib/notify'
 import { EMBEDDING_MODELS, type NodeData, type RouterNodeData, type IterationNodeData, type ParallelNodeData, type RagNodeData, type HttpRequestNodeData } from '@/types/workflow'
@@ -28,6 +29,7 @@ export function SimpleForm({ data, onUpdate }: Props) {
 // ─── Router ───
 function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (p: Partial<NodeData>) => void }) {
   const { t } = useTranslation('studio')
+  const suggestions = useVariableSuggestions()
   const routes = (data.routes ?? '').split(',').map((s) => s.trim()).filter(Boolean)
   const [newRoute, setNewRoute] = useState('')
   const addRoute = () => { if (newRoute.trim()) { onUpdate({ routes: [...routes, newRoute.trim()].join(',') }); setNewRoute('') } }
@@ -58,6 +60,7 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (p: Pa
           rows={3}
           placeholder="Classify the input into one of the routes..."
           label="Router — Classification Prompt"
+          suggestions={suggestions}
         />
       </Field>
     </>
@@ -284,6 +287,7 @@ const HTTP_CONTENT_TYPES = [
 
 function HttpForm({ data, onUpdate }: { data: HttpRequestNodeData; onUpdate: (p: Partial<NodeData>) => void }) {
   const { t } = useTranslation('studio')
+  const suggestions = useVariableSuggestions()
   const isInline = !data.httpApiId
   const hasBody = data.httpMethod === 'POST' || data.httpMethod === 'PUT' || data.httpMethod === 'PATCH'
   return (
@@ -310,7 +314,8 @@ function HttpForm({ data, onUpdate }: { data: HttpRequestNodeData; onUpdate: (p:
           onChange={(v) => onUpdate({ httpHeaders: v })}
           rows={2}
           label={`HTTP — ${t('form.httpHeaders')}`}
-          placeholder={'Authorization: Bearer xxx\nContent-Type: application/json'} />
+          placeholder={'Authorization: Bearer xxx\nContent-Type: application/json'}
+          suggestions={suggestions} />
         <p className="text-[8px] text-muted-foreground mt-0.5">{t('form.httpHeadersHint')}</p>
       </Field>
       {hasBody && (
@@ -321,6 +326,7 @@ function HttpForm({ data, onUpdate }: { data: HttpRequestNodeData; onUpdate: (p:
             onChange={(v) => onUpdate({ httpBodyTemplate: v })}
             rows={3}
             label={`HTTP — ${t('form.httpBodyTemplate')}`}
+            suggestions={suggestions}
             language={data.httpContentType === 'application/json' || data.httpContentType === 'multipart/form-data' ? 'json' : undefined}
             placeholder={data.httpContentType === 'multipart/form-data'
               ? '{"parts":[{"name":"file","filename":"report.csv","contentType":"text/csv","data":"{input}"},{"name":"channel","value":"#reports"}]}'

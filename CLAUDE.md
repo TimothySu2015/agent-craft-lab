@@ -369,6 +369,23 @@ Engine 積木（各自獨立，React + Flow + 畫布 Workflow 都可用）
 
 **擴展**：實作 `IPiiDetector` 即可替換偵測引擎；實作 `IPiiTokenVault` 可換 Redis/DB 持久化。DI：`services.AddPiiProtection()`。
 
+### Workflow Variables — 三層變數系統
+
+```
+Layer 0: {{sys:user_id}}        系統變數（唯讀，自動注入 5 個）
+Layer 1: {{node:Agent-1}}       節點輸出（已有，NodeReferenceResolver）
+Layer 2: {{var:counter}}        Workflow 變數（使用者定義，Code 節點可寫回）
+Layer 3: {{env:API_URL}}        環境變數（AGENTCRAFTLAB_ 前綴 allowlist）
+```
+
+**解析器**：`NodeReferenceResolver.ResolveVariables(text, sysVars, workflowVars, envVars)` — 6 個 NodeExecutor 都已接入。
+
+**Code 節點變數讀寫**：JS 用 `$variables.name`，C# 用 `_variables["name"]`。寫回透過回傳 `{"__variables__": {...}, "__output__": "..."}`。
+
+**前端**：WorkflowSettings → Variables tab 定義，ExpandableTextarea 輸入 `{{` 跳出自動補全（sys + var + node）。6 個 Form 都接入。
+
+**持久化**：Variables 存入 `ImperativeCheckpointSnapshot`，匯出/匯入保留 settings。
+
 ### Workflow Hooks
 
 6 個插入點：OnInput → PreExecute → PreAgent → PostAgent → OnComplete / OnError。兩種類型：code（TransformHelper）/ webhook（HTTP POST）。BlockPattern 支援 regex 攔截。

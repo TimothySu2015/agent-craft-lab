@@ -7,6 +7,7 @@ import { useCredentialStore } from '@/stores/credential-store'
 import { ToolPickerDialog } from './ToolPickerDialog'
 import { SkillPickerDialog } from './SkillPickerDialog'
 import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
+import { useVariableSuggestions } from '@/hooks/useVariableSuggestions'
 import type { AutonomousNodeData, NodeData } from '@/types/workflow'
 
 interface Props {
@@ -16,6 +17,7 @@ interface Props {
 
 export function AutonomousForm({ data, onUpdate }: Props) {
   const { t } = useTranslation('studio')
+  const suggestions = useVariableSuggestions()
   const credentials = useCredentialStore((s) => s.credentials)
   const hasKey = (id: string) => !!credentials[id]?.apiKey || !!credentials[id]?.saved
   const currentHasKey = hasKey(data.provider)
@@ -50,6 +52,7 @@ export function AutonomousForm({ data, onUpdate }: Props) {
           placeholder="Describe the goal for this autonomous agent..."
           label={`${data.name || 'Autonomous'} — Goal`}
           language="markdown"
+          suggestions={suggestions}
         />
       </Field>
 

@@ -18,6 +18,14 @@ public static class TransformHelper
     internal static Func<string, string, string>? ScriptExecutor { get; set; }
 
     /// <summary>
+    /// 當前 Workflow 變數 JSON（Code 節點 script 模式用）。
+    /// Script 引擎可透過此值注入 $variables 到腳本環境。
+    /// 由 CodeNodeExecutor 在執行前設定，執行後清除。
+    /// </summary>
+    [ThreadStatic]
+    internal static string? CurrentVariablesJson;
+
+    /// <summary>
     /// 多語言腳本執行 delegate — (language, code, input) → output。
     /// 由 AddMultiLanguageScript() 設定。優先使用此 delegate，fallback 到 ScriptExecutor。
     /// </summary>
@@ -25,6 +33,20 @@ public static class TransformHelper
 
     private static string ExecuteScript(string code, string input, string language = "javascript")
     {
+        // 注入 $variables 到腳本環境
+        if (CurrentVariablesJson is not null)
+        {
+            if (language is "javascript" or "js")
+            {
+                code = $"const $variables = {CurrentVariablesJson};\n{code}";
+            }
+            else if (language is "csharp" or "cs")
+            {
+                var escaped = CurrentVariablesJson.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                code = $"var _variables = JsonSerializer.Deserialize<Dictionary<string, string>>(\"{escaped}\") ?? new();\n{code}";
+            }
+        }
+
         if (MultiLanguageScriptExecutor is not null)
         {
             return MultiLanguageScriptExecutor(language, code, input);

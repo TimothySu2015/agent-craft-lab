@@ -45,6 +45,8 @@
 
 **Doc Refinery** — 上傳文件，透過 LLM + Schema Mapper 清洗並擷取結構化資料。雙模式：快速（單次 LLM）或精準（多層 Agent + LLM Challenge 驗證）。
 
+**Workflow 變數系統** — 三層變數架構：`{{sys:}}` 系統變數、`{{var:}}` 使用者定義變數、`{{env:}}` 環境變數。在設定中定義，任何節點中引用，輸入 `{{` 自動補全。
+
 **Middleware 管線** — GuardRails、PII 遮蔽、速率限制、重試、日誌 — 全部以可組合的 `DelegatingChatClient` 裝飾器實現。
 
 ## 快速開始

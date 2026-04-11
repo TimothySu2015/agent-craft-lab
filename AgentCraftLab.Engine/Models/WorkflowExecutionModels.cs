@@ -48,6 +48,8 @@ public class WorkflowExecutionRequest
     public string? SessionId { get; set; }
     /// <summary>Debug Mode 暫停橋接器（由 API 端點建構並注入）。</summary>
     public Services.DebugBridge? DebugBridge { get; set; }
+    /// <summary>執行時變數覆蓋（覆蓋 Workflow 定義的預設值）。</summary>
+    public Dictionary<string, string>? RuntimeVariables { get; set; }
 }
 
 public class ChatHistoryEntry
@@ -325,6 +327,19 @@ public class WorkflowPayload
     public List<A2AAgentDefinition> A2AAgents { get; set; } = [];
     public Dictionary<string, HttpApiDefinition> HttpApis { get; set; } = new();
     public List<string> Skills { get; set; } = [];
+    /// <summary>Workflow 變數定義（使用者在畫布上定義，執行時初始化）。</summary>
+    public List<WorkflowVariable> Variables { get; set; } = [];
+}
+
+/// <summary>
+/// Workflow 變數定義 — 使用者在畫布設定，執行時透過 {{var:name}} 引用。
+/// </summary>
+public class WorkflowVariable
+{
+    public string Name { get; set; } = "";
+    public string Type { get; set; } = "string";    // string | number | boolean | json
+    public string DefaultValue { get; set; } = "";
+    public string Description { get; set; } = "";
 }
 
 public class McpServerDefinition

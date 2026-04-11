@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Services;
 using Microsoft.Extensions.AI;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
@@ -30,6 +31,12 @@ public sealed class ConditionNodeExecutor : INodeExecutor
         var expr = node.ConditionExpression;
         if (string.IsNullOrWhiteSpace(expr))
             expr = "DONE";
+
+        // 解析條件表達式中的變數引用
+        if (NodeReferenceResolver.HasVariableReferences(expr))
+        {
+            expr = NodeReferenceResolver.ResolveVariables(expr, state.SystemVariables, state.Variables, state.EnvironmentVariables);
+        }
 
         var text = state.PreviousResult;
         var met = node.ConditionType?.ToLowerInvariant() switch

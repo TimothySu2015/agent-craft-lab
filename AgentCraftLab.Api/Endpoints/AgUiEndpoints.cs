@@ -67,6 +67,7 @@ public static class AgUiEndpoints
                 }
             }
 
+            var runtimeVariables = ExtractRuntimeVariables(props, jsonOptions);
             var request = new WorkflowExecutionRequest
             {
                 WorkflowJson = workflowJson,
@@ -74,7 +75,8 @@ public static class AgUiEndpoints
                 Credentials = credentials,
                 History = history,
                 Attachment = attachment,
-                SessionId = input.RunId
+                SessionId = input.RunId,
+                RuntimeVariables = runtimeVariables,
             };
 
             var humanBridge = ctx.RequestServices.GetRequiredService<HumanInputBridge>();
@@ -273,6 +275,16 @@ public static class AgUiEndpoints
             }
         }
         return new Dictionary<string, ProviderCredential>();
+    }
+
+    internal static Dictionary<string, string>? ExtractRuntimeVariables(
+        Dictionary<string, object> props, JsonSerializerOptions jsonOptions)
+    {
+        if (props.TryGetValue("runtimeVariables", out var varObj) && varObj is JsonElement varElem)
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(varElem.GetRawText(), jsonOptions);
+        }
+        return null;
     }
 
     internal static string? ExtractString(Dictionary<string, object> props, string key)

@@ -1,4 +1,6 @@
 import { Field } from '../PropertiesPanel'
+import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
+import { useVariableSuggestions } from '@/hooks/useVariableSuggestions'
 import type { HumanNodeData, NodeData } from '@/types/workflow'
 
 interface Props {
@@ -7,6 +9,8 @@ interface Props {
 }
 
 export function HumanForm({ data, onUpdate }: Props) {
+  const suggestions = useVariableSuggestions()
+
   return (
     <>
       <Field label="Input Type">
@@ -22,12 +26,13 @@ export function HumanForm({ data, onUpdate }: Props) {
       </Field>
 
       <Field label="Prompt">
-        <textarea
-          className="field-textarea"
+        <ExpandableTextarea
           value={data.prompt}
-          onChange={(e) => onUpdate({ prompt: e.target.value })}
+          onChange={(v) => onUpdate({ prompt: v })}
           rows={2}
           placeholder="Message to show the user..."
+          label="Human — Prompt"
+          suggestions={suggestions}
         />
       </Field>
 

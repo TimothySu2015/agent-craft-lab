@@ -186,3 +186,11 @@ export type NodeData =
   | EndNodeData;
 
 export type LayoutDirection = 'LR' | 'TB'
+
+/** Workflow 變數定義 — 對應 Engine 的 WorkflowVariable。 */
+export interface WorkflowVariable {
+  name: string
+  type: 'string' | 'number' | 'boolean' | 'json'
+  defaultValue: string
+  description: string
+}
