@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Suspense, useEffect } from 'react'
 import { useAppConfigStore } from '@/stores/app-config-store'
+import { useSettingsStore } from '@/stores/settings-store'
 import { Toaster } from 'sonner'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { AppShell } from '@/components/layout/AppShell'
@@ -18,11 +19,36 @@ import { DocRefineryPage } from '@/pages/DocRefineryPage'
 
 export default function App() {
   const fetchConfig = useAppConfigStore((s) => s.fetchConfig)
+  const theme = useSettingsStore((s) => s.theme)
+
   useEffect(() => { fetchConfig() }, [fetchConfig])
+
+  // Apply theme class to <html>
+  useEffect(() => {
+    const root = document.documentElement
+    const applyTheme = (resolved: 'dark' | 'light') => {
+      root.classList.remove('dark', 'light')
+      root.classList.add(resolved)
+    }
+
+    if (theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      applyTheme(mq.matches ? 'dark' : 'light')
+      const handler = (e: MediaQueryListEvent) => applyTheme(e.matches ? 'dark' : 'light')
+      mq.addEventListener('change', handler)
+      return () => mq.removeEventListener('change', handler)
+    } else {
+      applyTheme(theme)
+    }
+  }, [theme])
+
+  const resolvedTheme = theme === 'system'
+    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : theme
 
   return (
     <ErrorBoundary>
-      <Toaster position="bottom-right" theme="dark" visibleToasts={3} gap={8} offset={16} richColors closeButton />
+      <Toaster position="bottom-right" theme={resolvedTheme} visibleToasts={3} gap={8} offset={16} richColors closeButton />
       <BrowserRouter>
         <Suspense fallback={<div className="flex h-screen items-center justify-center text-muted-foreground">Loading...</div>}>
           <AppShell>

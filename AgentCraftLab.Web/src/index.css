@@ -92,8 +92,39 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
-/* Developer Tool Dark Theme — always dark */
-:root {
+/* ── Light Theme ── */
+:root, .light {
+  --background: #FAFBFC;
+  --foreground: #1E293B;
+  --card: #FFFFFF;
+  --card-foreground: #1E293B;
+  --popover: #FFFFFF;
+  --popover-foreground: #1E293B;
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #1E293B;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F1F5F9;
+  --accent-foreground: #1E293B;
+  --destructive: #EF4444;
+  --border: #E2E8F0;
+  --input: #CBD5E1;
+  --ring: #2563EB;
+  --sidebar: #F8FAFC;
+  --sidebar-foreground: #1E293B;
+  --sidebar-primary: #2563EB;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-accent-foreground: #1E293B;
+  --sidebar-border: #E2E8F0;
+
+  color-scheme: light;
+}
+
+/* ── Dark Theme ── */
+.dark {
   --background: #0F172A;
   --foreground: #F8FAFC;
   --card: #1B2336;
