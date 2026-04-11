@@ -139,6 +139,8 @@ AI Build uses a partial update priority strategy (incremental updates), performi
 
 Click the gear icon in the toolbar to open the settings dialog, where you can configure:
 
+<div v-pre>
+
 ### Variables
 
 Define workflow variables in the **Variables** tab. Variables can be referenced in any node using the `{{prefix:name}}` syntax.
@@ -164,6 +166,8 @@ return JSON.stringify({
 ```
 
 **Environment variables**: Set `AGENTCRAFTLAB_API_URL=https://...` on the server, then reference as `{{env:API_URL}}` (prefix is stripped automatically).
+
+</div>
 
 ### Middleware
 
