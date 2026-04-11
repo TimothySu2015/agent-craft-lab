@@ -15,12 +15,12 @@ const WORKFLOW_TYPES: { value: WorkflowSettings['type']; labelKey: string; descK
 ]
 
 const HOOK_POINTS = [
-  { id: 'onInput', label: 'On Input', desc: 'Before user input is processed' },
-  { id: 'preExecute', label: 'Pre Execute', desc: 'Before workflow execution starts' },
-  { id: 'preAgent', label: 'Pre Agent', desc: 'Before each agent runs' },
-  { id: 'postAgent', label: 'Post Agent', desc: 'After each agent completes' },
-  { id: 'onComplete', label: 'On Complete', desc: 'When workflow finishes successfully' },
-  { id: 'onError', label: 'On Error', desc: 'When an error occurs' },
+  { id: 'onInput', labelKey: 'settings.hookOnInput', descKey: 'settings.hookOnInputDesc' },
+  { id: 'preExecute', labelKey: 'settings.hookPreExecute', descKey: 'settings.hookPreExecuteDesc' },
+  { id: 'preAgent', labelKey: 'settings.hookPreAgent', descKey: 'settings.hookPreAgentDesc' },
+  { id: 'postAgent', labelKey: 'settings.hookPostAgent', descKey: 'settings.hookPostAgentDesc' },
+  { id: 'onComplete', labelKey: 'settings.hookOnComplete', descKey: 'settings.hookOnCompleteDesc' },
+  { id: 'onError', labelKey: 'settings.hookOnError', descKey: 'settings.hookOnErrorDesc' },
 ]
 
 const TRANSFORM_TYPES = ['template', 'regex-extract', 'regex-replace', 'json-path', 'trim', 'split-take', 'upper', 'lower']
@@ -71,11 +71,11 @@ export function WorkflowSettingsDialog({ open, onClose }: Props) {
         <div className="flex border-b border-border shrink-0">
           <button onClick={() => setTab('general')}
             className={`flex-1 px-4 py-2 text-xs font-medium cursor-pointer ${tab === 'general' ? 'text-foreground border-b-2 border-blue-500' : 'text-muted-foreground'}`}>
-            General
+            {t('settings.tabGeneral')}
           </button>
           <button onClick={() => setTab('hooks')}
             className={`flex-1 px-4 py-2 text-xs font-medium cursor-pointer ${tab === 'hooks' ? 'text-foreground border-b-2 border-blue-500' : 'text-muted-foreground'}`}>
-            Hooks {Object.keys(hooks).length > 0 && <span className="ml-1 text-[9px] text-blue-400">({Object.keys(hooks).length})</span>}
+            {t('settings.tabHooks')} {Object.keys(hooks).length > 0 && <span className="ml-1 text-[9px] text-blue-400">({Object.keys(hooks).length})</span>}
           </button>
           <button onClick={() => setTab('variables')}
             className={`flex-1 px-4 py-2 text-xs font-medium cursor-pointer ${tab === 'variables' ? 'text-foreground border-b-2 border-blue-500' : 'text-muted-foreground'}`}>
@@ -179,14 +179,14 @@ export function WorkflowSettingsDialog({ open, onClose }: Props) {
                   <div key={hp.id} className="rounded-md border border-border p-3">
                     <div className="flex items-center justify-between mb-1">
                       <div>
-                        <span className="text-[11px] font-medium text-foreground">{hp.label}</span>
-                        <span className="text-[9px] text-muted-foreground ml-2">{hp.desc}</span>
+                        <span className="text-[11px] font-medium text-foreground">{t(hp.labelKey)}</span>
+                        <span className="text-[9px] text-muted-foreground ml-2">{t(hp.descKey)}</span>
                       </div>
                       {hook ? (
                         <button onClick={() => setHook(hp.id, null)} className="text-muted-foreground hover:text-red-400 cursor-pointer"><Trash2 size={12} /></button>
                       ) : (
                         <button onClick={() => setHook(hp.id, { type: 'code', transformType: 'template', template: '{{input}}' })}
-                          className="flex items-center gap-0.5 text-[9px] text-blue-400 hover:text-blue-300 cursor-pointer"><Plus size={11} /> Add</button>
+                          className="flex items-center gap-0.5 text-[9px] text-blue-400 hover:text-blue-300 cursor-pointer"><Plus size={11} /> {t('settings.hookAdd')}</button>
                       )}
                     </div>
                     {hook && (
