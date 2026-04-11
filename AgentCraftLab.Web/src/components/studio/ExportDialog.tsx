@@ -33,13 +33,13 @@ export function ExportDialog({ open, onClose, workflowName }: Props) {
 
   const handleExport = async () => {
     setExporting(true)
-    const { nodes, edges } = useWorkflowStore.getState()
+    const { nodes, edges, workflowSettings } = useWorkflowStore.getState()
     const name = workflowName || 'MyWorkflow'
 
     try {
       switch (mode) {
         case 'json':
-          exportWorkflow(name, nodes, edges)
+          exportWorkflow(name, nodes, edges, workflowSettings)
           break
         case 'project':
         case 'teams':

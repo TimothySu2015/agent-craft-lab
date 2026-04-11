@@ -78,6 +78,7 @@ export function toWorkflowPayloadJson(
     },
     nodes: payloadNodes,
     connections,
+    ...(settings?.variables && settings.variables.length > 0 && { variables: settings.variables }),
   }
 
   const json = JSON.stringify(payload)

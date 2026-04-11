@@ -63,6 +63,17 @@ public class ImperativeExecutionState
 
     /// <summary>引用壓縮器 — {{node:}} 引用超過門檻時自動壓縮（可選）。</summary>
     public IContextCompactor? ReferenceCompactor { get; init; }
+
+    /// <summary>Workflow 變數（{{var:name}}），從預設值 + 執行時覆蓋初始化，Code 節點可修改。</summary>
+    public Dictionary<string, string> Variables { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>系統變數（{{sys:name}}），執行開始時建立，各 executor 共用。</summary>
+    public IReadOnlyDictionary<string, string> SystemVariables { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>環境變數（{{env:name}}），從 AGENTCRAFTLAB_ 前綴的環境變數載入。</summary>
+    public IReadOnlyDictionary<string, string> EnvironmentVariables { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>
@@ -140,6 +151,10 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
             ExecutionId = sessionId ?? Guid.NewGuid().ToString("N"),
             OriginalUserMessage = context.Request.UserMessage,
             NodeResults = new Dictionary<string, string>(),
+            Variables = InitializeVariables(context.Payload, context.Request),
+            SystemVariables = SystemVariableProvider.Build(
+                "local", sessionId ?? "", context.Payload.WorkflowSettings.Type, context.Request.UserMessage),
+            EnvironmentVariables = SystemVariableProvider.BuildEnvironmentVariables(),
             ContextPassing = context.Payload.WorkflowSettings.ContextPassing,
             ExecuteBodyChain = ExecuteBodyChainAsync,
             SessionId = sessionId,
@@ -191,6 +206,7 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
                                     PreviousResult = state.PreviousResult,
                                     NextNodeId = currentNodeId ?? "",
                                     NodeResults = new(state.NodeResults),
+                                    Variables = new(state.Variables),
                                     LoopCounters = new(state.LoopCounters),
                                     OriginalUserMessage = state.OriginalUserMessage,
                                     ContextPassing = state.ContextPassing
@@ -251,6 +267,7 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
                             PreviousResult = state.PreviousResult,
                             NextNodeId = currentNodeId ?? "",
                             NodeResults = new(state.NodeResults),
+                            Variables = new(state.Variables),
                             LoopCounters = new(state.LoopCounters),
                             OriginalUserMessage = state.OriginalUserMessage,
                             ContextPassing = state.ContextPassing
@@ -290,6 +307,29 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
     /// <summary>
     /// 非同步存 checkpoint（fire-and-forget，不阻塞主流程）。
     /// </summary>
+    /// <summary>
+    /// 從 Workflow 定義的預設值 + 執行時覆蓋值初始化變數字典。
+    /// </summary>
+    internal static Dictionary<string, string> InitializeVariables(
+        WorkflowPayload payload, WorkflowExecutionRequest request)
+    {
+        var vars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var v in payload.Variables)
+        {
+            vars[v.Name] = v.DefaultValue;
+        }
+
+        if (request.RuntimeVariables is not null)
+        {
+            foreach (var (key, value) in request.RuntimeVariables)
+            {
+                vars[key] = value;
+            }
+        }
+
+        return vars;
+    }
+
     private void SaveCheckpointFireAndForget(string executionId, int iteration, ImperativeCheckpointSnapshot snapshot)
     {
         _ = Task.Run(async () =>
@@ -360,6 +400,10 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
             ExecutionId = sessionId ?? Guid.NewGuid().ToString("N"),
             OriginalUserMessage = checkpoint.OriginalUserMessage,
             NodeResults = new Dictionary<string, string>(checkpoint.NodeResults),
+            Variables = new Dictionary<string, string>(checkpoint.Variables, StringComparer.OrdinalIgnoreCase),
+            SystemVariables = SystemVariableProvider.Build(
+                "local", sessionId ?? "", context.Payload.WorkflowSettings.Type, context.Request.UserMessage),
+            EnvironmentVariables = SystemVariableProvider.BuildEnvironmentVariables(),
             ContextPassing = checkpoint.ContextPassing,
             ExecuteBodyChain = ExecuteBodyChainAsync,
             SessionId = sessionId,
@@ -431,6 +475,7 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
                             PreviousResult = state.PreviousResult,
                             NextNodeId = currentNodeId ?? "",
                             NodeResults = new(state.NodeResults),
+                            Variables = new(state.Variables),
                             LoopCounters = new(state.LoopCounters),
                             OriginalUserMessage = state.OriginalUserMessage,
                             ContextPassing = state.ContextPassing

@@ -45,7 +45,7 @@ export function WorkflowSettingsDialog({ open, onClose }: Props) {
   const { t } = useTranslation('studio')
   const settings = useWorkflowStore((s) => s.workflowSettings)
   const updateSettings = useWorkflowStore((s) => s.updateSettings)
-  const [tab, setTab] = useState<'general' | 'hooks'>('general')
+  const [tab, setTab] = useState<'general' | 'hooks' | 'variables'>('general')
 
   if (!open) return null
 
@@ -76,6 +76,10 @@ export function WorkflowSettingsDialog({ open, onClose }: Props) {
           <button onClick={() => setTab('hooks')}
             className={`flex-1 px-4 py-2 text-xs font-medium cursor-pointer ${tab === 'hooks' ? 'text-foreground border-b-2 border-blue-500' : 'text-muted-foreground'}`}>
             Hooks {Object.keys(hooks).length > 0 && <span className="ml-1 text-[9px] text-blue-400">({Object.keys(hooks).length})</span>}
+          </button>
+          <button onClick={() => setTab('variables')}
+            className={`flex-1 px-4 py-2 text-xs font-medium cursor-pointer ${tab === 'variables' ? 'text-foreground border-b-2 border-blue-500' : 'text-muted-foreground'}`}>
+            {t('settings.variables')} {(settings.variables?.length ?? 0) > 0 && <span className="ml-1 text-[9px] text-blue-400">({settings.variables!.length})</span>}
           </button>
         </div>
 
@@ -158,6 +162,14 @@ export function WorkflowSettingsDialog({ open, onClose }: Props) {
             </>
           )}
 
+          {tab === 'variables' && (
+            <VariablesTab
+              variables={settings.variables ?? []}
+              onChange={(vars) => updateSettings({ variables: vars })}
+              t={t}
+            />
+          )}
+
           {tab === 'hooks' && (
             <div className="space-y-3">
               <p className="text-[10px] text-muted-foreground">{t('settings.hooksDesc')}</p>
@@ -222,6 +234,81 @@ export function WorkflowSettingsDialog({ open, onClose }: Props) {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ─── Variables Tab ───
+
+import type { WorkflowVariable } from '@/types/workflow'
+
+const VAR_TYPES: WorkflowVariable['type'][] = ['string', 'number', 'boolean', 'json']
+
+function VariablesTab({ variables, onChange, t }: {
+  variables: WorkflowVariable[]
+  onChange: (vars: WorkflowVariable[]) => void
+  t: (key: string) => string
+}) {
+  const addVariable = () => {
+    onChange([...variables, { name: '', type: 'string', defaultValue: '', description: '' }])
+  }
+
+  const updateVar = (index: number, partial: Partial<WorkflowVariable>) => {
+    const next = [...variables]
+    next[index] = { ...next[index], ...partial }
+    onChange(next)
+  }
+
+  const removeVar = (index: number) => {
+    onChange(variables.filter((_, i) => i !== index))
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[10px] text-muted-foreground">{t('settings.variablesDesc')}</p>
+
+      {variables.map((v, i) => (
+        <div key={i} className="rounded-md border border-border p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <input
+              className="field-input"
+              style={{ flex: 1, minWidth: 0 }}
+              value={v.name}
+              onChange={(e) => updateVar(i, { name: e.target.value.replace(/\s/g, '_') })}
+              placeholder={t('settings.varName')}
+            />
+            <select
+              className="field-input"
+              style={{ width: 96 }}
+              value={v.type}
+              onChange={(e) => updateVar(i, { type: e.target.value as WorkflowVariable['type'] })}
+            >
+              {VAR_TYPES.map((vt) => <option key={vt} value={vt}>{vt}</option>)}
+            </select>
+            <button onClick={() => removeVar(i)}
+              className="text-muted-foreground hover:text-red-400 cursor-pointer p-1">
+              <Trash2 size={13} />
+            </button>
+          </div>
+          <input
+            className="field-input"
+            value={v.defaultValue}
+            onChange={(e) => updateVar(i, { defaultValue: e.target.value })}
+            placeholder={t('settings.varDefault')}
+          />
+          <input
+            className="field-input text-[10px]"
+            value={v.description}
+            onChange={(e) => updateVar(i, { description: e.target.value })}
+            placeholder={t('settings.varDescription')}
+          />
+        </div>
+      ))}
+
+      <button onClick={addVariable}
+        className="flex items-center gap-1 rounded-md border border-dashed border-border px-3 py-2 text-[11px] text-muted-foreground hover:text-foreground hover:border-muted-foreground/50 transition-colors cursor-pointer w-full justify-center">
+        <Plus size={12} /> {t('settings.addVariable')}
+      </button>
     </div>
   )
 }

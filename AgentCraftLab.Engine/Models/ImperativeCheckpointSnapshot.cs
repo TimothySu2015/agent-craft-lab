@@ -31,6 +31,9 @@ public record ImperativeCheckpointSnapshot
     /// <summary>Context Passing 模式：previous-only / with-original / accumulate。</summary>
     public string ContextPassing { get; init; } = "previous-only";
 
+    /// <summary>Workflow 變數快照（{{var:name}}）。</summary>
+    public Dictionary<string, string> Variables { get; init; } = new();
+
     /// <summary>快照建立時間。</summary>
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 

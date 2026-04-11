@@ -197,6 +197,61 @@ public static partial class NodeReferenceResolver
             .ToList();
     }
 
+    // ─── Variable Resolution（{{sys:}} / {{var:}} / {{env:}}）───
+
+    /// <summary>
+    /// 解析文字中的 {{sys:name}}、{{var:name}}、{{env:name}} 變數引用。
+    /// 不處理 {{node:}} — 那由現有的 Resolve 方法獨立處理。
+    /// </summary>
+    public static string ResolveVariables(
+        string? text,
+        IReadOnlyDictionary<string, string>? systemVars,
+        IReadOnlyDictionary<string, string>? workflowVars,
+        IReadOnlyDictionary<string, string>? envVars = null)
+    {
+        if (string.IsNullOrEmpty(text))
+            return text ?? "";
+
+        if (!text.Contains("{{sys:") && !text.Contains("{{var:") && !text.Contains("{{env:"))
+            return text;
+
+        return VariableRefPattern().Replace(text, match =>
+        {
+            var prefix = match.Groups[1].Value;
+            var name = match.Groups[2].Value.Trim();
+            var source = prefix switch
+            {
+                "sys" => systemVars,
+                "var" => workflowVars,
+                "env" => envVars,
+                _ => null
+            };
+            return source is not null && source.TryGetValue(name, out var value)
+                ? value
+                : match.Value;
+        });
+    }
+
+    /// <summary>檢查文字中是否含有 {{sys:}} / {{var:}} / {{env:}} 變數引用。</summary>
+    public static bool HasVariableReferences(string? text) =>
+        !string.IsNullOrEmpty(text) &&
+        (text.Contains("{{sys:") || text.Contains("{{var:") || text.Contains("{{env:"));
+
+    /// <summary>提取文字中所有變數引用的 (prefix, name) 組合。</summary>
+    public static IReadOnlyList<(string Prefix, string Name)> ExtractVariableNames(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return [];
+
+        return VariableRefPattern().Matches(text)
+            .Select(m => (m.Groups[1].Value, m.Groups[2].Value.Trim()))
+            .Distinct()
+            .ToList();
+    }
+
     [GeneratedRegex(@"\{\{node:([^}]+)\}\}")]
     private static partial Regex NodeRefPattern();
+
+    [GeneratedRegex(@"\{\{(sys|var|env):([^}]+)\}\}")]
+    private static partial Regex VariableRefPattern();
 }

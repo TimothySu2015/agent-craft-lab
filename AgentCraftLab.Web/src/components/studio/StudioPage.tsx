@@ -108,6 +108,7 @@ export function StudioPage() {
                 try {
                   const data = await importWorkflow(file)
                   useWorkflowStore.getState().setWorkflow(data.nodes, data.edges)
+                  if (data.settings) useWorkflowStore.getState().updateSettings(data.settings)
                   setCurrentId(null)
                   setCurrentName(data.name)
                 } catch (err) { console.error('Import failed:', err); notify.error(tn('importFailed.workflow'), { description: err instanceof Error ? err.message : String(err) }) }

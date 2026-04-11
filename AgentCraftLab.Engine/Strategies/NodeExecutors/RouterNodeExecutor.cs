@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Services;
 using Microsoft.Extensions.AI;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
@@ -69,10 +70,16 @@ public sealed class RouterNodeExecutor : INodeExecutor
             return MatchRouteByKeyword(state.PreviousResult, routes);
         }
 
+        var condExpr = node.ConditionExpression;
+        if (!string.IsNullOrWhiteSpace(condExpr) && NodeReferenceResolver.HasVariableReferences(condExpr))
+        {
+            condExpr = NodeReferenceResolver.ResolveVariables(condExpr, state.SystemVariables, state.Variables, state.EnvironmentVariables);
+        }
+
         var routeList = string.Join(", ", routes.Select((r, i) => $"{i + 1}. {r}"));
-        var prompt = string.IsNullOrWhiteSpace(node.ConditionExpression)
+        var prompt = string.IsNullOrWhiteSpace(condExpr)
             ? $"Classify the following input into one of these categories: {routeList}\n\nInput:\n{state.PreviousResult}\n\nReply with ONLY the category number (e.g., 1, 2, or 3)."
-            : $"{node.ConditionExpression}\n\nCategories:\n{routeList}\n\nInput:\n{state.PreviousResult}\n\nReply with ONLY the category number (e.g., 1, 2, or 3).";
+            : $"{condExpr}\n\nCategories:\n{routeList}\n\nInput:\n{state.PreviousResult}\n\nReply with ONLY the category number (e.g., 1, 2, or 3).";
 
         var messages = new List<ChatMessage> { new(ChatRole.User, prompt) };
         var response = await client.GetResponseAsync(messages, cancellationToken: cancellationToken);

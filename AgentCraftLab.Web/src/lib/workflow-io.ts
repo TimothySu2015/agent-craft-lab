@@ -3,24 +3,27 @@
  * 格式：{ version: 1, name, nodes, edges, createdAt }
  */
 import type { Node, Edge } from '@xyflow/react'
-import type { NodeData } from '@/types/workflow'
+import type { NodeData, WorkflowVariable } from '@/types/workflow'
+import type { WorkflowSettings } from '@/stores/workflow-store'
 
 export interface WorkflowFile {
   version: number;
   name: string;
   nodes: Node<NodeData>[];
   edges: Edge[];
+  settings?: Partial<WorkflowSettings>;
   createdAt: string;
 }
 
 /** 下載 workflow 為 .json 檔案 */
-export function exportWorkflow(name: string, nodes: Node<NodeData>[], edges: Edge[]) {
+export function exportWorkflow(name: string, nodes: Node<NodeData>[], edges: Edge[], settings?: WorkflowSettings) {
   const realNodes = nodes.filter((n) => !n.type?.endsWith('-group'))
   const data: WorkflowFile = {
     version: 1,
     name: name || 'workflow',
     nodes: realNodes,
     edges,
+    ...(settings && { settings }),
     createdAt: new Date().toISOString(),
   }
 

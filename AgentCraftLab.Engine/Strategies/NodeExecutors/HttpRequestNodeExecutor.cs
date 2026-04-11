@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Services;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 
@@ -68,22 +69,39 @@ public sealed class HttpRequestNodeExecutor : INodeExecutor
                 return catalogDef;
         }
 
-        // Inline 模式
+        // Inline 模式（解析變數引用）
         if (!string.IsNullOrWhiteSpace(node.HttpUrl))
         {
+            var url = node.HttpUrl;
+            var headers = node.HttpHeaders ?? "";
+            var bodyTemplate = node.HttpBodyTemplate ?? "";
+            var authCredential = node.HttpAuthCredential ?? "";
+
+            // 解析 {{sys:}}/{{var:}}/{{env:}} 變數
+            if (NodeReferenceResolver.HasVariableReferences(url) ||
+                NodeReferenceResolver.HasVariableReferences(headers) ||
+                NodeReferenceResolver.HasVariableReferences(bodyTemplate) ||
+                NodeReferenceResolver.HasVariableReferences(authCredential))
+            {
+                url = NodeReferenceResolver.ResolveVariables(url, state.SystemVariables, state.Variables, state.EnvironmentVariables);
+                headers = NodeReferenceResolver.ResolveVariables(headers, state.SystemVariables, state.Variables, state.EnvironmentVariables);
+                bodyTemplate = NodeReferenceResolver.ResolveVariables(bodyTemplate, state.SystemVariables, state.Variables, state.EnvironmentVariables);
+                authCredential = NodeReferenceResolver.ResolveVariables(authCredential, state.SystemVariables, state.Variables, state.EnvironmentVariables);
+            }
+
             return new HttpApiDefinition
             {
                 Id = node.Id ?? "inline",
                 Name = node.Name ?? "inline-http",
-                Url = node.HttpUrl,
+                Url = url,
                 Method = string.IsNullOrWhiteSpace(node.HttpMethod) ? "GET" : node.HttpMethod,
-                Headers = node.HttpHeaders ?? "",
-                BodyTemplate = node.HttpBodyTemplate ?? "",
+                Headers = headers,
+                BodyTemplate = bodyTemplate,
                 ContentType = string.IsNullOrWhiteSpace(node.HttpContentType) ? "application/json" : node.HttpContentType,
                 ResponseMaxLength = node.HttpResponseMaxLength,
                 TimeoutSeconds = node.HttpTimeoutSeconds,
                 AuthMode = string.IsNullOrWhiteSpace(node.HttpAuthMode) ? "none" : node.HttpAuthMode,
-                AuthCredential = node.HttpAuthCredential ?? "",
+                AuthCredential = authCredential,
                 AuthKeyName = node.HttpAuthKeyName ?? "",
                 RetryCount = node.HttpRetryCount,
                 RetryDelayMs = node.HttpRetryDelayMs,

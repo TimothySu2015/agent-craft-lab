@@ -15,7 +15,7 @@ import { getModelsForProvider } from '@/lib/providers'
 import { autoLayout } from '@/lib/auto-layout'
 import { buildGroups } from '@/lib/group-builder'
 import { layoutGroupInternals, GROUP_PAD, GROUP_HEADER_HEIGHT } from '@/lib/group-layout'
-import type { NodeData, NodeType, LayoutDirection } from '@/types/workflow'
+import type { NodeData, NodeType, LayoutDirection, WorkflowVariable } from '@/types/workflow'
 
 export interface WorkflowSettings {
   type: 'auto' | 'sequential' | 'concurrent' | 'handoff' | 'imperative'
@@ -25,6 +25,7 @@ export interface WorkflowSettings {
   aggregatorStrategy?: 'default' | 'custom'
   contextPassing?: 'previous-only' | 'with-original' | 'accumulate'
   hooks?: Record<string, any>
+  variables?: WorkflowVariable[]
 }
 
 interface HistoryEntry {

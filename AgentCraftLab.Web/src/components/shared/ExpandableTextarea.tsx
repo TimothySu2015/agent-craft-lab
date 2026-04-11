@@ -12,6 +12,13 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { markdownComponents } from '@/components/shared/markdown-components'
 
+/** 自動補全建議項目。 */
+export interface VariableSuggestion {
+  label: string        // 顯示文字，如 "{{var:counter}}"
+  insertText: string   // 插入的完整文字
+  description?: string // 簡短說明
+}
+
 interface Props {
   value: string
   onChange: (value: string) => void
@@ -23,19 +30,81 @@ interface Props {
   language?: string
   /** 點擊 Optimize 按鈕時呼叫，回傳優化結果。傳入 undefined 表示不顯示按鈕。 */
   onOptimize?: (currentText: string) => Promise<PromptRefinerResult | null>
+  /** 輸入 {{ 時的變數建議清單。 */
+  suggestions?: VariableSuggestion[]
 }
 
-export function ExpandableTextarea({ value, onChange, placeholder, rows = 3, className = '', label, language, onOptimize }: Props) {
+export function ExpandableTextarea({ value, onChange, placeholder, rows = 3, className = '', label, language, onOptimize, suggestions }: Props) {
   const [expanded, setExpanded] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [suggestionFilter, setSuggestionFilter] = useState('')
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [cursorPos, setCursorPos] = useState(0)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const filteredSuggestions = suggestions?.filter((s) =>
+    !suggestionFilter || s.label.toLowerCase().includes(suggestionFilter.toLowerCase())
+  ) ?? []
+
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value
+    const pos = e.target.selectionStart ?? 0
+    onChange(newValue)
+    setCursorPos(pos)
+
+    // 偵測 {{ 觸發自動補全
+    if (suggestions && suggestions.length > 0) {
+      const before = newValue.slice(0, pos)
+      const triggerMatch = before.match(/\{\{([^}]*)$/)
+      if (triggerMatch) {
+        setSuggestionFilter(triggerMatch[1])
+        setShowSuggestions(true)
+        setSelectedIndex(0)
+      } else {
+        setShowSuggestions(false)
+      }
+    }
+  }
+
+  const insertSuggestion = (suggestion: VariableSuggestion) => {
+    const before = value.slice(0, cursorPos)
+    const after = value.slice(cursorPos)
+    // 找到 {{ 的起始位置
+    const triggerIndex = before.lastIndexOf('{{')
+    if (triggerIndex >= 0) {
+      const newValue = before.slice(0, triggerIndex) + suggestion.insertText + after
+      onChange(newValue)
+    }
+    setShowSuggestions(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!showSuggestions || filteredSuggestions.length === 0) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedIndex((i) => Math.min(i + 1, filteredSuggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedIndex((i) => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault()
+      insertSuggestion(filteredSuggestions[selectedIndex])
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false)
+    }
+  }
 
   return (
     <>
       {/* Inline textarea + expand button */}
       <div className="relative group">
         <textarea
+          ref={textareaRef}
           className={`field-textarea pr-7 ${className}`}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={handleInput}
+          onKeyDown={handleKeyDown}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
           rows={rows}
           placeholder={placeholder}
         />
@@ -46,6 +115,20 @@ export function ExpandableTextarea({ value, onChange, placeholder, rows = 3, cla
         >
           <Maximize2 size={12} />
         </button>
+
+        {/* Variable suggestions dropdown */}
+        {showSuggestions && filteredSuggestions.length > 0 && (
+          <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[150px] overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
+            {filteredSuggestions.map((s, i) => (
+              <button key={s.label}
+                onMouseDown={(e) => { e.preventDefault(); insertSuggestion(s) }}
+                className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[11px] transition-colors cursor-pointer ${i === selectedIndex ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent/50'}`}>
+                <code className="text-blue-400 text-[10px]">{s.label}</code>
+                {s.description && <span className="text-muted-foreground text-[9px] truncate">{s.description}</span>}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Full-screen Modal */}
@@ -58,13 +141,14 @@ export function ExpandableTextarea({ value, onChange, placeholder, rows = 3, cla
           language={language}
           placeholder={placeholder}
           onOptimize={onOptimize}
+          suggestions={suggestions}
         />
       )}
     </>
   )
 }
 
-function ExpandedEditor({ value, onChange, onClose, label, language, placeholder, onOptimize }: {
+function ExpandedEditor({ value, onChange, onClose, label, language, placeholder, onOptimize, suggestions }: {
   value: string
   onChange: (value: string) => void
   onClose: () => void
@@ -72,6 +156,7 @@ function ExpandedEditor({ value, onChange, onClose, label, language, placeholder
   language?: string
   placeholder?: string
   onOptimize?: (currentText: string) => Promise<PromptRefinerResult | null>
+  suggestions?: VariableSuggestion[]
 }) {
   const { t } = useTranslation('common')
   const { confirm, confirmDialog } = useConfirmDialog()
@@ -80,6 +165,43 @@ function ExpandedEditor({ value, onChange, onClose, label, language, placeholder
   const [optimizeLoading, setOptimizeLoading] = useState(false)
   const [optimizeResult, setOptimizeResult] = useState<PromptRefinerResult | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [suggestionFilter, setSuggestionFilter] = useState('')
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
+  const [cursorPos, setCursorPos] = useState(0)
+
+  const filteredSuggestions = suggestions?.filter((s) =>
+    !suggestionFilter || s.label.toLowerCase().includes(suggestionFilter.toLowerCase())
+  ) ?? []
+
+  const handleDraftChange = (newValue: string) => {
+    setDraft(newValue)
+    const ta = textareaRef.current
+    const pos = ta?.selectionStart ?? newValue.length
+    setCursorPos(pos)
+
+    if (suggestions && suggestions.length > 0) {
+      const before = newValue.slice(0, pos)
+      const triggerMatch = before.match(/\{\{([^}]*)$/)
+      if (triggerMatch) {
+        setSuggestionFilter(triggerMatch[1])
+        setShowSuggestions(true)
+        setSelectedSuggestionIndex(0)
+      } else {
+        setShowSuggestions(false)
+      }
+    }
+  }
+
+  const insertSuggestionExpanded = (suggestion: VariableSuggestion) => {
+    const before = draft.slice(0, cursorPos)
+    const after = draft.slice(cursorPos)
+    const triggerIndex = before.lastIndexOf('{{')
+    if (triggerIndex >= 0) {
+      setDraft(before.slice(0, triggerIndex) + suggestion.insertText + after)
+    }
+    setShowSuggestions(false)
+  }
 
   // 打開時 focus
   useEffect(() => {
@@ -100,6 +222,13 @@ function ExpandedEditor({ value, onChange, onClose, label, language, placeholder
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Suggestion navigation
+    if (showSuggestions && filteredSuggestions.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedSuggestionIndex((i) => Math.min(i + 1, filteredSuggestions.length - 1)); return }
+      if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedSuggestionIndex((i) => Math.max(i - 1, 0)); return }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertSuggestionExpanded(filteredSuggestions[selectedSuggestionIndex]); return }
+      if (e.key === 'Escape') { setShowSuggestions(false); return }
+    }
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault()
       handleSave()
@@ -168,12 +297,26 @@ function ExpandedEditor({ value, onChange, onClose, label, language, placeholder
         {/* Body */}
         <div className="flex-1 overflow-hidden">
           {mode === 'edit' ? (
-            <LineNumberEditor
-              ref={textareaRef}
-              value={draft}
-              onChange={setDraft}
-              placeholder={placeholder}
-            />
+            <div className="relative h-full">
+              <LineNumberEditor
+                ref={textareaRef}
+                value={draft}
+                onChange={handleDraftChange}
+                placeholder={placeholder}
+              />
+              {showSuggestions && filteredSuggestions.length > 0 && (
+                <div className="absolute left-12 top-8 z-50 max-h-[200px] min-w-[280px] overflow-y-auto rounded-md border border-border bg-popover shadow-lg">
+                  {filteredSuggestions.map((s, i) => (
+                    <button key={s.label}
+                      onMouseDown={(e) => { e.preventDefault(); insertSuggestionExpanded(s) }}
+                      className={`flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[11px] transition-colors cursor-pointer ${i === selectedSuggestionIndex ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent/50'}`}>
+                      <code className="text-blue-400 text-[10px]">{s.label}</code>
+                      {s.description && <span className="text-muted-foreground text-[9px] truncate">{s.description}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="w-full h-full overflow-y-auto p-4 text-sm leading-relaxed text-muted-foreground">
               {draft ? (

@@ -45,6 +45,8 @@ If your team runs on .NET and you want AI Agent capabilities — your options ar
 
 **Doc Refinery** — Upload documents, clean and extract structured data with LLM + Schema Mapper. Dual-mode: fast (single LLM) or precise (multi-layer agent + LLM Challenge verification).
 
+**Workflow Variables** — Three-layer variable system: `{{sys:}}` system variables, `{{var:}}` user-defined workflow variables, `{{env:}}` environment variables. Define in Settings, reference in any node, auto-complete with `{{` trigger.
+
 **Middleware Pipeline** — GuardRails, PII masking, rate limiting, retry, logging — all as composable `DelegatingChatClient` decorators.
 
 ## Quick Start

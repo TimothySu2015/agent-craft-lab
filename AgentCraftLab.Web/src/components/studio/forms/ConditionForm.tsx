@@ -1,4 +1,6 @@
 import { Field } from '../PropertiesPanel'
+import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
+import { useVariableSuggestions } from '@/hooks/useVariableSuggestions'
 import type { ConditionNodeData, LoopNodeData, NodeData } from '@/types/workflow'
 
 interface Props {
@@ -7,6 +9,8 @@ interface Props {
 }
 
 export function ConditionForm({ data, onUpdate }: Props) {
+  const suggestions = useVariableSuggestions()
+
   return (
     <>
       <Field label="Condition Type">
@@ -22,12 +26,13 @@ export function ConditionForm({ data, onUpdate }: Props) {
       </Field>
 
       <Field label="Expression">
-        <textarea
-          className="field-textarea"
+        <ExpandableTextarea
           value={data.conditionExpression}
-          onChange={(e) => onUpdate({ conditionExpression: e.target.value })}
+          onChange={(v) => onUpdate({ conditionExpression: v })}
           rows={2}
           placeholder={data.conditionType === 'regex' ? 'regex pattern...' : 'text to check...'}
+          label="Condition — Expression"
+          suggestions={suggestions}
         />
       </Field>
 
