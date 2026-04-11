@@ -96,19 +96,19 @@ describe('WorkflowSettingsDialog', () => {
 
       fireEvent.click(screen.getByText(/Hooks/))
       // Should show all 6 hook points
-      expect(screen.getByText('On Input')).toBeInTheDocument()
-      expect(screen.getByText('Pre Execute')).toBeInTheDocument()
-      expect(screen.getByText('Pre Agent')).toBeInTheDocument()
-      expect(screen.getByText('Post Agent')).toBeInTheDocument()
-      expect(screen.getByText('On Complete')).toBeInTheDocument()
-      expect(screen.getByText('On Error')).toBeInTheDocument()
+      expect(screen.getByText('settings.hookOnInput')).toBeInTheDocument()
+      expect(screen.getByText('settings.hookPreExecute')).toBeInTheDocument()
+      expect(screen.getByText('settings.hookPreAgent')).toBeInTheDocument()
+      expect(screen.getByText('settings.hookPostAgent')).toBeInTheDocument()
+      expect(screen.getByText('settings.hookOnComplete')).toBeInTheDocument()
+      expect(screen.getByText('settings.hookOnError')).toBeInTheDocument()
     })
 
     it('shows Add button for hook without config', () => {
       render(<WorkflowSettingsDialog open={true} onClose={vi.fn()} />)
       fireEvent.click(screen.getByText(/Hooks/))
 
-      const addButtons = screen.getAllByText('Add')
+      const addButtons = screen.getAllByText('settings.hookAdd')
       expect(addButtons.length).toBe(6) // All 6 hooks unconfigured
     })
 
@@ -116,7 +116,7 @@ describe('WorkflowSettingsDialog', () => {
       render(<WorkflowSettingsDialog open={true} onClose={vi.fn()} />)
       fireEvent.click(screen.getByText(/Hooks/))
 
-      const addButtons = screen.getAllByText('Add')
+      const addButtons = screen.getAllByText('settings.hookAdd')
       fireEvent.click(addButtons[0]) // Add to first hook (onInput)
 
       expect(mockUpdateSettings).toHaveBeenCalledWith({
@@ -140,7 +140,7 @@ describe('WorkflowSettingsDialog', () => {
         return svg && b.closest('[class*="rounded-md border"]')
       })
       // Find and click the delete button (Trash2 icon)
-      const hookSection = screen.getByText('On Input').closest('div[class*="rounded-md"]')!
+      const hookSection = screen.getByText('settings.hookOnInput').closest('div[class*="rounded-md"]')!
       const deleteBtn = hookSection.querySelector('button')!
       fireEvent.click(deleteBtn)
 
