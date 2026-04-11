@@ -144,7 +144,7 @@ describe('ApiKeysPage', () => {
       render(<ApiKeysPage />)
     })
     // Should contain the API Keys heading
-    expect(screen.getByText('nav.apiKeys')).toBeInTheDocument()
+    expect(screen.getByText('common:nav.apiKeys')).toBeInTheDocument()
   })
 })
 
@@ -180,7 +180,7 @@ describe('RequestLogsPage', () => {
     await act(async () => {
       render(<RequestLogsPage />)
     })
-    expect(screen.getByText('nav.logs')).toBeInTheDocument()
+    expect(screen.getByText('common:nav.logs')).toBeInTheDocument()
   })
 })
 
