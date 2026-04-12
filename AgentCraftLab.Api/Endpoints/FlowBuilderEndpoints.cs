@@ -50,6 +50,7 @@ public static class FlowBuilderEndpoints
                 Credential = credential,
                 Model = request.Model ?? Defaults.Model,
                 Provider = provider,
+                Locale = request.Locale ?? "zh-TW",
             };
 
             // mode=legacy 使用舊版，預設使用 Flow Planner 強化版
@@ -131,7 +132,8 @@ public record FlowBuildApiRequest(
     string? Endpoint,
     string? CurrentPayload,
     List<FlowBuildHistoryEntry>? History,
-    string? Mode   // "legacy" = 舊版, null/其他 = Flow Planner 強化版
+    string? Mode,   // "legacy" = 舊版, null/其他 = Flow Planner 強化版
+    string? Locale  // "en" / "zh-TW" / "ja" — 決定 AI Build 回覆語言
 );
 
 public record FlowBuildHistoryEntry(string Role, string Content);

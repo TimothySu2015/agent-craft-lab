@@ -94,7 +94,7 @@ function repairTruncatedJson(json: string): string {
 }
 
 export function AiBuildPanel() {
-  const { t } = useTranslation('chat')
+  const { t, i18n: i18nInstance } = useTranslation('chat')
   const { t: tn } = useTranslation('notifications')
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -151,6 +151,7 @@ export function AiBuildPanel() {
           model: cred.model || 'gpt-4o',
           currentPayload,
           history,
+          locale: i18nInstance.language || 'en',
           mode: useLegacy ? 'legacy' : undefined,
         }),
       })
