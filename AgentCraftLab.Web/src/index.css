@@ -186,6 +186,9 @@ cpk-web-inspector {
   outline: none;
   transition: border-color 0.15s;
 }
+.field-input.has-icon {
+  padding-left: 2.25rem; /* 36px — 搜尋 icon 不遮蓋 placeholder */
+}
 .field-input:focus {
   border-color: var(--ring);
 }

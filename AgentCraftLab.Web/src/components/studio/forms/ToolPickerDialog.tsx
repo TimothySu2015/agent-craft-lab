@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSettingsStore } from '@/stores/settings-store'
 import { X, Search, Check } from 'lucide-react'
 import { api } from '@/lib/api'
 import { notify } from '@/lib/notify'
@@ -31,15 +32,16 @@ export function ToolPickerDialog({ open, selected, onClose, onApply }: Props) {
   const [search, setSearch] = useState('')
   const [checked, setChecked] = useState<Set<string>>(new Set(selected))
 
+  const locale = useSettingsStore((s) => s.locale)
   useEffect(() => {
     if (!open) return
     setChecked(new Set(selected))
     setLoading(true)
-    api.tools.list()
+    api.tools.list(locale)
       .then(setTools)
       .catch((err) => { console.error('Failed to load tools:', err); notify.error(tn('loadFailed.tools')) })
       .finally(() => setLoading(false))
-  }, [open, selected])
+  }, [open, selected, locale])
 
   const categories = useMemo(() => [...new Set(tools.map((t) => t.category))], [tools])
 
@@ -81,9 +83,9 @@ export function ToolPickerDialog({ open, selected, onClose, onApply }: Props) {
         {/* Search */}
         <div className="px-4 pt-3 shrink-0">
           <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="field-input pl-8 text-xs"
+              className="field-input has-icon text-xs"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t('toolPicker.search')}

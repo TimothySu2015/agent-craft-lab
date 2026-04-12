@@ -3,8 +3,10 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Trash2, Edit3, Sparkles, X, Download, Upload } from 'lucide-react'
+import { useSettingsStore } from '@/stores/settings-store'
+import { Plus, Trash2, Edit3, Sparkles, X, Download, Upload, Wrench } from 'lucide-react'
 import { useConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { ToolPickerDialog } from '@/components/studio/forms/ToolPickerDialog'
 import { api } from '@/lib/api'
 import { notify } from '@/lib/notify'
 
@@ -28,13 +30,14 @@ export function SkillsPage() {
   const [editing, setEditing] = useState<CustomSkill | null>(null)
   const [viewing, setViewing] = useState<AnySkill | null>(null)
 
+  const locale = useSettingsStore((s) => s.locale)
   const fetchSkills = useCallback(() => {
     setLoading(true)
-    api.skills.list()
+    api.skills.list(locale)
       .then((data) => { setBuiltin(data.builtin ?? []); setCustom(data.custom ?? []) })
       .catch((err) => console.error('Failed to load skills:', err))
       .finally(() => setLoading(false))
-  }, [])
+  }, [locale])
 
   useEffect(() => { fetchSkills() }, [fetchSkills])
 
@@ -232,14 +235,15 @@ function SkillForm({ editing, onClose, onSaved }: { editing: CustomSkill | null;
   const [description, setDescription] = useState(editing?.description ?? '')
   const [category, setCategory] = useState(editing?.category ?? '')
   const [instructions, setInstructions] = useState(editing?.instructions ?? '')
-  const [tools, setTools] = useState(Array.isArray(editing?.tools) ? editing.tools.join(', ') : (editing?.tools ?? ''))
+  const [tools, setTools] = useState<string[]>(Array.isArray(editing?.tools) ? editing.tools : [])
+  const [showToolPicker, setShowToolPicker] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const handleSubmit = async () => {
     if (!name.trim()) return
     setSaving(true)
     try {
-      const data = { name, description, category, instructions, tools: tools.split(',').map((t) => t.trim()).filter(Boolean) }
+      const data = { name, description, category, instructions, tools }
       if (editing) await api.skills.update(editing.id, data)
       else await api.skills.create(data)
       onSaved()
@@ -278,7 +282,23 @@ function SkillForm({ editing, onClose, onSaved }: { editing: CustomSkill | null;
           </div>
           <div>
             <label className="block text-[10px] text-muted-foreground mb-1">{t('skills.tools')}</label>
-            <input className="field-input font-mono text-[10px]" value={tools} onChange={(e) => setTools(e.target.value)} placeholder="web_search, read_url" />
+            <button
+              onClick={() => setShowToolPicker(true)}
+              className="flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              <Wrench size={12} />
+              {t('toolPicker.selectTools')}
+            </button>
+            {tools.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {tools.map((tool) => (
+                  <span key={tool} className="inline-flex items-center rounded bg-blue-500/10 px-1.5 py-0.5 text-[9px] text-blue-400 font-mono">
+                    {tool}
+                  </span>
+                ))}
+              </div>
+            )}
+            <ToolPickerDialog open={showToolPicker} selected={tools} onClose={() => setShowToolPicker(false)} onApply={(selected) => setTools(selected)} />
           </div>
           <button
             onClick={handleSubmit}

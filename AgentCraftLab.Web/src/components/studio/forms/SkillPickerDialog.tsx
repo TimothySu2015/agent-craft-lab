@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSettingsStore } from '@/stores/settings-store'
 import { X, Search, Check, Sparkles, Zap } from 'lucide-react'
 import { api } from '@/lib/api'
 import { notify } from '@/lib/notify'
@@ -31,11 +32,12 @@ export function SkillPickerDialog({ open, selected, onClose, onApply }: Props) {
   const [search, setSearch] = useState('')
   const [checked, setChecked] = useState<Set<string>>(new Set(selected))
 
+  const locale = useSettingsStore((s) => s.locale)
   useEffect(() => {
     if (!open) return
     setChecked(new Set(selected))
     setLoading(true)
-    api.skills.list()
+    api.skills.list(locale)
       .then((data) => {
         setBuiltin((data.builtin ?? []).map((s: any) => ({ ...s, isBuiltin: true })))
         setCustom(data.custom ?? [])
@@ -80,8 +82,8 @@ export function SkillPickerDialog({ open, selected, onClose, onApply }: Props) {
 
         <div className="px-4 pt-3 shrink-0">
           <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input className="field-input pl-8 text-xs" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('skillPicker.search')} />
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input className="field-input has-icon text-xs" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('skillPicker.search')} />
           </div>
         </div>
 

@@ -15,6 +15,10 @@ public class ToolRegistryService : IToolRegistry
     private readonly ConcurrentDictionary<string, ToolDefinition> _registry = new();
     private readonly IHttpClientFactory _httpFactory;
 
+    /// <summary>工具描述的多語版本：locale → { toolId → description }。</summary>
+    private readonly Dictionary<string, Dictionary<string, string>> _descriptionLocales = new();
+    private static readonly string[] SupportedLocales = Locales.Supported;
+
     public ToolRegistryService(IHttpClientFactory httpFactory)
     {
         _httpFactory = httpFactory;
@@ -23,6 +27,43 @@ public class ToolRegistryService : IToolRegistry
         RegisterWebTools();
         RegisterDataTools();
         RegisterCodeExplorerTools();
+        LoadToolDescriptionLocales();
+    }
+
+    /// <summary>
+    /// 從 Data/built-in-tools/locales/{locale}/tools.json 載入工具描述的多語版本。
+    /// </summary>
+    private void LoadToolDescriptionLocales()
+    {
+        var basePath = Path.Combine("Data", "built-in-tools", "locales");
+        foreach (var locale in SupportedLocales)
+        {
+            var path = Path.Combine(basePath, locale, "tools.json");
+            if (!File.Exists(path)) continue;
+            try
+            {
+                var json = File.ReadAllText(path);
+                var entries = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json);
+                if (entries is not null)
+                    _descriptionLocales[locale] = entries;
+            }
+            catch { /* silent — locale 檔案損壞不影響核心功能 */ }
+        }
+    }
+
+    /// <summary>
+    /// 取得指定 locale 的工具定義列表。description 會依 locale 替換。
+    /// </summary>
+    public IReadOnlyList<ToolDefinition> GetAvailableTools(string locale)
+    {
+        if (!_descriptionLocales.TryGetValue(locale, out var localeDescs))
+            return GetAvailableTools();
+
+        return _registry.Values.Select(t =>
+        {
+            var desc = localeDescs.GetValueOrDefault(t.Id, t.Description);
+            return t with { Description = desc };
+        }).ToList();
     }
 
     private void RegisterSearchTools()

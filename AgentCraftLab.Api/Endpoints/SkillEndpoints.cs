@@ -11,12 +11,17 @@ public static class SkillEndpoints
     {
         var group = app.MapGroup("/api/skills");
 
-        group.MapGet("/", async (ISkillStore store, [FromServices] SkillRegistryService registry, IUserContext userCtx) =>
+        group.MapGet("/", async (ISkillStore store, [FromServices] SkillRegistryService registry, IUserContext userCtx, [FromQuery] string? locale) =>
         {
             var userId = await userCtx.GetUserIdAsync();
             var custom = await store.ListAsync(userId);
+            var lang = locale ?? "zh-TW";
             var builtin = registry.GetAvailableSkills()
-                .Select(s => new { s.Id, Name = s.DisplayName, s.Description, s.Instructions, Category = s.Category.ToString(), s.Icon, Tools = s.Tools ?? [], isBuiltin = true })
+                .Select(s =>
+                {
+                    var localized = registry.GetLocalized(s.Id, lang) ?? s;
+                    return new { s.Id, Name = localized.DisplayName, localized.Description, localized.Instructions, Category = s.Category.ToString(), s.Icon, Tools = s.Tools ?? new List<string>(), isBuiltin = true };
+                })
                 .ToList();
             return Results.Ok(new { builtin, custom });
         });

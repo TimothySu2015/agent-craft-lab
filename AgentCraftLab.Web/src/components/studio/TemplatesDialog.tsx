@@ -61,9 +61,9 @@ export function TemplatesDialog({ open, onClose, onSelect, onSelectCustom }: Pro
         {/* Search + Category filter */}
         <div className="flex gap-2 mb-4 shrink-0">
           <div className="relative flex-1">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              className="field-input pl-8 text-xs"
+              className="field-input has-icon text-xs"
               placeholder={tTemplates('dialog.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
