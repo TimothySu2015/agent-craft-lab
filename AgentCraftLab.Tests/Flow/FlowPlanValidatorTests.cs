@@ -3,6 +3,7 @@ using AgentCraftLab.Autonomous.Flow.Models;
 using AgentCraftLab.Autonomous.Flow.Services;
 using AgentCraftLab.Engine.Models;
 using AgentCraftLab.Engine.Services;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Tests.Flow;
 
@@ -15,12 +16,14 @@ public class FlowPlanValidatorTests
         AvailableTools = tools.ToList()
     };
 
+    // Phase F：FlowPlan.Nodes 是 Schema.NodeConfig，用 sealed record 建 fixture。
     [Fact]
     public void RemovesUnsupportedNodeType()
     {
+        // 建一個 HumanNode — Flow 不支援此型別
         var plan = new FlowPlan
         {
-            Nodes = [new PlannedNode { NodeType = "unknown-type", Name = "Bad" }]
+            Nodes = [new Schema.HumanNode { Name = "Bad" }]
         };
         var (result, warnings) = FlowPlanValidator.ValidateAndFix(plan, CreateRequest());
         Assert.Empty(result.Nodes);
@@ -32,12 +35,13 @@ public class FlowPlanValidatorTests
     {
         var plan = new FlowPlan
         {
-            Nodes = [new PlannedNode { NodeType = "agent", Name = "A", Tools = ["valid", "invalid"] }]
+            Nodes = [new Schema.AgentNode { Name = "A", Tools = ["valid", "invalid"] }]
         };
         var (result, warnings) = FlowPlanValidator.ValidateAndFix(plan, CreateRequest("valid"));
         Assert.Single(result.Nodes);
-        Assert.Single(result.Nodes[0].Tools!);
-        Assert.Equal("valid", result.Nodes[0].Tools![0]);
+        var agent = Assert.IsType<Schema.AgentNode>(result.Nodes[0]);
+        Assert.Single(agent.Tools);
+        Assert.Equal("valid", agent.Tools[0]);
         Assert.Contains(warnings, w => w.Contains("invalid"));
     }
 
@@ -45,14 +49,15 @@ public class FlowPlanValidatorTests
     public void CapsParallelBranches()
     {
         var branches = Enumerable.Range(1, 10)
-            .Select(i => new ParallelBranchConfig { Name = $"B{i}", Goal = $"Goal {i}" })
+            .Select(i => new Schema.BranchConfig { Name = $"B{i}", Goal = $"Goal {i}" })
             .ToList();
         var plan = new FlowPlan
         {
-            Nodes = [new PlannedNode { NodeType = "parallel", Name = "P", Branches = branches }]
+            Nodes = [new Schema.ParallelNode { Name = "P", Branches = branches }]
         };
         var (result, warnings) = FlowPlanValidator.ValidateAndFix(plan, CreateRequest());
-        Assert.Equal(6, result.Nodes[0].Branches!.Count);
+        var parallel = Assert.IsType<Schema.ParallelNode>(result.Nodes[0]);
+        Assert.Equal(6, parallel.Branches.Count);
         Assert.Contains(warnings, w => w.Contains("Trimmed"));
     }
 
@@ -61,10 +66,11 @@ public class FlowPlanValidatorTests
     {
         var plan = new FlowPlan
         {
-            Nodes = [new PlannedNode { NodeType = "loop", Name = "L", MaxIterations = 50 }]
+            Nodes = [new Schema.LoopNode { Name = "L", MaxIterations = 50 }]
         };
         var (result, warnings) = FlowPlanValidator.ValidateAndFix(plan, CreateRequest());
-        Assert.Equal(10, result.Nodes[0].MaxIterations);
+        var loop = Assert.IsType<Schema.LoopNode>(result.Nodes[0]);
+        Assert.Equal(10, loop.MaxIterations);
         Assert.Contains(warnings, w => w.Contains("Capped"));
     }
 
@@ -73,7 +79,7 @@ public class FlowPlanValidatorTests
     {
         var plan = new FlowPlan
         {
-            Nodes = [new PlannedNode { NodeType = "condition", Name = "C" }]
+            Nodes = [new Schema.ConditionNode { Name = "C" }]
         };
         var (result, warnings) = FlowPlanValidator.ValidateAndFix(plan, CreateRequest());
         Assert.Empty(result.Nodes);
@@ -87,8 +93,12 @@ public class FlowPlanValidatorTests
         {
             Nodes =
             [
-                new PlannedNode { NodeType = "condition", Name = "C", TrueBranchIndex = 99 },
-                new PlannedNode { NodeType = "agent", Name = "A" }
+                new Schema.ConditionNode
+                {
+                    Name = "C",
+                    Meta = NodeConfigHelpers.WithBranchIndices(null, trueBranchIndex: 99, falseBranchIndex: null)
+                },
+                new Schema.AgentNode { Name = "A" }
             ]
         };
         var (_, warnings) = FlowPlanValidator.ValidateAndFix(plan, CreateRequest());
@@ -99,7 +109,7 @@ public class FlowPlanValidatorTests
     public void TotalNodesExceedMax_Trimmed()
     {
         var nodes = Enumerable.Range(1, 20)
-            .Select(i => new PlannedNode { NodeType = "agent", Name = $"A{i}" })
+            .Select(i => (Schema.NodeConfig)new Schema.AgentNode { Name = $"A{i}" })
             .ToList();
         var plan = new FlowPlan { Nodes = nodes };
         var (result, warnings) = FlowPlanValidator.ValidateAndFix(plan, CreateRequest());
@@ -114,8 +124,8 @@ public class FlowPlanValidatorTests
         {
             Nodes =
             [
-                new PlannedNode { NodeType = "agent", Name = "A", Tools = ["search"] },
-                new PlannedNode { NodeType = "code", Name = "C" }
+                new Schema.AgentNode { Name = "A", Tools = ["search"] },
+                new Schema.CodeNode { Name = "C" }
             ]
         };
         var (result, warnings) = FlowPlanValidator.ValidateAndFix(plan, CreateRequest("search"));
@@ -128,27 +138,29 @@ public class FlowPlanValidatorTests
     {
         var plan = new FlowPlan
         {
-            Nodes = [new PlannedNode { NodeType = "loop", Name = "L", MaxIterations = 5 }]
+            Nodes = [new Schema.LoopNode { Name = "L", MaxIterations = 5 }]
         };
         var (result, warnings) = FlowPlanValidator.ValidateAndFix(plan, CreateRequest());
-        Assert.Equal(5, result.Nodes[0].MaxIterations);
+        var loop = Assert.IsType<Schema.LoopNode>(result.Nodes[0]);
+        Assert.Equal(5, loop.MaxIterations);
         Assert.Empty(warnings);
     }
 
     [Fact]
     public void ParallelBranchTools_Filtered()
     {
-        var branches = new List<ParallelBranchConfig>
+        var branches = new List<Schema.BranchConfig>
         {
             new() { Name = "B1", Goal = "G1", Tools = ["valid", "bad"] }
         };
         var plan = new FlowPlan
         {
-            Nodes = [new PlannedNode { NodeType = "parallel", Name = "P", Branches = branches }]
+            Nodes = [new Schema.ParallelNode { Name = "P", Branches = branches }]
         };
         var (result, _) = FlowPlanValidator.ValidateAndFix(plan, CreateRequest("valid"));
-        Assert.Single(result.Nodes[0].Branches![0].Tools!);
-        Assert.Equal("valid", result.Nodes[0].Branches![0].Tools![0]);
+        var parallel = Assert.IsType<Schema.ParallelNode>(result.Nodes[0]);
+        Assert.Single(parallel.Branches[0].Tools!);
+        Assert.Equal("valid", parallel.Branches[0].Tools![0]);
     }
 
     [Fact]
@@ -158,9 +170,9 @@ public class FlowPlanValidatorTests
         {
             Nodes =
             [
-                new PlannedNode { NodeType = "agent", Name = "A" },
-                new PlannedNode { NodeType = "unknown-type", Name = "Bad" },
-                new PlannedNode { NodeType = "code", Name = "C" }
+                new Schema.AgentNode { Name = "A" },
+                new Schema.HumanNode { Name = "Bad" }, // unsupported in Flow
+                new Schema.CodeNode { Name = "C" }
             ]
         };
         var (result, warnings) = FlowPlanValidator.ValidateAndFix(plan, CreateRequest());

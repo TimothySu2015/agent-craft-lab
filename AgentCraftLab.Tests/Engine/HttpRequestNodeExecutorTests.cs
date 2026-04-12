@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Services;
 using AgentCraftLab.Engine.Strategies;
 using AgentCraftLab.Engine.Strategies.NodeExecutors;
@@ -11,20 +12,22 @@ public class HttpRequestNodeExecutorTests
     private readonly HttpRequestNodeExecutor _executor = new();
 
     [Fact]
-    public void NodeType_ReturnsHttpRequest()
+    public void NodeConfigType_IsHttpRequestNode()
     {
-        Assert.Equal(NodeTypes.HttpRequest, _executor.NodeType);
+        Assert.Equal(typeof(HttpRequestNode), _executor.NodeConfigType);
     }
 
     [Fact]
     public async Task NoHttpService_ReturnsServiceError()
     {
-        var node = new WorkflowNode
+        var node = new HttpRequestNode
         {
             Id = "h1",
-            Type = NodeTypes.HttpRequest,
             Name = "TestHTTP",
-            HttpUrl = "https://api.example.com/data",
+            Spec = new InlineHttpRequest
+            {
+                Url = "https://api.example.com/data",
+            },
         };
 
         // 直接用 Empty context（HttpApiService 為 null）
@@ -50,13 +53,14 @@ public class HttpRequestNodeExecutorTests
     [Fact]
     public async Task NoApiIdAndNoUrl_ReturnsConfigError()
     {
-        var node = new WorkflowNode
+        var node = new HttpRequestNode
         {
             Id = "h2",
-            Type = NodeTypes.HttpRequest,
             Name = "EmptyHTTP",
-            HttpApiId = "",
-            HttpUrl = "",
+            Spec = new InlineHttpRequest
+            {
+                Url = "",
+            },
         };
 
         var state = CreateState(httpDefs: null);
@@ -69,25 +73,27 @@ public class HttpRequestNodeExecutorTests
     }
 
     [Fact]
-    public async Task CatalogMode_ApiIdNotInDefs_FallsBackToInline()
+    public async Task CatalogMode_ApiIdNotInDefs_ReturnsError()
     {
-        var node = new WorkflowNode
+        // Phase C hard-cut：converter 依 HttpApiId 非空就轉為 CatalogHttpRef，
+        // 不再 fallback 到 inline。舊 schema 允許同時填 apiId + url 作為 fallback，
+        // 新 schema 要求使用者擇一。templates 重寫時要挑一邊。
+        var node = new HttpRequestNode
         {
             Id = "h3",
-            Type = NodeTypes.HttpRequest,
             Name = "FallbackHTTP",
-            HttpApiId = "nonexistent",
-            HttpUrl = "https://fallback.example.com",
-            HttpMethod = "PUT",
-            HttpHeaders = "X-Custom: value",
+            Spec = new CatalogHttpRef
+            {
+                ApiId = "nonexistent",
+            },
         };
 
         var state = CreateState(httpDefs: []);
 
         var events = await CollectEvents(node, state);
-        // 有 fallback inline URL → 不該回傳 "not found" 錯誤
-        Assert.DoesNotContain(events, e =>
-            e.Type == EventTypes.TextChunk && e.Text!.Contains("not found"));
+        // 新行為：catalog 找不到 → 直接 error（不再 fallback 到 inline url）
+        Assert.Contains(events, e =>
+            e.Type == EventTypes.TextChunk && e.Text!.Contains("[HTTP Error]"));
     }
 
     [Fact]
@@ -102,13 +108,14 @@ public class HttpRequestNodeExecutorTests
             Headers = "X-Api-Key: secret",
         };
 
-        var node = new WorkflowNode
+        var node = new HttpRequestNode
         {
             Id = "h4",
-            Type = NodeTypes.HttpRequest,
             Name = "WeatherHTTP",
-            HttpApiId = "weather",
-            HttpUrl = "https://should-not-use.example.com",
+            Spec = new CatalogHttpRef
+            {
+                ApiId = "weather",
+            },
         };
 
         var state = CreateState(httpDefs: new() { ["weather"] = catalogDef });
@@ -122,12 +129,14 @@ public class HttpRequestNodeExecutorTests
     [Fact]
     public async Task EmitsCorrectEventSequence()
     {
-        var node = new WorkflowNode
+        var node = new HttpRequestNode
         {
             Id = "h5",
-            Type = NodeTypes.HttpRequest,
             Name = "SeqHTTP",
-            HttpUrl = "https://api.example.com",
+            Spec = new InlineHttpRequest
+            {
+                Url = "https://api.example.com",
+            },
         };
 
         var state = CreateState(httpDefs: null);
@@ -143,15 +152,15 @@ public class HttpRequestNodeExecutorTests
     }
 
     [Fact]
-    public void WorkflowNode_InlineFields_DefaultValues()
+    public void InlineHttpRequest_InlineFields_DefaultValues()
     {
-        var node = new WorkflowNode();
-        Assert.Equal("", node.HttpUrl);
-        Assert.Equal("GET", node.HttpMethod);
-        Assert.Equal("", node.HttpHeaders);
-        Assert.Equal("", node.HttpBodyTemplate);
-        Assert.Equal("application/json", node.HttpContentType);
-        Assert.Equal(2000, node.HttpResponseMaxLength);
+        var spec = new InlineHttpRequest();
+        Assert.Equal("", spec.Url);
+        Assert.Equal(HttpMethodKind.Get, spec.Method);
+        Assert.Empty(spec.Headers);
+        Assert.Null(spec.Body);
+        Assert.Equal("application/json", spec.ContentType);
+        Assert.Equal(2000, spec.ResponseMaxLength);
     }
 
     [Fact]
@@ -165,15 +174,17 @@ public class HttpRequestNodeExecutorTests
     [Fact]
     public async Task InlineMode_ContentType_PropagatedToApiDef()
     {
-        var node = new WorkflowNode
+        var node = new HttpRequestNode
         {
             Id = "ct1",
-            Type = NodeTypes.HttpRequest,
             Name = "CsvHTTP",
-            HttpUrl = "https://api.example.com/upload",
-            HttpMethod = "POST",
-            HttpContentType = "text/csv",
-            HttpResponseMaxLength = 5000,
+            Spec = new InlineHttpRequest
+            {
+                Url = "https://api.example.com/upload",
+                Method = HttpMethodKind.Post,
+                ContentType = "text/csv",
+                ResponseMaxLength = 5000,
+            },
         };
 
         var state = CreateState(httpDefs: null);
@@ -210,22 +221,24 @@ public class HttpRequestNodeExecutorTests
     }
 
     [Fact]
-    public void WorkflowNode_TimeoutSeconds_Default()
+    public void InlineHttpRequest_TimeoutSeconds_Default()
     {
-        var node = new WorkflowNode();
-        Assert.Equal(15, node.HttpTimeoutSeconds);
+        var spec = new InlineHttpRequest();
+        Assert.Equal(15, spec.TimeoutSeconds);
     }
 
     [Fact]
     public async Task InlineMode_TimeoutSeconds_Propagated()
     {
-        var node = new WorkflowNode
+        var node = new HttpRequestNode
         {
             Id = "t1",
-            Type = NodeTypes.HttpRequest,
             Name = "TimeoutHTTP",
-            HttpUrl = "https://api.example.com",
-            HttpTimeoutSeconds = 60,
+            Spec = new InlineHttpRequest
+            {
+                Url = "https://api.example.com",
+                TimeoutSeconds = 60,
+            },
         };
 
         var state = CreateState(httpDefs: null);
@@ -276,25 +289,24 @@ public class HttpRequestNodeExecutorTests
     }
 
     [Fact]
-    public void WorkflowNode_AuthFields_DefaultValues()
+    public void InlineHttpRequest_AuthFields_DefaultValues()
     {
-        var node = new WorkflowNode();
-        Assert.Equal("none", node.HttpAuthMode);
-        Assert.Equal("", node.HttpAuthCredential);
-        Assert.Equal("", node.HttpAuthKeyName);
+        var spec = new InlineHttpRequest();
+        Assert.IsType<NoneAuth>(spec.Auth);
     }
 
     [Fact]
     public async Task InlineMode_AuthMode_Propagated()
     {
-        var node = new WorkflowNode
+        var node = new HttpRequestNode
         {
             Id = "auth1",
-            Type = NodeTypes.HttpRequest,
             Name = "AuthHTTP",
-            HttpUrl = "https://api.example.com",
-            HttpAuthMode = "bearer",
-            HttpAuthCredential = "test-token",
+            Spec = new InlineHttpRequest
+            {
+                Url = "https://api.example.com",
+                Auth = new BearerAuth("test-token"),
+            },
         };
 
         var state = CreateState(httpDefs: null);
@@ -316,11 +328,11 @@ public class HttpRequestNodeExecutorTests
     }
 
     [Fact]
-    public void WorkflowNode_Retry_DefaultValues()
+    public void InlineHttpRequest_Retry_DefaultValues()
     {
-        var node = new WorkflowNode();
-        Assert.Equal(0, node.HttpRetryCount);
-        Assert.Equal(1000, node.HttpRetryDelayMs);
+        var spec = new InlineHttpRequest();
+        Assert.Equal(0, spec.Retry.Count);
+        Assert.Equal(1000, spec.Retry.DelayMs);
     }
 
     // ════════════════════════════════════════
@@ -336,24 +348,24 @@ public class HttpRequestNodeExecutorTests
     }
 
     [Fact]
-    public void WorkflowNode_ResponseFormat_DefaultValues()
+    public void InlineHttpRequest_ResponseFormat_DefaultValues()
     {
-        var node = new WorkflowNode();
-        Assert.Equal("text", node.HttpResponseFormat);
-        Assert.Equal("", node.HttpResponseJsonPath);
+        var spec = new InlineHttpRequest();
+        Assert.IsType<TextParser>(spec.Response);
     }
 
     [Fact]
     public async Task InlineMode_ResponseFormat_Propagated()
     {
-        var node = new WorkflowNode
+        var node = new HttpRequestNode
         {
             Id = "rf1",
-            Type = NodeTypes.HttpRequest,
             Name = "JsonPathHTTP",
-            HttpUrl = "https://api.example.com",
-            HttpResponseFormat = "jsonpath",
-            HttpResponseJsonPath = "data.name",
+            Spec = new InlineHttpRequest
+            {
+                Url = "https://api.example.com",
+                Response = new JsonPathParser("data.name"),
+            },
         };
 
         var state = CreateState(httpDefs: null);
@@ -368,12 +380,14 @@ public class HttpRequestNodeExecutorTests
     [Fact]
     public async Task InlineMode_UsesNodeName_InStartedEvent()
     {
-        var node = new WorkflowNode
+        var node = new HttpRequestNode
         {
             Id = "h6",
-            Type = NodeTypes.HttpRequest,
             Name = "MyCustomAPI",
-            HttpUrl = "https://api.example.com",
+            Spec = new InlineHttpRequest
+            {
+                Url = "https://api.example.com",
+            },
         };
 
         var state = CreateState(httpDefs: null);
@@ -384,7 +398,7 @@ public class HttpRequestNodeExecutorTests
     }
 
     private async Task<List<ExecutionEvent>> CollectEvents(
-        WorkflowNode node, ImperativeExecutionState state)
+        HttpRequestNode node, ImperativeExecutionState state)
     {
         var events = new List<ExecutionEvent>();
         await foreach (var evt in _executor.ExecuteAsync(node.Id, node, state, CancellationToken.None))

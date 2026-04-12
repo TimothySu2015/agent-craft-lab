@@ -1,5 +1,5 @@
 import { Field } from '../PropertiesPanel'
-import type { A2ANodeData, NodeData } from '@/types/workflow'
+import type { A2ANodeData, A2AFormat, NodeData } from '@/types/workflow'
 
 interface Props {
   data: A2ANodeData;
@@ -12,8 +12,8 @@ export function A2AForm({ data, onUpdate }: Props) {
       <Field label="A2A URL">
         <input
           className="field-input font-mono text-[10px]"
-          value={data.a2AUrl}
-          onChange={(e) => onUpdate({ a2AUrl: e.target.value })}
+          value={data.url}
+          onChange={(e) => onUpdate({ url: e.target.value })}
           placeholder="http://localhost:5001"
         />
       </Field>
@@ -21,8 +21,8 @@ export function A2AForm({ data, onUpdate }: Props) {
       <Field label="Format">
         <select
           className="field-input"
-          value={data.a2AFormat}
-          onChange={(e) => onUpdate({ a2AFormat: e.target.value })}
+          value={data.format}
+          onChange={(e) => onUpdate({ format: e.target.value as A2AFormat })}
         >
           <option value="auto">Auto Detect</option>
           <option value="google">Google A2A</option>

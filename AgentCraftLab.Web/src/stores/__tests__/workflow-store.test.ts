@@ -128,7 +128,7 @@ describe('useWorkflowStore', () => {
 
       const { nodes } = useWorkflowStore.getState()
       const agent = nodes.find((n) => n.id === 'agent-1')
-      expect((agent?.data as any).model).toBe('gpt-4o')
+      expect((agent?.data as any).model?.model).toBe('gpt-4o')
     })
   })
 

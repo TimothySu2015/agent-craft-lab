@@ -10,6 +10,19 @@ The open-source AI Agent platform built on .NET — design, test, and deploy age
 
 ![AgentCraftLab Studio](docs/studio-screenshot.png)
 
+> ### Breaking Change: Schema v2 (April 2026)
+>
+> The workflow JSON format has been migrated from **flat** to **nested Schema v2** (discriminated union). This is a **breaking change** — workflow JSON saved from previous versions is **no longer compatible**.
+>
+> **What changed:**
+> - Node fields are now nested objects (e.g., `model: { provider, model }` instead of flat `provider`/`model`)
+> - Condition/Loop use `condition: { kind, value }` instead of `conditionType`/`conditionExpression`
+> - Parallel branches are `BranchConfig[]` instead of comma-separated strings
+> - HTTP request fields are nested under `spec: { kind: "inline", ... }`
+> - Wire format uses `version: "2.0"`, `settings` (not `workflowSettings`), `port` (not `fromOutput`/`toPort`)
+>
+> **Action required:** Re-create existing workflows in the Studio, or re-export them using AI Build. There is no automatic migration from v1 JSON.
+
 ## Why AgentCraftLab?
 
 If your team runs on .NET and you want AI Agent capabilities — your options are limited. Most agent platforms require Python, Node.js, or Docker-heavy stacks. AgentCraftLab is **native .NET**, runs on **SQLite with zero external dependencies**, and deploys anywhere .NET runs.

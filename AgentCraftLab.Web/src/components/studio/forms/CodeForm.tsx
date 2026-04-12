@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Field } from '../PropertiesPanel'
 import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
 import { MonacoCodeEditor } from '@/components/shared/MonacoCodeEditor'
-import type { CodeNodeData, NodeData } from '@/types/workflow'
+import type { CodeNodeData, NodeData, ScriptLanguage, TransformKind } from '@/types/workflow'
 
 interface Props {
   data: CodeNodeData
@@ -10,37 +10,37 @@ interface Props {
 }
 
 const SCRIPT_LANGUAGES = [
-  { value: 'javascript', label: 'JavaScript' },
-  { value: 'csharp', label: 'C#' },
+  { value: 'javaScript', label: 'JavaScript' },
+  { value: 'cSharp', label: 'C#' },
 ] as const
 
 export function CodeForm({ data, onUpdate }: Props) {
   const { t } = useTranslation('studio')
-  const scriptLang = data.scriptLanguage || 'javascript'
-  const isCSharp = scriptLang === 'csharp'
+  const scriptLang: ScriptLanguage = data.language ?? 'javaScript'
+  const isCSharp = scriptLang === 'cSharp'
 
   return (
     <>
       <Field label={t('form.transformType')}>
-        <select className="field-input" value={data.transformType} onChange={(e) => onUpdate({ transformType: e.target.value })}>
+        <select className="field-input" value={data.kind} onChange={(e) => onUpdate({ kind: e.target.value as TransformKind })}>
           <option value="template">{t('transform.template')}</option>
-          <option value="regex-extract">{t('transform.regexExtract')}</option>
-          <option value="regex-replace">{t('transform.regexReplace')}</option>
-          <option value="json-path">{t('transform.jsonPath')}</option>
+          <option value="regex">{t('transform.regexExtract')}</option>
+          <option value="jsonPath">{t('transform.jsonPath')}</option>
           <option value="trim">{t('transform.trim')}</option>
-          <option value="split-take">{t('transform.splitTake')}</option>
+          <option value="split">{t('transform.splitTake')}</option>
           <option value="upper">{t('transform.upper')}</option>
           <option value="lower">{t('transform.lower')}</option>
+          <option value="truncate">Truncate</option>
           <option value="script">{t('transform.script')}</option>
         </select>
       </Field>
 
-      {data.transformType === 'template' && (
+      {data.kind === 'template' && (
         <Field label={t('form.template')}>
           <ExpandableTextarea
             className="font-mono text-[10px]"
-            value={data.template}
-            onChange={(v) => onUpdate({ template: v })}
+            value={data.expression}
+            onChange={(v) => onUpdate({ expression: v })}
             rows={4}
             placeholder="{{input}}"
             label="Code — Handlebars Template"
@@ -50,13 +50,13 @@ export function CodeForm({ data, onUpdate }: Props) {
         </Field>
       )}
 
-      {data.transformType === 'script' && (
+      {data.kind === 'script' && (
         <>
           {/* Language Selector */}
           <Field label={t('script.languageLabel')}>
             <select className="field-input" value={scriptLang}
               onChange={(e) => {
-                onUpdate({ scriptLanguage: e.target.value, template: '' })
+                onUpdate({ language: e.target.value as ScriptLanguage, expression: '' })
               }}>
               {SCRIPT_LANGUAGES.map((lang) => (
                 <option key={lang.value} value={lang.value}>{lang.label}</option>
@@ -67,8 +67,8 @@ export function CodeForm({ data, onUpdate }: Props) {
           {/* Monaco Preview + Script Studio */}
           <Field label={isCSharp ? t('script.csharpCodeLabel') : t('script.codeLabel')}>
             <MonacoCodeEditor
-              value={data.template}
-              onChange={(v) => onUpdate({ template: v })}
+              value={data.expression}
+              onChange={(v) => onUpdate({ expression: v })}
               language={isCSharp ? 'csharp' : 'javascript'}
               label={`Code — ${isCSharp ? 'C#' : 'JavaScript'}`}
             />
@@ -76,29 +76,27 @@ export function CodeForm({ data, onUpdate }: Props) {
         </>
       )}
 
-      {(data.transformType === 'regex-extract' || data.transformType === 'regex-replace') && (
+      {data.kind === 'regex' && (
         <>
           <Field label={t('form.pattern')}>
-            <input className="field-input font-mono text-[10px]" value={data.pattern}
-              onChange={(e) => onUpdate({ pattern: e.target.value })} placeholder="(\d+)" />
+            <input className="field-input font-mono text-[10px]" value={data.expression}
+              onChange={(e) => onUpdate({ expression: e.target.value })} placeholder="(\d+)" />
           </Field>
-          {data.transformType === 'regex-replace' && (
-            <Field label={t('form.replacement')}>
-              <input className="field-input font-mono text-[10px]" value={data.replacement}
-                onChange={(e) => onUpdate({ replacement: e.target.value })} placeholder="$1" />
-            </Field>
-          )}
+          <Field label={t('form.replacement')}>
+            <input className="field-input font-mono text-[10px]" value={data.replacement ?? ''}
+              onChange={(e) => onUpdate({ replacement: e.target.value })} placeholder="$1 (leave empty for extract mode)" />
+          </Field>
         </>
       )}
 
-      {data.transformType === 'json-path' && (
+      {data.kind === 'jsonPath' && (
         <Field label={t('form.pattern')}>
-          <input className="field-input font-mono text-[10px]" value={data.pattern}
-            onChange={(e) => onUpdate({ pattern: e.target.value })} placeholder="$.data.items[0].name" />
+          <input className="field-input font-mono text-[10px]" value={data.expression}
+            onChange={(e) => onUpdate({ expression: e.target.value })} placeholder="$.data.items[0].name" />
         </Field>
       )}
 
-      {data.transformType === 'trim' && (
+      {data.kind === 'trim' && (
         <Field label={t('form.maxLength')}>
           <input type="number" className="field-input" value={data.maxLength ?? 0} min={0}
             onChange={(e) => onUpdate({ maxLength: Number(e.target.value) })} />
@@ -106,7 +104,15 @@ export function CodeForm({ data, onUpdate }: Props) {
         </Field>
       )}
 
-      {data.transformType === 'split-take' && (
+      {data.kind === 'truncate' && (
+        <Field label={t('form.maxLength')}>
+          <input type="number" className="field-input" value={data.maxLength ?? 0} min={0}
+            onChange={(e) => onUpdate({ maxLength: Number(e.target.value) })} />
+          <p className="text-[8px] text-muted-foreground mt-0.5">Maximum characters (0 = no limit)</p>
+        </Field>
+      )}
+
+      {data.kind === 'split' && (
         <>
           <Field label={t('form.delimiter')}>
             <input className="field-input font-mono text-[10px]" value={data.delimiter ?? '\\n'}

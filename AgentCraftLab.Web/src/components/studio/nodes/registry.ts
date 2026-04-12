@@ -29,9 +29,18 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 1,
     defaultData: (name) => ({
-      type: 'agent', name, instructions: '', model: 'gpt-4o', provider: 'openai',
-      endpoint: '', deploymentName: '', historyProvider: 'none', maxMessages: 20,
-      middleware: '', tools: [], skills: [],
+      type: 'agent',
+      name,
+      instructions: '',
+      model: { provider: 'openai', model: 'gpt-4o' },
+      tools: [],
+      mcpServers: [],
+      a2AAgents: [],
+      httpApis: [],
+      skills: [],
+      output: { kind: 'text' },
+      history: { provider: 'none', maxMessages: 20 },
+      middleware: [],
     }),
   },
   rag: {
@@ -42,9 +51,21 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 1,
     defaultData: (name) => ({
-      type: 'rag', name, ragDataSource: 'knowledge-base', ragChunkSize: 512,
-      ragChunkOverlap: 50, ragTopK: 5, ragEmbeddingModel: 'text-embedding-3-small', knowledgeBaseIds: [],
-      ragSearchQuality: 1, ragSearchMode: 'hybrid', ragMinScore: 0.005, ragQueryExpansion: true,
+      type: 'rag',
+      name,
+      rag: {
+        dataSource: 'knowledge-base',
+        chunkSize: 512,
+        chunkOverlap: 50,
+        topK: 5,
+        embeddingModel: 'text-embedding-3-small',
+        searchMode: 'hybrid',
+        minScore: 0.005,
+        queryExpansion: true,
+        contextCompression: false,
+        tokenBudget: 1500,
+      },
+      knowledgeBaseIds: [],
     }),
   },
   condition: {
@@ -55,7 +76,9 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 2,
     defaultData: (name) => ({
-      type: 'condition', name, conditionType: 'contains', conditionExpression: '', maxIterations: 5,
+      type: 'condition',
+      name,
+      condition: { kind: 'contains', value: '' },
     }),
   },
   loop: {
@@ -66,7 +89,10 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 2,
     defaultData: (name) => ({
-      type: 'loop', name, conditionType: 'contains', conditionExpression: '', maxIterations: 5,
+      type: 'loop',
+      name,
+      condition: { kind: 'contains', value: '' },
+      maxIterations: 5,
     }),
   },
   router: {
@@ -77,7 +103,13 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 3,
     defaultData: (name) => ({
-      type: 'router', name, conditionExpression: '', routes: 'A,B,default',
+      type: 'router',
+      name,
+      routes: [
+        { name: 'A', keywords: [], isDefault: false },
+        { name: 'B', keywords: [], isDefault: false },
+        { name: 'default', keywords: [], isDefault: true },
+      ],
     }),
   },
   'a2a-agent': {
@@ -88,7 +120,11 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 1,
     defaultData: (name) => ({
-      type: 'a2a-agent', name, instructions: '', a2AUrl: '', a2AFormat: 'auto',
+      type: 'a2a-agent',
+      name,
+      instructions: '',
+      url: '',
+      format: 'auto',
     }),
   },
   human: {
@@ -99,7 +135,11 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 2,
     defaultData: (name) => ({
-      type: 'human', name, prompt: '', inputType: 'text', choices: '', timeoutSeconds: 0,
+      type: 'human',
+      name,
+      prompt: '',
+      kind: 'text',
+      timeoutSeconds: 0,
     }),
   },
   code: {
@@ -110,9 +150,13 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 1,
     defaultData: (name) => ({
-      type: 'code', name, transformType: 'template', pattern: '', replacement: '',
-      template: '{{input}}', maxLength: 0, delimiter: '\\n', splitIndex: 0,
-      scriptLanguage: 'javascript',
+      type: 'code',
+      name,
+      kind: 'template',
+      expression: '{{input}}',
+      delimiter: '\n',
+      splitIndex: 0,
+      maxLength: 0,
     }),
   },
   iteration: {
@@ -123,7 +167,12 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 2,
     defaultData: (name) => ({
-      type: 'iteration', name, splitMode: 'json-array', iterationDelimiter: '\\n', maxItems: 50, maxConcurrency: 1,
+      type: 'iteration',
+      name,
+      split: 'jsonArray',
+      delimiter: '\n',
+      maxItems: 50,
+      maxConcurrency: 1,
     }),
   },
   parallel: {
@@ -134,7 +183,13 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 3,
     defaultData: (name) => ({
-      type: 'parallel', name, branches: 'Branch1,Branch2', mergeStrategy: 'labeled',
+      type: 'parallel',
+      name,
+      branches: [
+        { name: 'Branch1', goal: '' },
+        { name: 'Branch2', goal: '' },
+      ],
+      merge: 'labeled',
     }),
   },
   'http-request': {
@@ -145,12 +200,20 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 1,
     defaultData: (name) => ({
-      type: 'http-request', name, httpApiId: '', httpArgsTemplate: '{}',
-      httpUrl: '', httpMethod: 'GET', httpHeaders: '', httpBodyTemplate: '',
-      httpContentType: 'application/json', httpResponseMaxLength: 2000, httpTimeoutSeconds: 15,
-      httpAuthMode: 'none', httpAuthCredential: '', httpAuthKeyName: '',
-      httpRetryCount: 0, httpRetryDelayMs: 1000,
-      httpResponseFormat: 'text', httpResponseJsonPath: '',
+      type: 'http-request',
+      name,
+      spec: {
+        kind: 'inline',
+        url: '',
+        method: 'get',
+        headers: [],
+        contentType: 'application/json',
+        auth: { kind: 'none' },
+        retry: { count: 0, delayMs: 1000 },
+        timeoutSeconds: 15,
+        response: { kind: 'text' },
+        responseMaxLength: 2000,
+      },
     }),
   },
   autonomous: {
@@ -161,8 +224,16 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 1,
     defaultData: (name) => ({
-      type: 'autonomous', name, instructions: '', model: 'gpt-4o', provider: 'openai',
-      maxIterations: 25, maxOutputTokens: 200000, tools: [], skills: [], mcpServers: [], a2AAgents: [],
+      type: 'autonomous',
+      name,
+      instructions: '',
+      model: { provider: 'openai', model: 'gpt-4o', maxOutputTokens: 200000 },
+      maxIterations: 25,
+      tools: [],
+      mcpServers: [],
+      a2AAgents: [],
+      httpApis: [],
+      skills: [],
     }),
   },
   start: {

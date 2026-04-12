@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Services;
 using Microsoft.Extensions.AI;
 
@@ -10,12 +11,10 @@ namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 /// Condition 節點執行器 — 評估條件決定分支路徑。
 /// 支援 contains、regex、llm-judge 三種模式。
 /// </summary>
-public sealed class ConditionNodeExecutor : INodeExecutor
+public sealed class ConditionNodeExecutor : NodeExecutorBase<ConditionNode>
 {
-    public string NodeType => NodeTypes.Condition;
-
-    public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
-        string nodeId, WorkflowNode node, ImperativeExecutionState state,
+    protected override async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
+        string nodeId, ConditionNode node, ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         // Condition 不產生 events — 靜默評估
@@ -23,27 +22,25 @@ public sealed class ConditionNodeExecutor : INodeExecutor
         yield break;
     }
 
-    public async Task<NodeExecutionResult> BuildResultAsync(
-        string nodeId, WorkflowNode node,
+    protected override async Task<NodeExecutionResult> BuildResultAsync(
+        string nodeId, ConditionNode node,
         ImperativeExecutionState state, List<ExecutionEvent> collectedEvents,
         CancellationToken cancellationToken = default)
     {
-        var expr = node.ConditionExpression;
-        if (string.IsNullOrWhiteSpace(expr))
-            expr = "DONE";
+        var expr = string.IsNullOrWhiteSpace(node.Condition.Value) ? "DONE" : node.Condition.Value;
 
         // 解析條件表達式中的變數引用
-        if (NodeReferenceResolver.HasVariableReferences(expr))
+        if (state.VariableResolver.HasReferences(expr))
         {
-            expr = NodeReferenceResolver.ResolveVariables(expr, state.SystemVariables, state.Variables, state.EnvironmentVariables);
+            expr = state.VariableResolver.Resolve(expr, state.ToVariableContext());
         }
 
         var text = state.PreviousResult;
-        var met = node.ConditionType?.ToLowerInvariant() switch
+        var met = node.Condition.Kind switch
         {
-            "contains" => text.Contains(expr, StringComparison.OrdinalIgnoreCase),
-            "regex" => Regex.IsMatch(text, expr, RegexOptions.IgnoreCase),
-            "llm-judge" => await EvaluateLlmJudgeAsync(expr, text, state, cancellationToken),
+            ConditionKind.Contains => text.Contains(expr, StringComparison.OrdinalIgnoreCase),
+            ConditionKind.Regex => Regex.IsMatch(text, expr, RegexOptions.IgnoreCase),
+            ConditionKind.LlmJudge => await EvaluateLlmJudgeAsync(expr, text, state, cancellationToken),
             _ => text.Contains(expr, StringComparison.OrdinalIgnoreCase)
         };
 

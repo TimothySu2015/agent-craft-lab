@@ -1,3 +1,4 @@
+using System.ClientModel;
 using System.Runtime.CompilerServices;
 using AgentCraftLab.Engine.Models;
 using AgentCraftLab.Engine.Strategies;
@@ -6,7 +7,7 @@ using Azure.AI.OpenAI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using OpenAI;
-using System.ClientModel;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Engine.Services;
 
@@ -80,12 +81,13 @@ public class WorkflowPreprocessor
     }
 
     /// <summary>
-    /// 前處理結果。
+    /// 前處理結果 — Schema 導向。<see cref="AllAgentNodes"/> 和 <see cref="ResolvedConnections"/>
+    /// 在 PrepareAsync 內部透過 <see cref="WorkflowNodeConverter"/> 轉換為 Schema 型別。
     /// </summary>
     public record PreprocessResult(
         AgentExecutionContext Context,
-        List<WorkflowNode> AllAgentNodes,
-        List<WorkflowConnection> ResolvedConnections,
+        List<AgentCraftLab.Engine.Models.Schema.AgentNode> AllAgentNodes,
+        List<AgentCraftLab.Engine.Models.Schema.Connection> ResolvedConnections,
         bool HasA2AOrAutonomousNodes);
 
     /// <summary>
@@ -93,27 +95,27 @@ public class WorkflowPreprocessor
     /// yield return ExecutionEvent 用於回報進度或錯誤。最後一個 yield 包含 PreprocessResult。
     /// </summary>
     public async IAsyncEnumerable<(ExecutionEvent? Event, PreprocessResult? Result)> PrepareAsync(
-        WorkflowPayload payload,
+        Schema.WorkflowPayload payload,
         WorkflowExecutionRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        // 1. 篩選節點
-        var agentNodes = payload.Nodes.Where(n => n.Type is NodeTypes.Agent).ToList();
-        var a2aAgentNodes = payload.Nodes.Where(n => n.Type is NodeTypes.A2AAgent).ToList();
-        var autonomousNodes = payload.Nodes.Where(n => n.Type is NodeTypes.Autonomous).ToList();
+        // 1. 篩選節點（pattern match on NodeConfig 子型別）
+        var agentNodes = payload.Nodes.OfType<Schema.AgentNode>().ToList();
+        var a2aAgentNodes = payload.Nodes.OfType<Schema.A2AAgentNode>().ToList();
+        var autonomousNodes = payload.Nodes.OfType<Schema.AutonomousNode>().ToList();
 
         // Autonomous 節點預設帶入所有可用工具
+        var autonomousWithTools = autonomousNodes;
         if (autonomousNodes.Count > 0)
         {
             var allToolIds = _toolRegistry.GetAvailableTools().Select(t => t.Id).ToList();
-            foreach (var node in autonomousNodes.Where(n => n.Tools.Count == 0))
-            {
-                node.Tools = allToolIds;
-            }
+            autonomousWithTools = autonomousNodes
+                .Select(n => n.Tools.Count == 0 ? n with { Tools = allToolIds } : n)
+                .ToList();
         }
 
-        // 驗證：至少要有一個可執行節點（查詢 NodeTypeRegistry 而非硬編碼）
-        var hasExecutableNodes = NodeTypeRegistry.HasAnyExecutable(payload.Nodes);
+        // 驗證：至少要有一個可執行節點
+        var hasExecutableNodes = payload.Nodes.Any(NodeTypeRegistry.IsExecutable);
 
         if (!hasExecutableNodes)
         {
@@ -122,8 +124,8 @@ public class WorkflowPreprocessor
         }
 
         // HttpApiDefs fallback
-        if (request.HttpApiDefs is null or { Count: 0 } && payload.HttpApis.Count > 0)
-            request.HttpApiDefs = payload.HttpApis;
+        if (request.HttpApiDefs is null or { Count: 0 } && payload.Resources.HttpApis.Count > 0)
+            request.HttpApiDefs = new Dictionary<string, Models.HttpApiDefinition>(payload.Resources.HttpApis);
 
         // ZIP 附件處理
         if (request.Attachment is { Data.Length: > 0 } zipAtt
@@ -142,7 +144,7 @@ public class WorkflowPreprocessor
 
         // 2. RAG 前處理
         RagContext? ragContext = null;
-        var ragNodes = payload.Nodes.Where(n => n.Type == NodeTypes.Rag).ToList();
+        var ragNodes = payload.Nodes.OfType<Schema.RagNode>().ToList();
         if (ragNodes.Count > 0)
         {
             await foreach (var evt in PrepareRagAsync(ragNodes, payload.Connections, request, cancellationToken))
@@ -188,41 +190,41 @@ public class WorkflowPreprocessor
         // 5. Context enrichment
         if (a2aAgentNodes.Count > 0)
         {
-            var a2aNodeMap = a2aAgentNodes.ToDictionary(n => n.Id);
+            var a2aNodeMap = a2aAgentNodes.ToDictionary(n => n.Id, n => n);
             agentContext = agentContext with { A2ANodes = a2aNodeMap, A2AClient = _a2aClient };
         }
 
-        if (payload.Nodes.Any(n => n.Type == NodeTypes.Human))
+        if (payload.Nodes.OfType<Schema.HumanNode>().Any())
             agentContext = agentContext with { HumanBridge = _humanBridge };
 
         if (request.DebugBridge is not null)
             agentContext = agentContext with { DebugBridge = request.DebugBridge };
 
-        if (payload.Nodes.Any(n => n.Type == NodeTypes.HttpRequest))
+        if (payload.Nodes.OfType<Schema.HttpRequestNode>().Any())
             agentContext = agentContext with { HttpApiService = _httpApiTool, HttpApiDefs = request.HttpApiDefs };
 
-        if (autonomousNodes.Count > 0)
+        if (autonomousWithTools.Count > 0)
             agentContext = agentContext with { AutonomousExecutor = _autonomousExecutor };
 
-        // 6. 解析連線
+        // 6. 解析連線 — Schema.Connection 已是目標型別，直接過濾 executable 節點
         var executableNodeIds = new HashSet<string>(agentContext.Agents.Keys);
         if (agentContext.A2ANodes is not null)
             executableNodeIds.UnionWith(agentContext.A2ANodes.Keys);
         executableNodeIds.UnionWith(payload.Nodes
-            .Where(n => NodeTypeRegistry.IsExecutable(n.Type) && !NodeTypeRegistry.IsAgentLike(n.Type))
+            .Where(n => NodeTypeRegistry.IsExecutable(n) && !NodeTypeRegistry.IsAgentLike(n))
             .Select(n => n.Id));
 
-        var resolvedConnections = WorkflowGraphHelper.ResolveAgentConnections(payload.Connections, executableNodeIds);
-        var allAgentNodes = agentNodes.Concat(a2aAgentNodes).Concat(autonomousNodes).ToList();
+        var resolvedConnections = WorkflowGraphHelper.ResolveAgentConnections(
+            payload.Connections.ToList(), executableNodeIds);
 
         yield return (null, new PreprocessResult(
-            agentContext, allAgentNodes, resolvedConnections,
-            a2aAgentNodes.Count > 0 || autonomousNodes.Count > 0));
+            agentContext, agentNodes, resolvedConnections,
+            a2aAgentNodes.Count > 0 || autonomousWithTools.Count > 0));
     }
 
     private async IAsyncEnumerable<(ExecutionEvent? executionEvent, RagContext? ragContext)> PrepareRagAsync(
-        List<WorkflowNode> ragNodes,
-        List<WorkflowConnection> connections,
+        List<Schema.RagNode> ragNodes,
+        IReadOnlyList<Schema.Connection> connections,
         WorkflowExecutionRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -235,7 +237,7 @@ public class WorkflowPreprocessor
 
         if (!hasAttachment && knowledgeBaseIds.Count == 0) yield break;
 
-        var ragSettings = ragNodes[0].RagConfig ?? new RagSettings();
+        var ragSettings = ragNodes[0].Rag;
         var embeddingModel = ragSettings.EmbeddingModel;
         var knowledgeBaseIndexNames = new List<string>();
         var indexDataSourceMap = new Dictionary<string, string?>();
@@ -284,7 +286,7 @@ public class WorkflowPreprocessor
         yield return (null, new RagContext
         {
             RagNodes = ragNodes,
-            WorkflowConnections = connections,
+            WorkflowConnections = connections.ToList(),
             EmbeddingGenerator = embeddingGenerator,
             SearchEngine = _searchEngine,
             IndexName = indexName,
@@ -292,6 +294,7 @@ public class WorkflowPreprocessor
             IndexDataSourceMap = indexDataSourceMap
         });
     }
+
 
     internal static IEmbeddingGenerator<string, Embedding<float>>? CreateEmbeddingGenerator(
         WorkflowExecutionRequest request, string embeddingModel)

@@ -2,12 +2,14 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgentCraftLab.Autonomous.Flow.Models;
 using AgentCraftLab.Engine.Models;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Autonomous.Flow.Services;
 
 /// <summary>
 /// Workflow Crystallizer — 將 ExecutionTrace 轉換為 Studio 畫布可匯入的 Workflow JSON。
-/// 輸出格式與 FlowBuilderService / buildFromAiSpec() 相同。
+/// 輸出格式與 FlowBuilderService / buildFromAiSpec() 相同（flat CrystallizedNode 陣列）。
+/// 輸入為 <see cref="Schema.NodeConfig"/>（Step 2 後 Flow 內部統一用 Schema 型別）。
 /// </summary>
 public sealed class WorkflowCrystallizer
 {
@@ -23,32 +25,34 @@ public sealed class WorkflowCrystallizer
         {
             var step = trace.Steps[i];
 
-            if (step.NodeType == NodeTypes.Parallel && step.Config.Branches is { Count: > 0 })
+            switch (step.Config)
             {
-                ExpandParallel(step, i, trace, nodes, connections);
-            }
-            else if (step.NodeType == NodeTypes.Loop && step.Config.Instructions is not null)
-            {
-                ExpandLoop(step, i, trace, nodes, connections);
-            }
-            else if (step.NodeType == NodeTypes.Iteration && step.Config.Instructions is not null)
-            {
-                ExpandIteration(step, i, trace, nodes, connections);
-            }
-            else
-            {
-                var nodeIndex = nodes.Count;
-                nodes.Add(StepToNode(step));
+                case Schema.ParallelNode { Branches: { Count: > 0 } } parallelNode:
+                    ExpandParallel(step, parallelNode, i, trace, nodes, connections);
+                    break;
 
-                if (i + 1 < trace.Steps.Count)
-                {
-                    connections.Add(new CrystallizedConnection
+                case Schema.LoopNode loopNode:
+                    ExpandLoop(step, loopNode, i, trace, nodes, connections);
+                    break;
+
+                case Schema.IterationNode iterationNode:
+                    ExpandIteration(step, iterationNode, i, trace, nodes, connections);
+                    break;
+
+                default:
+                    var nodeIndex = nodes.Count;
+                    nodes.Add(StepToNode(step));
+
+                    if (i + 1 < trace.Steps.Count)
                     {
-                        From = nodeIndex,
-                        To = nodeIndex + 1,
-                        FromOutput = step.OutputPort ?? OutputPorts.Output1
-                    });
-                }
+                        connections.Add(new CrystallizedConnection
+                        {
+                            From = nodeIndex,
+                            To = nodeIndex + 1,
+                            FromOutput = step.OutputPort ?? OutputPorts.Output1
+                        });
+                    }
+                    break;
             }
         }
 
@@ -62,83 +66,72 @@ public sealed class WorkflowCrystallizer
     }
 
     private static CrystallizedNode StepToNode(TraceStep step)
-        => FromConfig(step.NodeType, step.NodeName, step.Config);
+        => FromNodeConfig(step.NodeName, step.Config);
 
     /// <summary>
-    /// NodeConfig → CrystallizedNode 映射（共用於 Crystallizer 和 FlowPlanConverter）。
+    /// <see cref="Schema.NodeConfig"/> → <see cref="CrystallizedNode"/>（flat, 前端 buildFromAiSpec 相容）。
     /// </summary>
-    public static CrystallizedNode FromConfig(string nodeType, string name, NodeConfig config)
+    public static CrystallizedNode FromNodeConfig(string name, Schema.NodeConfig config)
     {
         var node = new CrystallizedNode
         {
-            Type = nodeType,
+            Type = NodeConfigHelpers.GetNodeTypeString(config),
             Name = name
         };
 
-        switch (nodeType)
+        switch (config)
         {
-            case NodeTypes.Agent:
-                node.Instructions = config.Instructions ?? "";
-                node.Tools = config.Tools ?? [];
-                if (config.Provider is not null) node.Provider = config.Provider;
-                if (config.Model is not null) node.Model = config.Model;
-                if (config.OutputFormat is not null) node.OutputFormat = config.OutputFormat;
-                if (config.OutputSchema is not null) node.OutputSchema = config.OutputSchema;
+            case Schema.AgentNode agent:
+                node.Instructions = agent.Instructions;
+                node.Tools = agent.Tools.ToList();
+                node.Provider = agent.Model.Provider;
+                node.Model = agent.Model.Model;
+                node.OutputFormat = FormatOutputKind(agent.Output.Kind);
+                if (!string.IsNullOrWhiteSpace(agent.Output.SchemaJson))
+                {
+                    node.OutputSchema = agent.Output.SchemaJson;
+                }
                 break;
 
-            case NodeTypes.Condition:
-                node.ConditionType = config.ConditionType ?? "contains";
-                node.ConditionExpression = config.ConditionValue ?? "";
+            case Schema.ConditionNode condition:
+                node.ConditionType = FormatConditionKind(condition.Condition.Kind);
+                node.ConditionExpression = condition.Condition.Value;
                 break;
 
-            case NodeTypes.Loop:
-                node.ConditionType = config.ConditionType ?? "contains";
-                node.ConditionExpression = config.ConditionValue ?? "";
-                node.MaxIterations = config.MaxIterations ?? 5;
+            case Schema.LoopNode loop:
+                node.ConditionType = FormatConditionKind(loop.Condition.Kind);
+                node.ConditionExpression = loop.Condition.Value;
+                node.MaxIterations = loop.MaxIterations;
                 break;
 
-            case NodeTypes.Code:
-                node.TransformType = config.TransformType ?? "template";
-                node.Pattern = config.TransformPattern ?? "";
-                node.Replacement = config.TransformReplacement;
-                node.Template = config.TransformPattern ?? "{{input}}";
+            case Schema.CodeNode code:
+                node.TransformType = FormatTransformKind(code.Kind, code.Replacement);
+                node.Pattern = code.Expression;
+                node.Replacement = code.Replacement;
+                node.Template = string.IsNullOrEmpty(code.Expression) ? "{{input}}" : code.Expression;
                 break;
 
-            case NodeTypes.Parallel:
-                node.Branches = string.Join(",",
-                    config.Branches?.Select(b => b.Name) ?? []);
-                node.MergeStrategy = config.MergeStrategy ?? "labeled";
+            case Schema.ParallelNode parallel:
+                node.Branches = string.Join(",", parallel.Branches.Select(b => b.Name));
+                node.MergeStrategy = FormatMergeStrategy(parallel.Merge);
                 break;
 
-            case NodeTypes.Iteration:
-                node.SplitMode = config.SplitMode ?? "json-array";
-                node.IterationDelimiter = config.Delimiter ?? "\n";
-                node.MaxItems = config.MaxItems ?? 50;
-                if (config.MaxConcurrency is > 1) node.MaxConcurrency = config.MaxConcurrency;
+            case Schema.IterationNode iteration:
+                node.SplitMode = FormatSplitMode(iteration.Split);
+                node.IterationDelimiter = iteration.Delimiter;
+                node.MaxItems = iteration.MaxItems;
+                if (iteration.MaxConcurrency > 1)
+                {
+                    node.MaxConcurrency = iteration.MaxConcurrency;
+                }
                 break;
 
-            case NodeTypes.HttpRequest:
-                node.HttpApiId = config.HttpApiId;
-                node.HttpArgsTemplate = config.HttpArgsTemplate;
-                node.HttpUrl = config.HttpUrl;
-                node.HttpMethod = config.HttpMethod;
-                node.HttpHeaders = config.HttpHeaders;
-                node.HttpBodyTemplate = config.HttpBodyTemplate;
-                node.HttpContentType = config.HttpContentType;
-                node.HttpTimeoutSeconds = config.HttpTimeoutSeconds;
-                node.HttpAuthMode = config.HttpAuthMode;
-                node.HttpAuthCredential = config.HttpAuthCredential;
-                node.HttpAuthKeyName = config.HttpAuthKeyName;
-                node.HttpRetryCount = config.HttpRetryCount;
-                node.HttpRetryDelayMs = config.HttpRetryDelayMs;
-                node.HttpResponseFormat = config.HttpResponseFormat;
-                node.HttpResponseJsonPath = config.HttpResponseJsonPath;
-                node.HttpResponseMaxLength = config.HttpResponseMaxLength;
+            case Schema.HttpRequestNode http:
+                PopulateHttpFields(node, http);
                 break;
 
-            case NodeTypes.Router:
-                node.ConditionExpression = config.ConditionValue ?? "";
-                node.Routes = config.Routes ?? "";
+            case Schema.RouterNode router:
+                node.Routes = string.Join(",", router.Routes.Select(r => r.Name));
                 break;
         }
 
@@ -149,13 +142,13 @@ public sealed class WorkflowCrystallizer
     // Parallel 展開：parallel + N 個 branch agent
     // ════════════════════════════════════════
 
-    private static void ExpandParallel(TraceStep step, int stepIndex, ExecutionTrace trace,
-        List<CrystallizedNode> nodes, List<CrystallizedConnection> connections)
+    private static void ExpandParallel(TraceStep step, Schema.ParallelNode parallelNode, int stepIndex,
+        ExecutionTrace trace, List<CrystallizedNode> nodes, List<CrystallizedConnection> connections)
     {
         var parallelIndex = nodes.Count;
         nodes.Add(StepToNode(step));
 
-        foreach (var branch in step.Config.Branches!)
+        foreach (var branch in parallelNode.Branches)
         {
             var branchIndex = nodes.Count;
             nodes.Add(new CrystallizedNode
@@ -163,7 +156,7 @@ public sealed class WorkflowCrystallizer
                 Type = NodeTypes.Agent,
                 Name = branch.Name,
                 Instructions = branch.Goal,
-                Tools = branch.Tools ?? []
+                Tools = branch.Tools?.ToList() ?? []
             });
 
             var portIndex = branchIndex - parallelIndex;
@@ -174,13 +167,12 @@ public sealed class WorkflowCrystallizer
             });
         }
 
-        // Done port → 下一個節點
         if (stepIndex + 1 < trace.Steps.Count)
         {
             connections.Add(new CrystallizedConnection
             {
                 From = parallelIndex, To = nodes.Count,
-                FromOutput = $"output_{step.Config.Branches.Count + 1}"
+                FromOutput = $"output_{parallelNode.Branches.Count + 1}"
             });
         }
     }
@@ -189,35 +181,31 @@ public sealed class WorkflowCrystallizer
     // Loop 展開：loop + body agent（output_1 迴圈體，output_2 退出）
     // ════════════════════════════════════════
 
-    private static void ExpandLoop(TraceStep step, int stepIndex, ExecutionTrace trace,
-        List<CrystallizedNode> nodes, List<CrystallizedConnection> connections)
+    private static void ExpandLoop(TraceStep step, Schema.LoopNode loopNode, int stepIndex,
+        ExecutionTrace trace, List<CrystallizedNode> nodes, List<CrystallizedConnection> connections)
     {
         var loopIndex = nodes.Count;
         nodes.Add(StepToNode(step));
 
-        // body agent（output_1）
         var bodyIndex = nodes.Count;
         nodes.Add(new CrystallizedNode
         {
             Type = NodeTypes.Agent,
             Name = $"{step.NodeName} Body",
-            Instructions = step.Config.Instructions ?? "",
-            Tools = step.Config.Tools ?? []
+            Instructions = loopNode.BodyAgent.Instructions,
+            Tools = loopNode.BodyAgent.Tools.ToList()
         });
 
-        // loop → body（output_1）
         connections.Add(new CrystallizedConnection
         {
             From = loopIndex, To = bodyIndex, FromOutput = OutputPorts.Output1
         });
 
-        // body → loop（迴圈回去）
         connections.Add(new CrystallizedConnection
         {
             From = bodyIndex, To = loopIndex, FromOutput = OutputPorts.Output1
         });
 
-        // loop → next（output_2 退出）
         if (stepIndex + 1 < trace.Steps.Count)
         {
             connections.Add(new CrystallizedConnection
@@ -231,29 +219,26 @@ public sealed class WorkflowCrystallizer
     // Iteration 展開：iteration + body agent（output_1 每 item，output_2 Done）
     // ════════════════════════════════════════
 
-    private static void ExpandIteration(TraceStep step, int stepIndex, ExecutionTrace trace,
-        List<CrystallizedNode> nodes, List<CrystallizedConnection> connections)
+    private static void ExpandIteration(TraceStep step, Schema.IterationNode iterationNode, int stepIndex,
+        ExecutionTrace trace, List<CrystallizedNode> nodes, List<CrystallizedConnection> connections)
     {
         var iterIndex = nodes.Count;
         nodes.Add(StepToNode(step));
 
-        // body agent（output_1）
         var bodyIndex = nodes.Count;
         nodes.Add(new CrystallizedNode
         {
             Type = NodeTypes.Agent,
             Name = $"{step.NodeName} Body",
-            Instructions = step.Config.Instructions ?? "",
-            Tools = step.Config.Tools ?? []
+            Instructions = iterationNode.BodyAgent.Instructions,
+            Tools = iterationNode.BodyAgent.Tools.ToList()
         });
 
-        // iteration → body（output_1）
         connections.Add(new CrystallizedConnection
         {
             From = iterIndex, To = bodyIndex, FromOutput = OutputPorts.Output1
         });
 
-        // iteration → next（output_2 Done）
         if (stepIndex + 1 < trace.Steps.Count)
         {
             connections.Add(new CrystallizedConnection
@@ -262,6 +247,118 @@ public sealed class WorkflowCrystallizer
             });
         }
     }
+
+    // ════════════════════════════════════════
+    // HTTP 欄位填充 — Schema.HttpRequestSpec 解包為 flat CrystallizedNode 欄位
+    // ════════════════════════════════════════
+
+    private static void PopulateHttpFields(CrystallizedNode node, Schema.HttpRequestNode http)
+    {
+        if (http.Spec is Schema.CatalogHttpRef catalogRef)
+        {
+            node.HttpApiId = catalogRef.ApiId;
+            node.HttpArgsTemplate = catalogRef.Args?.ToJsonString();
+            return;
+        }
+
+        if (http.Spec is Schema.InlineHttpRequest inline)
+        {
+            node.HttpUrl = inline.Url;
+            node.HttpMethod = inline.Method.ToString().ToUpperInvariant();
+            node.HttpHeaders = string.Join("\n", inline.Headers.Select(h => $"{h.Name}: {h.Value}"));
+            node.HttpBodyTemplate = inline.Body?.Content?.ToJsonString();
+            node.HttpContentType = inline.ContentType;
+            node.HttpTimeoutSeconds = inline.TimeoutSeconds;
+            node.HttpRetryCount = inline.Retry.Count;
+            node.HttpRetryDelayMs = inline.Retry.DelayMs;
+            node.HttpResponseMaxLength = inline.ResponseMaxLength;
+
+            switch (inline.Auth)
+            {
+                case Schema.BearerAuth bearer:
+                    node.HttpAuthMode = "bearer";
+                    node.HttpAuthCredential = bearer.Token;
+                    break;
+                case Schema.BasicAuth basic:
+                    node.HttpAuthMode = "basic";
+                    node.HttpAuthCredential = basic.UserPass;
+                    break;
+                case Schema.ApiKeyHeaderAuth apiHeader:
+                    node.HttpAuthMode = "apikey-header";
+                    node.HttpAuthCredential = apiHeader.Value;
+                    node.HttpAuthKeyName = apiHeader.KeyName;
+                    break;
+                case Schema.ApiKeyQueryAuth apiQuery:
+                    node.HttpAuthMode = "apikey-query";
+                    node.HttpAuthCredential = apiQuery.Value;
+                    node.HttpAuthKeyName = apiQuery.KeyName;
+                    break;
+                default:
+                    node.HttpAuthMode = "none";
+                    break;
+            }
+
+            switch (inline.Response)
+            {
+                case Schema.JsonParser:
+                    node.HttpResponseFormat = "json";
+                    break;
+                case Schema.JsonPathParser jsonPath:
+                    node.HttpResponseFormat = "jsonpath";
+                    node.HttpResponseJsonPath = jsonPath.Path;
+                    break;
+                default:
+                    node.HttpResponseFormat = "text";
+                    break;
+            }
+        }
+    }
+
+    // ════════════════════════════════════════
+    // Enum → legacy string formatters（保留舊 CrystallizedNode wire format）
+    // ════════════════════════════════════════
+
+    private static string FormatTransformKind(Schema.TransformKind kind, string? replacement) => kind switch
+    {
+        Schema.TransformKind.Template => "template",
+        Schema.TransformKind.Regex => string.IsNullOrEmpty(replacement) ? "regex-extract" : "regex-replace",
+        Schema.TransformKind.JsonPath => "json-path",
+        Schema.TransformKind.Trim => "trim",
+        Schema.TransformKind.Truncate => "trim",
+        Schema.TransformKind.Split => "split-take",
+        Schema.TransformKind.Upper => "upper",
+        Schema.TransformKind.Lower => "lower",
+        Schema.TransformKind.Script => "script",
+        _ => "template"
+    };
+
+    private static string FormatConditionKind(Schema.ConditionKind kind) => kind switch
+    {
+        Schema.ConditionKind.Regex => "regex",
+        Schema.ConditionKind.LlmJudge => "llm-judge",
+        Schema.ConditionKind.Expression => "expression",
+        _ => "contains"
+    };
+
+    private static string FormatMergeStrategy(Schema.MergeStrategyKind kind) => kind switch
+    {
+        Schema.MergeStrategyKind.Join => "join",
+        Schema.MergeStrategyKind.Json => "json",
+        _ => "labeled"
+    };
+
+    private static string FormatSplitMode(Schema.SplitModeKind kind) => kind switch
+    {
+        Schema.SplitModeKind.Delimiter => "delimiter",
+        _ => "json-array"
+    };
+
+    private static string FormatOutputKind(Schema.OutputFormat format) => format switch
+    {
+        Schema.OutputFormat.Json => "json",
+        Schema.OutputFormat.JsonSchema => "json_schema",
+        _ => "text"
+    };
 
     private static readonly JsonSerializerOptions CrystallizeJsonOptions = new()
     {
@@ -282,9 +379,10 @@ public sealed class CrystallizedWorkflow
 }
 
 /// <summary>
-/// 欄位名對齊 Engine WorkflowNode（PropertyNameCaseInsensitive 匹配）。
+/// 前端 buildFromAiSpec 相容的 flat 節點 DTO。
+/// Phase F 會和前端 NodeData 型別一起重新定義。
 /// </summary>
-public sealed class CrystallizedNode : IWorkflowNodeContract
+public sealed class CrystallizedNode
 {
     public string Type { get; init; } = "";
     public string Name { get; init; } = "";
@@ -295,12 +393,12 @@ public sealed class CrystallizedNode : IWorkflowNodeContract
     public string? Provider { get; set; }
     public string? Model { get; set; }
 
-    // Condition / Loop — 對齊 WorkflowNode.ConditionExpression
+    // Condition / Loop
     public string? ConditionType { get; set; }
     public string? ConditionExpression { get; set; }
     public int? MaxIterations { get; set; }
 
-    // Code — 對齊 WorkflowNode.Pattern / Replacement / Template
+    // Code
     public string? TransformType { get; set; }
     public string? Pattern { get; set; }
     public string? Replacement { get; set; }
@@ -343,9 +441,9 @@ public sealed class CrystallizedNode : IWorkflowNodeContract
 }
 
 /// <summary>
-/// 欄位名對齊 Engine WorkflowConnection.FromOutput。
+/// 節點連線 — 對應前端 buildFromAiSpec 的 connection DTO。
 /// </summary>
-public sealed class CrystallizedConnection : IWorkflowConnectionContract
+public sealed class CrystallizedConnection
 {
     public int From { get; init; }
     public int To { get; init; }

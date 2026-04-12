@@ -54,10 +54,11 @@ vi.mock('@/lib/export-package', () => ({
 }))
 
 vi.mock('@/lib/templates', () => ({
-  BUILTIN_TEMPLATES: [
-    { id: 'tpl1', name: 'ChatBot', shortDescription: 'A chatbot', category: 'Basic', tags: ['chat'], icon: 'Sparkles' },
+  useBuiltinTemplates: () => [
+    { id: 'tpl1', name: 'ChatBot', shortDescription: 'A chatbot', category: 'Basic', tags: ['chat'], icon: 'Sparkles', def: { nodes: [], connections: [] }, sampleMessages: ['Say hi'] },
   ],
-  TEMPLATE_CATEGORIES: ['Basic', 'Advanced'],
+  useTemplateCategories: () => ['Basic', 'Advanced'],
+  getTemplateWorkflowSync: () => null,
 }))
 
 vi.mock('prism-react-renderer', () => ({
@@ -205,9 +206,10 @@ describe('TemplatesDialog', () => {
 
   it('filters templates by search', () => {
     render(<TemplatesDialog {...defaultProps} open={true} />)
-    const searchInput = screen.getByPlaceholderText('Search templates...')
+    // react-i18next 在測試環境 mock 為 (key) => key，所以 placeholder 是 i18n key 本身
+    const searchInput = screen.getByPlaceholderText('dialog.searchPlaceholder')
     fireEvent.change(searchInput, { target: { value: 'nonexistent' } })
     expect(screen.queryByText('ChatBot')).not.toBeInTheDocument()
-    expect(screen.getByText('No templates match your search.')).toBeInTheDocument()
+    expect(screen.getByText('dialog.noResults')).toBeInTheDocument()
   })
 })

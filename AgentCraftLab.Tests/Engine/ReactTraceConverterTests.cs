@@ -36,7 +36,7 @@ public class ReactTraceConverterTests
         Assert.Equal(2, nodes.GetArrayLength()); // parallel + summarizer
 
         var parallel = nodes[0];
-        Assert.Equal("parallel", parallel.GetProperty("nodeType").GetString());
+        Assert.Equal("parallel", parallel.GetProperty("type").GetString());
         Assert.Equal(3, parallel.GetProperty("branches").GetArrayLength());
         Assert.Equal("查 NVIDIA", parallel.GetProperty("branches")[0].GetProperty("name").GetString());
     }
@@ -62,9 +62,9 @@ public class ReactTraceConverterTests
         var nodes = doc.RootElement.GetProperty("nodes");
         Assert.Equal(3, nodes.GetArrayLength()); // parallel + parallel + summarizer
 
-        Assert.Equal("parallel", nodes[0].GetProperty("nodeType").GetString());
-        Assert.Equal("parallel", nodes[1].GetProperty("nodeType").GetString());
-        Assert.Equal("agent", nodes[2].GetProperty("nodeType").GetString());
+        Assert.Equal("parallel", nodes[0].GetProperty("type").GetString());
+        Assert.Equal("parallel", nodes[1].GetProperty("type").GetString());
+        Assert.Equal("agent", nodes[2].GetProperty("type").GetString());
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public class ReactTraceConverterTests
         Assert.Equal(2, nodes.GetArrayLength()); // agent + summarizer
 
         var agent = nodes[0];
-        Assert.Equal("agent", agent.GetProperty("nodeType").GetString());
+        Assert.Equal("agent", agent.GetProperty("type").GetString());
         Assert.Equal("analyst", agent.GetProperty("name").GetString());
         Assert.Equal("深度分析數據", agent.GetProperty("instructions").GetString());
     }
@@ -110,9 +110,9 @@ public class ReactTraceConverterTests
         var nodes = doc.RootElement.GetProperty("nodes");
         Assert.Equal(3, nodes.GetArrayLength()); // parallel + agent + summarizer
 
-        Assert.Equal("parallel", nodes[0].GetProperty("nodeType").GetString());
-        Assert.Equal("agent", nodes[1].GetProperty("nodeType").GetString());
-        Assert.Equal("agent", nodes[2].GetProperty("nodeType").GetString()); // summarizer
+        Assert.Equal("parallel", nodes[0].GetProperty("type").GetString());
+        Assert.Equal("agent", nodes[1].GetProperty("type").GetString());
+        Assert.Equal("agent", nodes[2].GetProperty("type").GetString()); // summarizer
     }
 
     [Fact]

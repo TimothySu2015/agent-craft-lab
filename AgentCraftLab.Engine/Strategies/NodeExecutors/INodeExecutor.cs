@@ -1,4 +1,5 @@
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 
@@ -22,33 +23,31 @@ public sealed class NodeExecutionResult
 
 /// <summary>
 /// 節點執行器介面 — 每種節點類型一個實作。
-/// 取代 ImperativeWorkflowStrategy 的 monolithic if-else chain。
+/// 以 <see cref="NodeConfig"/> 子型別作為分派鍵（透過 <see cref="NodeConfigType"/> property），
+/// 由 <see cref="NodeExecutorRegistry"/> 根據節點實際型別派遣。
+/// 子類別應繼承 <see cref="NodeExecutorBase{TNode}"/> 獲得強型別 NodeConfig 存取。
 /// </summary>
 public interface INodeExecutor
 {
-    /// <summary>支援的節點類型</summary>
-    string NodeType { get; }
+    /// <summary>此 executor 支援的 NodeConfig 子型別（例如 <c>typeof(AgentNode)</c>）。</summary>
+    Type NodeConfigType { get; }
 
     /// <summary>
     /// 執行節點，串流回傳事件。
     /// </summary>
     IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
         string nodeId,
-        WorkflowNode node,
+        NodeConfig node,
         ImperativeExecutionState state,
         CancellationToken cancellationToken);
 
     /// <summary>
     /// 從事件流中提取執行結果（output + 下一個節點）。
-    /// 預設實作：從 AgentCompleted 取 output，用 output_1 導航。
     /// </summary>
     Task<NodeExecutionResult> BuildResultAsync(
-        string nodeId, WorkflowNode node,
-        ImperativeExecutionState state, List<ExecutionEvent> collectedEvents,
-        CancellationToken cancellationToken = default) =>
-        Task.FromResult(new NodeExecutionResult
-        {
-            Output = collectedEvents.LastOrDefault(e => e.Type == EventTypes.AgentCompleted)?.Text,
-            OutputPort = OutputPorts.Output1
-        });
+        string nodeId,
+        NodeConfig node,
+        ImperativeExecutionState state,
+        List<ExecutionEvent> collectedEvents,
+        CancellationToken cancellationToken = default);
 }

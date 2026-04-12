@@ -46,8 +46,15 @@ import { HttpRequestNode } from '../HttpRequestNode'
 describe('AgentNode', () => {
   const baseData = {
     type: 'agent' as const, name: 'MyAgent', instructions: 'Be helpful',
-    model: 'gpt-4o', provider: 'openai', endpoint: '', deploymentName: '',
-    historyProvider: 'none', maxMessages: 20, middleware: '', tools: [] as string[], skills: [],
+    model: { provider: 'openai', model: 'gpt-4o' },
+    output: { kind: 'text' as const },
+    history: { provider: 'none' as const, maxMessages: 20 },
+    middleware: [],
+    tools: [] as string[],
+    skills: [] as string[],
+    mcpServers: [] as string[],
+    a2AAgents: [] as string[],
+    httpApis: [] as string[],
   }
 
   it('renders name and provider/model subtitle', () => {
@@ -84,8 +91,8 @@ describe('AgentNode', () => {
 
 describe('ConditionNode', () => {
   const data = {
-    type: 'condition' as const, name: 'Check', conditionType: 'contains',
-    conditionExpression: 'DONE', maxIterations: 5,
+    type: 'condition' as const, name: 'Check',
+    condition: { kind: 'contains' as const, value: 'DONE' },
   }
 
   it('renders name and conditionType subtitle', () => {
@@ -110,8 +117,9 @@ describe('ConditionNode', () => {
 
 describe('LoopNode', () => {
   const data = {
-    type: 'loop' as const, name: 'Retry', conditionType: 'contains',
-    conditionExpression: 'OK', maxIterations: 3,
+    type: 'loop' as const, name: 'Retry',
+    condition: { kind: 'contains' as const, value: 'OK' },
+    maxIterations: 3,
   }
 
   it('renders subtitle with conditionType and max iterations', () => {
@@ -125,8 +133,8 @@ describe('LoopNode', () => {
 describe('CodeNode', () => {
   it('renders template when not default', () => {
     const data = {
-      type: 'code' as const, name: 'Format', transformType: 'template',
-      pattern: '', replacement: '', template: '## {{input}}',
+      type: 'code' as const, name: 'Format', kind: 'template' as const,
+      expression: '## {{input}}', replacement: '',
       maxLength: 0, delimiter: '\\n', splitIndex: 0,
     }
     render(<CodeNode data={data} selected={false} id="code1" type="code" />)
@@ -135,8 +143,8 @@ describe('CodeNode', () => {
 
   it('hides default template {{input}}', () => {
     const data = {
-      type: 'code' as const, name: 'Format', transformType: 'template',
-      pattern: '', replacement: '', template: '{{input}}',
+      type: 'code' as const, name: 'Format', kind: 'template' as const,
+      expression: '{{input}}', replacement: '',
       maxLength: 0, delimiter: '\\n', splitIndex: 0,
     }
     render(<CodeNode data={data} selected={false} id="code1" type="code" />)
@@ -149,7 +157,13 @@ describe('CodeNode', () => {
 describe('ParallelNode', () => {
   it('computes output count from branches + 1 Done', () => {
     const data = {
-      type: 'parallel' as const, name: 'Fan', branches: 'A,B,C', mergeStrategy: 'labeled',
+      type: 'parallel' as const, name: 'Fan',
+      branches: [
+        { name: 'A', goal: '' },
+        { name: 'B', goal: '' },
+        { name: 'C', goal: '' },
+      ],
+      merge: 'labeled' as const,
     }
     const { container } = render(<ParallelNode data={data} selected={false} id="p1" type="parallel" />)
     // 3 branches + 1 Done = 4 output handles
@@ -159,7 +173,7 @@ describe('ParallelNode', () => {
 
   it('handles empty branches', () => {
     const data = {
-      type: 'parallel' as const, name: 'Fan', branches: '', mergeStrategy: 'labeled',
+      type: 'parallel' as const, name: 'Fan', branches: [], merge: 'labeled' as const,
     }
     const { container } = render(<ParallelNode data={data} selected={false} id="p1" type="parallel" />)
     // 0 branches + 1 Done = 1 output
@@ -169,7 +183,12 @@ describe('ParallelNode', () => {
 
   it('renders merge strategy as subtitle', () => {
     const data = {
-      type: 'parallel' as const, name: 'Fan', branches: 'A,B', mergeStrategy: 'json',
+      type: 'parallel' as const, name: 'Fan',
+      branches: [
+        { name: 'A', goal: '' },
+        { name: 'B', goal: '' },
+      ],
+      merge: 'json' as const,
     }
     render(<ParallelNode data={data} selected={false} id="p1" type="parallel" />)
     expect(screen.getByText('json')).toBeInTheDocument()
@@ -181,7 +200,12 @@ describe('ParallelNode', () => {
 describe('RouterNode', () => {
   it('computes output count from routes', () => {
     const data = {
-      type: 'router' as const, name: 'Route', conditionExpression: '', routes: 'billing,technical,general',
+      type: 'router' as const, name: 'Route',
+      routes: [
+        { name: 'billing', keywords: [], isDefault: false },
+        { name: 'technical', keywords: [], isDefault: false },
+        { name: 'general', keywords: [], isDefault: true },
+      ],
     }
     const { container } = render(<RouterNode data={data} selected={false} id="r1" type="router" />)
     // 3 routes = 3 outputs
@@ -191,7 +215,8 @@ describe('RouterNode', () => {
 
   it('has minimum 2 outputs even for single route', () => {
     const data = {
-      type: 'router' as const, name: 'Route', conditionExpression: '', routes: 'only',
+      type: 'router' as const, name: 'Route',
+      routes: [{ name: 'only', keywords: [], isDefault: false }],
     }
     const { container } = render(<RouterNode data={data} selected={false} id="r1" type="router" />)
     const sourceHandles = container.querySelectorAll('[data-testid^="handle-source-output_"]')
@@ -204,8 +229,8 @@ describe('RouterNode', () => {
 describe('IterationNode', () => {
   it('renders max items', () => {
     const data = {
-      type: 'iteration' as const, name: 'ForEach', splitMode: 'json-array',
-      iterationDelimiter: '\\n', maxItems: 50,
+      type: 'iteration' as const, name: 'ForEach', split: 'jsonArray' as const,
+      delimiter: '\\n', maxItems: 50, maxConcurrency: 1,
     }
     render(<IterationNode data={data} selected={false} id="i1" type="iteration" />)
     expect(screen.getByText('Max: 50')).toBeInTheDocument()
@@ -218,8 +243,9 @@ describe('AutonomousNode', () => {
   it('renders provider/model subtitle', () => {
     const data = {
       type: 'autonomous' as const, name: 'Auto', instructions: 'Research',
-      model: 'gpt-4o', provider: 'openai', maxIterations: 25,
-      maxOutputTokens: 200000, tools: [], skills: [], mcpServers: [], a2AAgents: [],
+      model: { provider: 'openai', model: 'gpt-4o', maxOutputTokens: 200000 },
+      maxIterations: 25,
+      tools: [], skills: [], mcpServers: [], a2AAgents: [], httpApis: [],
     }
     render(<AutonomousNode data={data} selected={false} id="au1" type="autonomous" />)
     expect(screen.getByText('openai / gpt-4o')).toBeInTheDocument()
@@ -230,31 +256,55 @@ describe('AutonomousNode', () => {
 // ── RagNode ──
 
 describe('RagNode', () => {
-  it('renders topK and chunkSize', () => {
+  it('renders topK and search mode', () => {
     const data = {
-      type: 'rag' as const, name: 'RAG', ragDataSource: 'upload',
-      ragChunkSize: 512, ragChunkOverlap: 50, ragTopK: 5,
-      ragEmbeddingModel: 'text-embedding-3-small', knowledgeBaseIds: [],
+      type: 'rag' as const, name: 'RAG',
+      rag: {
+        dataSource: 'upload',
+        chunkSize: 512,
+        chunkOverlap: 50,
+        topK: 5,
+        embeddingModel: 'text-embedding-3-small',
+        searchMode: 'hybrid' as const,
+        minScore: 0.005,
+        queryExpansion: true,
+        contextCompression: false,
+        tokenBudget: 1500,
+      },
+      knowledgeBaseIds: [],
     }
     render(<RagNode data={data} selected={false} id="rag1" type="rag" />)
-    expect(screen.getByText('TopK: 5 · Balanced')).toBeInTheDocument()
+    expect(screen.getByText('TopK: 5 · hybrid')).toBeInTheDocument()
   })
 })
 
 // ── HttpRequestNode ──
 
 describe('HttpRequestNode', () => {
-  it('renders API ID when set', () => {
+  it('renders API ID when catalog spec set', () => {
     const data = {
-      type: 'http-request' as const, name: 'API', httpApiId: 'weather-api', httpArgsTemplate: '{}',
+      type: 'http-request' as const, name: 'API',
+      spec: { kind: 'catalog' as const, apiId: 'weather-api', args: {} },
     }
     render(<HttpRequestNode data={data} selected={false} id="h1" type="http-request" />)
     expect(screen.getByText('weather-api')).toBeInTheDocument()
   })
 
-  it('hides API ID when empty', () => {
+  it('hides API ID when inline spec with empty url', () => {
     const data = {
-      type: 'http-request' as const, name: 'API', httpApiId: '', httpArgsTemplate: '{}',
+      type: 'http-request' as const, name: 'API',
+      spec: {
+        kind: 'inline' as const,
+        url: '',
+        method: 'get' as const,
+        headers: [],
+        contentType: 'application/json',
+        auth: { kind: 'none' as const },
+        retry: { count: 0, delayMs: 1000 },
+        timeoutSeconds: 15,
+        response: { kind: 'text' as const },
+        responseMaxLength: 2000,
+      },
     }
     render(<HttpRequestNode data={data} selected={false} id="h1" type="http-request" />)
     expect(screen.queryByText('weather-api')).not.toBeInTheDocument()

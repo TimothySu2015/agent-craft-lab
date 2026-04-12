@@ -6,6 +6,7 @@ using AgentCraftLab.Engine.Models;
 using AgentCraftLab.Engine.Pii;
 using AgentCraftLab.Engine.Services;
 using AgentCraftLab.Engine.Services.Compression;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 using Anthropic;
 using Azure.AI.OpenAI;
 using Microsoft.Agents.AI;
@@ -62,28 +63,28 @@ public class AgentContextBuilder
     }
 
     public async Task<(AgentExecutionContext? Context, string? Error)> BuildAsync(
-        List<WorkflowNode> agentNodes,
+        List<Schema.AgentNode> agentNodes,
         WorkflowExecutionRequest request,
         CancellationToken cancellationToken,
         RagContext? ragContext = null,
-        WorkflowPayload? payload = null,
+        Schema.WorkflowPayload? payload = null,
         List<Data.SkillDocument>? customSkills = null)
     {
         var clientCache = new ConcurrentDictionary<string, object>();
         var toolCallLogs = new ConcurrentQueue<(string AgentName, string Type, string Text)>();
-        var flowSkillIds = payload?.Skills ?? [];
+        var flowSkillIds = (IReadOnlyList<string>?)payload?.Resources.Skills ?? [];
 
         // ── Phase 1（順序，快）：憑證驗證 + 建立 ChatClient ──
         // CreateChatClient 含 middleware 包裝，共用 clientCache。無 I/O，毫秒級完成。
         var perNodeClients = new Dictionary<string, IChatClient>();
         foreach (var node in agentNodes)
         {
-            var provider = NormalizeProvider(node.Provider);
+            var provider = NormalizeProvider(node.Model.Provider);
             if (!request.Credentials.TryGetValue(provider, out var cred) ||
                 (!Providers.IsKeyOptional(provider) && string.IsNullOrWhiteSpace(cred.ApiKey)))
             {
                 return (null,
-                    $"No API Key configured for provider '{node.Provider}' (used by {node.Name}). Please set credentials in the API Key settings.");
+                    $"No API Key configured for provider '{node.Model.Provider}' (used by {node.Name}). Please set credentials in the API Key settings.");
             }
 
             perNodeClients[node.Id] = CreateChatClient(node, clientCache, cred, provider);
@@ -129,7 +130,10 @@ public class AgentContextBuilder
             chatClient = WrapWithRag(chatClient, node, ragContext);
             var chatClientForHistory = WrapWithTools(chatClient, node, tools, toolCallLogs);
 
-            var instructions = BuildInstructions(node.Instructions, node.OutputFormat, flowSkillIds, node.Skills, _skillRegistry, customSkills);
+            var outputFormatString = OutputFormatToString(node.Output.Kind);
+            var nodeSkillsList = node.Skills.ToList();
+            var flowSkillIdsList = flowSkillIds.ToList();
+            var instructions = BuildInstructions(node.Instructions, outputFormatString, flowSkillIdsList, nodeSkillsList, _skillRegistry, customSkills);
             nodeInstructions[node.Id] = instructions;
             nodeSkillNames[node.Id] = skills.Select(s => s.DisplayName).ToList();
 
@@ -155,7 +159,7 @@ public class AgentContextBuilder
             ContextBuilder: this), null);
     }
 
-    private IChatClient WrapWithRag(IChatClient chatClient, WorkflowNode node, RagContext? ragContext)
+    private IChatClient WrapWithRag(IChatClient chatClient, Schema.AgentNode node, RagContext? ragContext)
     {
         if (ragContext is not { RagNodes.Count: > 0 })
         {
@@ -169,7 +173,7 @@ public class AgentContextBuilder
             return chatClient;
         }
 
-        var ragSettings = connectedRagNode.RagConfig ?? new RagSettings();
+        var ragSettings = connectedRagNode.Rag;
 
         // 合併 RAG 節點引用的知識庫索引 + RagContext 層級的知識庫索引
         var kbIndexNames = ragContext.KnowledgeBaseIndexNames;
@@ -194,7 +198,7 @@ public class AgentContextBuilder
             indexDataSourceMap: ragContext.IndexDataSourceMap);
     }
 
-    private static IChatClient WrapWithTools(IChatClient chatClient, WorkflowNode node, IList<AITool> tools,
+    private static IChatClient WrapWithTools(IChatClient chatClient, Schema.AgentNode node, IList<AITool> tools,
         System.Collections.Concurrent.ConcurrentQueue<(string AgentName, string Type, string Text)> toolCallLogs)
     {
         if (tools is not { Count: > 0 })
@@ -231,7 +235,7 @@ public class AgentContextBuilder
     }
 
     private IChatClient CreateChatClient(
-        WorkflowNode node,
+        Schema.AgentNode node,
         ConcurrentDictionary<string, object> clientCache,
         ProviderCredential cred,
         string provider)
@@ -242,16 +246,43 @@ public class AgentContextBuilder
         var cacheKey = $"{provider}:{endpoint}";
         var baseClient = clientCache.GetOrAdd(cacheKey, _ => CreateLlmClient(provider, apiKey, endpoint, timeout));
 
-        IChatClient chatClient = GetChatClientFromBase(baseClient, node.Model);
+        IChatClient chatClient = GetChatClientFromBase(baseClient, node.Model.Model);
 
-        if (node.Temperature.HasValue || node.TopP.HasValue || node.MaxOutputTokens.HasValue)
-            chatClient = new ChatOptionsChatClient(chatClient, node.Temperature, node.TopP, node.MaxOutputTokens);
+        if (node.Model.Temperature.HasValue || node.Model.TopP.HasValue || node.Model.MaxOutputTokens.HasValue)
+            chatClient = new ChatOptionsChatClient(chatClient, node.Model.Temperature, node.Model.TopP, node.Model.MaxOutputTokens);
 
         // 預設啟用基礎 middleware（logging + retry + recovery），確保 context overflow 自動恢復
-        var middleware = string.IsNullOrWhiteSpace(node.Middleware) ? "logging,retry,recovery" : node.Middleware;
-        return ApplyMiddleware(chatClient, middleware, node.MiddlewareConfig, _piiDetector, _piiTokenVault, _guardRailsPolicy,
-            modelName: node.Model);
+        var (middleware, middlewareConfig) = BuildMiddlewareSpec(node.Middleware);
+        return ApplyMiddleware(chatClient, middleware, middlewareConfig, _piiDetector, _piiTokenVault, _guardRailsPolicy,
+            modelName: node.Model.Model);
     }
+
+    /// <summary>
+    /// 將 Schema.MiddlewareBinding 清單轉為 <see cref="ApplyMiddleware"/> 接受的 (逗號分隔 key, options dict) 組合。
+    /// 若沒有任何綁定，套用預設 "logging,retry,recovery"（確保 context overflow 自動恢復）。
+    /// </summary>
+    internal static (string Middleware, Dictionary<string, Dictionary<string, string>>? Config) BuildMiddlewareSpec(
+        IReadOnlyList<Schema.MiddlewareBinding>? bindings)
+    {
+        if (bindings is null || bindings.Count == 0)
+        {
+            return ("logging,retry,recovery", null);
+        }
+
+        var keys = string.Join(",", bindings.Select(b => b.Key));
+        var cfg = bindings.ToDictionary(
+            b => b.Key,
+            b => b.Options.ToDictionary(kv => kv.Key, kv => kv.Value));
+        return (keys, cfg);
+    }
+
+    /// <summary>將 Schema.OutputFormat 還原為 BuildInstructions 期望的字串。</summary>
+    private static string OutputFormatToString(Schema.OutputFormat format) => format switch
+    {
+        Schema.OutputFormat.Json => "json",
+        Schema.OutputFormat.JsonSchema => "json_schema",
+        _ => "text"
+    };
 
     /// <summary>
     /// 建立簡易 IChatClient（供 Tuner 等輕量場景使用，不含 middleware/tools）。
@@ -321,13 +352,13 @@ public class AgentContextBuilder
     }
 
     private async Task<List<AITool>> ResolveToolsAsync(
-        WorkflowNode node,
+        Schema.AgentNode node,
         WorkflowExecutionRequest request,
         CancellationToken cancellationToken,
-        WorkflowPayload? payload = null)
+        Schema.WorkflowPayload? payload = null)
     {
         var tools = node.Tools.Count > 0
-            ? new List<AITool>(_toolRegistry.Resolve(node.Tools, request.Credentials))
+            ? new List<AITool>(_toolRegistry.Resolve(node.Tools.ToList(), request.Credentials))
             : new List<AITool>();
 
         // MCP + A2A discovery 並行化（同一 agent 內所有 URL 同時發請求）
@@ -353,7 +384,7 @@ public class AgentContextBuilder
             {
                 try
                 {
-                    var format = payload?.A2AAgents
+                    var format = payload?.Resources.A2AAgents
                         .FirstOrDefault(a => a.Url == url)?.Format ?? "auto";
                     var card = await _a2aClient.DiscoverAsync(url, format, cancellationToken);
                     return (AITool?)_a2aClient.WrapAsAITool(card, format);
@@ -488,15 +519,17 @@ public class AgentContextBuilder
     }
 
     /// <summary>
-    /// 根據使用者指令和輸出格式建構完整的 system prompt。
+    /// 根據使用者指令和輸出格式建構完整的 system prompt（無 Skill 的簡化版）。
     /// </summary>
     public static string BuildInstructions(string? userInstructions, string? outputFormat = null)
+        => BuildBaseInstructions(userInstructions, outputFormat);
+
+    private static string BuildBaseInstructions(string? userInstructions, string? outputFormat)
     {
         var baseInstructions = string.IsNullOrWhiteSpace(userInstructions)
             ? "You are a helpful assistant."
             : userInstructions;
 
-        // 偵測非中文語言指令，在 prompt 前後加強語言強制
         var langPrefix = DetectLanguageEnforcement(baseInstructions);
 
         var result = langPrefix is not null
@@ -561,7 +594,7 @@ public class AgentContextBuilder
         var allSkillIds = flowSkillIds.Concat(nodeSkillIds).Distinct().ToList();
         if (allSkillIds.Count == 0)
         {
-            return BuildInstructions(userInstructions, outputFormat);
+            return BuildBaseInstructions(userInstructions, outputFormat);
         }
 
         var flowSkills = skillRegistry.Resolve(flowSkillIds, customSkills);
@@ -689,7 +722,7 @@ public class AgentContextBuilder
         return msg;
     }
 
-    private static string GetAgentName(WorkflowNode node) =>
+    private static string GetAgentName(Schema.AgentNode node) =>
         string.IsNullOrWhiteSpace(node.Name) ? $"Agent_{node.Id}" : node.Name;
 
     public static string NormalizeProvider(string provider) => provider?.ToLowerInvariant() switch

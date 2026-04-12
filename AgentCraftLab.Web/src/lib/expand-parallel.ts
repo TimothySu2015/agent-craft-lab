@@ -2,8 +2,8 @@
  * FlowPlan parallel 展開 — 將 branches 物件陣列轉為獨立 agent 節點 + connections。
  * 同時補齊 FlowPlan 沒有的 sequential connections（Done port → 下一節點 → 下一節點...）。
  *
- * FlowPlan 格式：{ nodeType: "parallel", branches: [{name, goal, tools}] }（無 connections，假設順序執行）
- * AI Build 格式：parallel 節點（branches: "名稱1,名稱2"）+ 獨立 agent 節點 + 完整 connections
+ * F3 之後：所有 NodeData 為 nested Schema shape。
+ * branches 為 BranchConfig[]（{ name, goal, tools? }），merge 取代 mergeStrategy。
  */
 export function expandFlowPlanParallel(spec: { nodes: any[]; connections?: any[] }) {
   const originalHasConnections = Array.isArray(spec.connections) && spec.connections.length > 0
@@ -21,24 +21,27 @@ export function expandFlowPlanParallel(spec: { nodes: any[]; connections?: any[]
       const parallelIndex = expanded.length
       originalToExpandedIndex.push(parallelIndex)
 
-      const branchNames = branches.map((b: any) => b.name)
+      // 產出 nested Schema shape：branches 保留 BranchConfig[]，merge 取代 mergeStrategy
       expanded.push({
         type: 'parallel',
         name: node.name || 'Parallel',
-        branches: branchNames.join(','),
-        mergeStrategy: node.mergeStrategy || node.data?.mergeStrategy || 'labeled',
+        branches: branches.map((b: any) => ({
+          name: b.name,
+          goal: b.goal || b.instructions || '',
+          ...(b.tools?.length ? { tools: b.tools } : {}),
+        })),
+        merge: node.merge || node.mergeStrategy || node.data?.mergeStrategy || 'labeled',
       })
 
-      // 每個 branch 展開為獨立 agent 節點
+      // 每個 branch 展開為獨立 agent 節點（nested Schema shape）
       for (let bi = 0; bi < branches.length; bi++) {
         const branch = branches[bi]
         const agentIndex = expanded.length
         expanded.push({
           type: 'agent',
-          nodeType: 'agent',
           name: branch.name,
           instructions: branch.goal || branch.instructions || '',
-          tools: branch.tools ?? [],
+          ...(branch.tools?.length ? { tools: branch.tools } : {}),
         })
         connections.push({
           from: parallelIndex,
@@ -62,14 +65,15 @@ export function expandFlowPlanParallel(spec: { nodes: any[]; connections?: any[]
 
       if (fromType === 'parallel') {
         // Parallel → 下一個主節點：用 Done port
-        const branchCount = (fromNode.branches || '').split(',').filter(Boolean).length
+        const branchCount = Array.isArray(fromNode.branches)
+          ? fromNode.branches.length
+          : (typeof fromNode.branches === 'string' ? fromNode.branches.split(',').filter(Boolean).length : 0)
         connections.push({
           from: fromIdx,
           to: toIdx,
           fromOutput: `output_${branchCount + 1}`,
         })
       } else {
-        // 一般節點 → 下一個節點
         connections.push({
           from: fromIdx,
           to: toIdx,

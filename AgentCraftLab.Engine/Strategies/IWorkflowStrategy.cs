@@ -1,5 +1,6 @@
 using AgentCraftLab.Engine.Models;
 using AgentCraftLab.Engine.Services;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Engine.Strategies;
 
@@ -14,16 +15,16 @@ public interface IWorkflowStrategy
 }
 
 /// <summary>
-/// 傳遞給策略的完整執行上下文。
+/// 傳遞給策略的完整執行上下文 — Phase C 之後 Payload 為強型別 <see cref="Schema.WorkflowPayload"/>。
 /// </summary>
 public record WorkflowStrategyContext(
-    WorkflowPayload Payload,
-    List<WorkflowNode> AgentNodes,
-    List<WorkflowConnection> ResolvedConnections,
+    Schema.WorkflowPayload Payload,
+    List<Schema.AgentNode> AgentNodes,
+    List<Schema.Connection> ResolvedConnections,
     AgentExecutionContext AgentContext,
     WorkflowExecutionRequest Request,
     Services.WorkflowHookRunner? HookRunner = null,
-    WorkflowHooks? Hooks = null,
+    Schema.WorkflowHooks? Hooks = null,
     string UserId = "",
     string? SessionId = null);
 
@@ -37,7 +38,7 @@ public record AgentExecutionContext(
     Dictionary<string, IList<Microsoft.Extensions.AI.AITool>> NodeToolsMap,
     System.Collections.Concurrent.ConcurrentQueue<(string AgentName, string Type, string Text)> ToolCallLogs,
     Microsoft.Extensions.AI.IChatClient? JudgeClient = null,
-    Dictionary<string, WorkflowNode>? A2ANodes = null,
+    Dictionary<string, Schema.A2AAgentNode>? A2ANodes = null,
     A2AClientService? A2AClient = null,
     HumanInputBridge? HumanBridge = null,
     DebugBridge? DebugBridge = null,

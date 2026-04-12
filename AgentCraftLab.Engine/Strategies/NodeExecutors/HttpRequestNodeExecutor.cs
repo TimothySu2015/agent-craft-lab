@@ -1,49 +1,60 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Services;
+using AgentCraftLab.Engine.Services.Variables;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 
 /// <summary>
 /// HTTP Request 節點執行器 — 確定性 HTTP 呼叫，零 LLM 成本。
-/// 支援兩種模式：
-/// 1. Catalog 模式：填 HttpApiId → 從 HttpApiDefs 查找定義
-/// 2. Inline 模式：HttpApiId 為空 → 用節點自身的 HttpUrl/HttpMethod/HttpHeaders/HttpBodyTemplate
+/// 透過 <see cref="HttpRequestSpec"/> polymorphic 分派 Catalog（引用預定義 API）或 Inline（就地定義）。
 /// </summary>
-public sealed class HttpRequestNodeExecutor : INodeExecutor
+public sealed class HttpRequestNodeExecutor : NodeExecutorBase<HttpRequestNode>
 {
-    public string NodeType => NodeTypes.HttpRequest;
-
-    public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
-        string nodeId, WorkflowNode node, ImperativeExecutionState state,
+    protected override async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
+        string nodeId, HttpRequestNode node, ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var nodeName = string.IsNullOrWhiteSpace(node.Name) ? $"HTTP_{node.Id}" : node.Name;
         yield return ExecutionEvent.AgentStarted(nodeName);
-        yield return ExecutionEvent.ToolCall(nodeName, "HTTP", node.HttpApiId);
 
-        var result = await CallHttpApiAsync(node, state.PreviousResult, state);
+        var specDescription = node.Spec switch
+        {
+            CatalogHttpRef catalog => catalog.ApiId,
+            InlineHttpRequest inline => inline.Url,
+            _ => "(unknown)"
+        };
+        yield return ExecutionEvent.ToolCall(nodeName, "HTTP", specDescription);
+
+        var result = await CallHttpAsync(node, state.PreviousResult, state);
 
         yield return ExecutionEvent.TextChunk(nodeName, result);
         yield return ExecutionEvent.AgentCompleted(nodeName, result);
     }
 
-    private static async Task<string> CallHttpApiAsync(
-        WorkflowNode node, string input, ImperativeExecutionState state)
+    private static async Task<string> CallHttpAsync(
+        HttpRequestNode node, string input, ImperativeExecutionState state)
     {
         var httpService = state.AgentContext.HttpApiService;
-
         if (httpService is null)
+        {
             return "[HTTP Error] HttpApiToolService not available";
+        }
 
-        var apiDef = ResolveApiDefinition(node, state);
+        var (apiDef, argsJson) = node.Spec switch
+        {
+            CatalogHttpRef catalog => BuildFromCatalog(catalog, input, state),
+            InlineHttpRequest inline => BuildFromInline(inline, node.Id, node.Name, input, state),
+            _ => ((HttpApiDefinition?)null, "{}")
+        };
+
         if (apiDef is null)
-            return $"[HTTP Error] API '{node.HttpApiId}' not found and no inline URL configured. " +
-                   "Either set httpApiId to reference a catalog entry, or fill in URL directly.";
-
-        var escapedInput = JsonSerializer.Serialize(input).Trim('"');
-        var argsJson = (node.HttpArgsTemplate ?? "{}").Replace("{input}", escapedInput);
+        {
+            return "[HTTP Error] API not found and no inline URL configured. " +
+                   "Either set apiId (catalog mode) or fill in URL (inline mode).";
+        }
 
         try
         {
@@ -55,61 +66,102 @@ public sealed class HttpRequestNodeExecutor : INodeExecutor
         }
     }
 
-    /// <summary>
-    /// 解析 API 定義：優先 catalog，fallback inline 欄位。
-    /// </summary>
-    private static HttpApiDefinition? ResolveApiDefinition(
-        WorkflowNode node, ImperativeExecutionState state)
+    private static (HttpApiDefinition? Def, string Args) BuildFromCatalog(
+        CatalogHttpRef catalog, string input, ImperativeExecutionState state)
     {
-        // Catalog 模式
-        if (!string.IsNullOrWhiteSpace(node.HttpApiId))
+        var httpDefs = state.AgentContext.HttpApiDefs;
+        if (httpDefs is null || !httpDefs.TryGetValue(catalog.ApiId, out var def))
         {
-            var httpDefs = state.AgentContext.HttpApiDefs;
-            if (httpDefs is not null && httpDefs.TryGetValue(node.HttpApiId, out var catalogDef))
-                return catalogDef;
+            return (null, "{}");
         }
 
-        // Inline 模式（解析變數引用）
-        if (!string.IsNullOrWhiteSpace(node.HttpUrl))
-        {
-            var url = node.HttpUrl;
-            var headers = node.HttpHeaders ?? "";
-            var bodyTemplate = node.HttpBodyTemplate ?? "";
-            var authCredential = node.HttpAuthCredential ?? "";
-
-            // 解析 {{sys:}}/{{var:}}/{{env:}} 變數
-            if (NodeReferenceResolver.HasVariableReferences(url) ||
-                NodeReferenceResolver.HasVariableReferences(headers) ||
-                NodeReferenceResolver.HasVariableReferences(bodyTemplate) ||
-                NodeReferenceResolver.HasVariableReferences(authCredential))
-            {
-                url = NodeReferenceResolver.ResolveVariables(url, state.SystemVariables, state.Variables, state.EnvironmentVariables);
-                headers = NodeReferenceResolver.ResolveVariables(headers, state.SystemVariables, state.Variables, state.EnvironmentVariables);
-                bodyTemplate = NodeReferenceResolver.ResolveVariables(bodyTemplate, state.SystemVariables, state.Variables, state.EnvironmentVariables);
-                authCredential = NodeReferenceResolver.ResolveVariables(authCredential, state.SystemVariables, state.Variables, state.EnvironmentVariables);
-            }
-
-            return new HttpApiDefinition
-            {
-                Id = node.Id ?? "inline",
-                Name = node.Name ?? "inline-http",
-                Url = url,
-                Method = string.IsNullOrWhiteSpace(node.HttpMethod) ? "GET" : node.HttpMethod,
-                Headers = headers,
-                BodyTemplate = bodyTemplate,
-                ContentType = string.IsNullOrWhiteSpace(node.HttpContentType) ? "application/json" : node.HttpContentType,
-                ResponseMaxLength = node.HttpResponseMaxLength,
-                TimeoutSeconds = node.HttpTimeoutSeconds,
-                AuthMode = string.IsNullOrWhiteSpace(node.HttpAuthMode) ? "none" : node.HttpAuthMode,
-                AuthCredential = authCredential,
-                AuthKeyName = node.HttpAuthKeyName ?? "",
-                RetryCount = node.HttpRetryCount,
-                RetryDelayMs = node.HttpRetryDelayMs,
-                ResponseFormat = string.IsNullOrWhiteSpace(node.HttpResponseFormat) ? "text" : node.HttpResponseFormat,
-                ResponseJsonPath = node.HttpResponseJsonPath ?? "",
-            };
-        }
-
-        return null;
+        var escapedInput = JsonSerializer.Serialize(input).Trim('"');
+        var argsJson = (catalog.Args?.ToJsonString() ?? "{}").Replace("{input}", escapedInput);
+        return (def, argsJson);
     }
+
+    private static (HttpApiDefinition? Def, string Args) BuildFromInline(
+        InlineHttpRequest inline, string nodeId, string nodeName, string input,
+        ImperativeExecutionState state)
+    {
+        if (string.IsNullOrWhiteSpace(inline.Url))
+        {
+            return (null, "{}");
+        }
+
+        var resolver = state.VariableResolver;
+        var ctx = state.ToVariableContext();
+
+        var url = resolver.Resolve(inline.Url, ctx);
+        var headersStr = FormatHeaders(inline.Headers, resolver, ctx);
+        var bodyTemplate = inline.Body?.Content?.ToString() ?? "";
+        if (!string.IsNullOrEmpty(bodyTemplate))
+        {
+            bodyTemplate = resolver.Resolve(bodyTemplate, ctx);
+        }
+
+        var (authMode, authCredential, authKeyName) = inline.Auth switch
+        {
+            BearerAuth b => ("bearer", resolver.Resolve(b.Token, ctx), ""),
+            BasicAuth ba => ("basic", resolver.Resolve(ba.UserPass, ctx), ""),
+            ApiKeyHeaderAuth kh => ("apikey-header", resolver.Resolve(kh.Value, ctx), kh.KeyName),
+            ApiKeyQueryAuth kq => ("apikey-query", resolver.Resolve(kq.Value, ctx), kq.KeyName),
+            _ => ("none", "", "")
+        };
+
+        var (responseFormat, responseJsonPath) = inline.Response switch
+        {
+            JsonParser => ("json", ""),
+            JsonPathParser jp => ("jsonpath", jp.Path),
+            _ => ("text", "")
+        };
+
+        var escapedInput = JsonSerializer.Serialize(input).Trim('"');
+        var argsJson = string.IsNullOrEmpty(bodyTemplate) ? "{}" : bodyTemplate.Replace("{input}", escapedInput);
+
+        var def = new HttpApiDefinition
+        {
+            Id = string.IsNullOrEmpty(nodeId) ? "inline" : nodeId,
+            Name = string.IsNullOrEmpty(nodeName) ? "inline-http" : nodeName,
+            Url = url,
+            Method = FormatMethod(inline.Method),
+            Headers = headersStr,
+            BodyTemplate = bodyTemplate,
+            ContentType = inline.ContentType,
+            ResponseMaxLength = inline.ResponseMaxLength,
+            TimeoutSeconds = inline.TimeoutSeconds,
+            AuthMode = authMode,
+            AuthCredential = authCredential,
+            AuthKeyName = authKeyName,
+            RetryCount = inline.Retry.Count,
+            RetryDelayMs = inline.Retry.DelayMs,
+            ResponseFormat = responseFormat,
+            ResponseJsonPath = responseJsonPath
+        };
+
+        return (def, argsJson);
+    }
+
+    private static string FormatHeaders(
+        IReadOnlyList<HttpHeader> headers, IVariableResolver resolver, VariableContext ctx)
+    {
+        if (headers.Count == 0)
+        {
+            return "";
+        }
+
+        return string.Join("\n",
+            headers.Select(h => $"{h.Name}: {resolver.Resolve(h.Value, ctx)}"));
+    }
+
+    private static string FormatMethod(HttpMethodKind method) => method switch
+    {
+        HttpMethodKind.Post => "POST",
+        HttpMethodKind.Put => "PUT",
+        HttpMethodKind.Delete => "DELETE",
+        HttpMethodKind.Patch => "PATCH",
+        HttpMethodKind.Head => "HEAD",
+        HttpMethodKind.Options => "OPTIONS",
+        _ => "GET"
+    };
 }

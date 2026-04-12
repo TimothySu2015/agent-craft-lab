@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -7,7 +8,9 @@ using AgentCraftLab.Data;
 using AgentCraftLab.Engine.Diagnostics;
 using AgentCraftLab.Engine.Models;
 using AgentCraftLab.Engine.Services;
+using AgentCraftLab.Engine.Services.Variables;
 using Microsoft.Agents.AI;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -19,7 +22,7 @@ namespace AgentCraftLab.Engine.Strategies;
 public class ImperativeExecutionState
 {
     public required Dictionary<string, List<(string ToId, string FromOutput)>> Adjacency { get; init; }
-    public required Dictionary<string, WorkflowNode> NodeMap { get; init; }
+    public required Dictionary<string, Schema.NodeConfig> NodeMap { get; init; }
     public required Dictionary<string, ChatClientAgent> Agents { get; init; }
     public required Dictionary<string, IChatClient> ChatClients { get; init; }
     public required Dictionary<string, List<ChatMessage>> ChatHistories { get; init; }
@@ -28,12 +31,12 @@ public class ImperativeExecutionState
     public HumanInputBridge? HumanBridge { get; init; }
     public string PreviousResult { get; set; } = "";
     public FileAttachment? Attachment { get; set; }
-    public Dictionary<string, WorkflowNode>? A2ANodes { get; init; }
+    public Dictionary<string, Schema.A2AAgentNode>? A2ANodes { get; init; }
     public A2AClientService? A2AClient { get; init; }
     public required AgentExecutionContext AgentContext { get; init; }
     public required WorkflowExecutionRequest Request { get; init; }
     public Services.WorkflowHookRunner? HookRunner { get; init; }
-    public WorkflowHooks? Hooks { get; init; }
+    public Schema.WorkflowHooks? Hooks { get; init; }
     public string WorkflowName { get; init; } = "";
     public required Services.IHistoryStrategy HistoryStrategy { get; init; }
 
@@ -74,6 +77,40 @@ public class ImperativeExecutionState
     /// <summary>環境變數（{{env:name}}），從 AGENTCRAFTLAB_ 前綴的環境變數載入。</summary>
     public IReadOnlyDictionary<string, string> EnvironmentVariables { get; init; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// 變數解析器 — 統一處理 {{sys:}} / {{var:}} / {{env:}} / {{node:}} 五種引用。
+    /// 預設為共用的 stateless singleton；單元測試可注入 fake 實作。
+    /// </summary>
+    public IVariableResolver VariableResolver { get; init; } = DefaultVariableResolver;
+
+    private static readonly IVariableResolver DefaultVariableResolver = new VariableResolver();
+
+    /// <summary>
+    /// NodeName → NodeId 反向索引快取（支援 {{node:name}} 透過 name 查 ID）。
+    /// 於首次呼叫 <see cref="ToVariableContext"/> 時 lazy 建立。
+    /// </summary>
+    private Dictionary<string, string>? _cachedNodeNameMap;
+
+    /// <summary>
+    /// 建立 <see cref="VariableContext"/> 快照 — 各字典為 reference，讀取時總是拿到最新值。
+    /// NodeNameMap lazy 快取（NodeMap 不變所以可重用）。
+    /// </summary>
+    public VariableContext ToVariableContext()
+    {
+        _cachedNodeNameMap ??= NodeMap
+            .GroupBy(kv => string.IsNullOrEmpty(kv.Value.Name) ? kv.Key : kv.Value.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Key, StringComparer.OrdinalIgnoreCase);
+
+        return new VariableContext
+        {
+            System = SystemVariables,
+            Workflow = Variables,
+            Environment = EnvironmentVariables,
+            NodeOutputs = NodeResults,
+            NodeNameMap = _cachedNodeNameMap
+        };
+    }
 }
 
 /// <summary>
@@ -105,7 +142,7 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
 
         using var workflowActivity = EngineActivitySource.Source.StartActivity(
             "workflow_execute", ActivityKind.Server);
-        workflowActivity?.SetTag("workflow.name", context.Payload.WorkflowSettings.Type);
+        workflowActivity?.SetTag("workflow.name", context.Payload.Settings.Strategy);
         workflowActivity?.SetTag("workflow.node_count", context.Payload.Nodes.Count);
         if (sessionId is not null)
             workflowActivity?.SetTag(EngineActivitySource.SessionIdTag, sessionId);
@@ -117,7 +154,7 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
         {
             if (!adj.ContainsKey(conn.From))
                 adj[conn.From] = [];
-            adj[conn.From].Add((conn.To, conn.FromOutput));
+            adj[conn.From].Add((conn.To, conn.Port));
         }
 
         var (startNode, startPath) = FindStartNode(payload);
@@ -146,16 +183,16 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
             Request = context.Request,
             HookRunner = context.HookRunner,
             Hooks = context.Hooks,
-            WorkflowName = context.Payload.WorkflowSettings.Type,
+            WorkflowName = context.Payload.Settings.Strategy,
             HistoryStrategy = _historyStrategy,
             ExecutionId = sessionId ?? Guid.NewGuid().ToString("N"),
             OriginalUserMessage = context.Request.UserMessage,
             NodeResults = new Dictionary<string, string>(),
             Variables = InitializeVariables(context.Payload, context.Request),
             SystemVariables = SystemVariableProvider.Build(
-                "local", sessionId ?? "", context.Payload.WorkflowSettings.Type, context.Request.UserMessage),
+                "local", sessionId ?? "", context.Payload.Settings.Strategy, context.Request.UserMessage),
             EnvironmentVariables = SystemVariableProvider.BuildEnvironmentVariables(),
-            ContextPassing = context.Payload.WorkflowSettings.ContextPassing,
+            ContextPassing = context.Payload.Settings.ContextPassing,
             ExecuteBodyChain = ExecuteBodyChainAsync,
             SessionId = sessionId,
             DebugBridge = context.AgentContext.DebugBridge,
@@ -174,16 +211,18 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
             if (!state.NodeMap.TryGetValue(currentNodeId, out var currentNode))
                 break;
 
-            // 優先查 NodeExecutorRegistry（已提取的節點走 registry）
-            var executor = _executorRegistry?.Get(currentNode.Type);
+            // state.NodeMap 現在直接存 NodeConfig，registry 依 runtime type 分派
+            var executor = _executorRegistry?.Get(currentNode);
             if (executor is not null)
             {
-                var nodeName = currentNode.Name ?? currentNode.Id;
+                var nodeName = string.IsNullOrEmpty(currentNode.Name) ? currentNode.Id : currentNode.Name;
+                var currentTypeString = NodeTypeRegistry.TypeString(currentNode);
 
                 // ── 投機執行：llm-judge Condition 同時搶跑兩條分支第一個節點 ──
                 if (executor is NodeExecutors.ConditionNodeExecutor
-                    && currentNode.ConditionType?.Equals("llm-judge", StringComparison.OrdinalIgnoreCase) == true
-                    && context.Payload.WorkflowSettings.SpeculativeExecution)
+                    && currentNode is Schema.ConditionNode condNode
+                    && condNode.Condition.Kind == Schema.ConditionKind.LlmJudge
+                    && context.Payload.Settings.SpeculativeExecution)
                 {
                     var specResult = await ExecuteSpeculativeConditionAsync(
                         currentNodeId, currentNode, executor, state, cancellationToken);
@@ -219,9 +258,9 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
                 }
 
                 // State Sync：節點開始執行
-                if (!NodeTypeRegistry.IsMeta(currentNode.Type))
+                if (!NodeTypeRegistry.IsMeta(currentNode))
                 {
-                    yield return ExecutionEvent.NodeExecuting(currentNode.Type, nodeName);
+                    yield return ExecutionEvent.NodeExecuting(currentTypeString, nodeName);
                 }
 
                 var collectedEvents = new List<ExecutionEvent>();
@@ -245,9 +284,9 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
                 }
 
                 // State Sync：節點完成（在 Activity Stop 之後，確保 GetSpans 能拿到）
-                if (!NodeTypeRegistry.IsMeta(currentNode.Type))
+                if (!NodeTypeRegistry.IsMeta(currentNode))
                 {
-                    yield return ExecutionEvent.NodeCompleted(currentNode.Type, nodeName, state.PreviousResult);
+                    yield return ExecutionEvent.NodeCompleted(currentTypeString, nodeName, state.PreviousResult);
                 }
 
                 if (nodeResult.ManagesOwnNavigation)
@@ -257,7 +296,7 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
                         state.Adjacency, currentNodeId, nodeResult.OutputPort ?? OutputPorts.Output1);
 
                 // ─── Checkpoint：節點完成後存快照 ───
-                if (_checkpointStore is not null && !NodeTypeRegistry.IsMeta(currentNode.Type))
+                if (_checkpointStore is not null && !NodeTypeRegistry.IsMeta(currentNode))
                 {
                     completedNodeIds.Add(currentNode.Id);
                     SaveCheckpointFireAndForget(state.ExecutionId, checkpointIteration++,
@@ -275,9 +314,9 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
                 }
 
                 // ─── Debug Mode：節點完成後暫停等待使用者操作 ───
-                if (state.DebugBridge is not null && !NodeTypeRegistry.IsMeta(currentNode.Type))
+                if (state.DebugBridge is not null && !NodeTypeRegistry.IsMeta(currentNode))
                 {
-                    yield return ExecutionEvent.DebugPaused(currentNode.Type, nodeName, state.PreviousResult);
+                    yield return ExecutionEvent.DebugPaused(currentTypeString, nodeName, state.PreviousResult);
                     var action = await state.DebugBridge.WaitForActionAsync(cancellationToken);
                     yield return ExecutionEvent.DebugResumed(nodeName, action.ToString());
 
@@ -311,7 +350,7 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
     /// 從 Workflow 定義的預設值 + 執行時覆蓋值初始化變數字典。
     /// </summary>
     internal static Dictionary<string, string> InitializeVariables(
-        WorkflowPayload payload, WorkflowExecutionRequest request)
+        Schema.WorkflowPayload payload, WorkflowExecutionRequest request)
     {
         var vars = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var v in payload.Variables)
@@ -373,7 +412,7 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
         {
             if (!adj.ContainsKey(conn.From))
                 adj[conn.From] = [];
-            adj[conn.From].Add((conn.To, conn.FromOutput));
+            adj[conn.From].Add((conn.To, conn.Port));
         }
 
         // 從 checkpoint 恢復狀態，但 NodeMap/Agents 用當前畫布定義
@@ -395,14 +434,14 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
             Request = context.Request,
             HookRunner = context.HookRunner,
             Hooks = context.Hooks,
-            WorkflowName = context.Payload.WorkflowSettings.Type,
+            WorkflowName = context.Payload.Settings.Strategy,
             HistoryStrategy = _historyStrategy,
             ExecutionId = sessionId ?? Guid.NewGuid().ToString("N"),
             OriginalUserMessage = checkpoint.OriginalUserMessage,
             NodeResults = new Dictionary<string, string>(checkpoint.NodeResults),
             Variables = new Dictionary<string, string>(checkpoint.Variables, StringComparer.OrdinalIgnoreCase),
             SystemVariables = SystemVariableProvider.Build(
-                "local", sessionId ?? "", context.Payload.WorkflowSettings.Type, context.Request.UserMessage),
+                "local", sessionId ?? "", context.Payload.Settings.Strategy, context.Request.UserMessage),
             EnvironmentVariables = SystemVariableProvider.BuildEnvironmentVariables(),
             ContextPassing = checkpoint.ContextPassing,
             ExecuteBodyChain = ExecuteBodyChainAsync,
@@ -424,14 +463,15 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
             if (!state.NodeMap.TryGetValue(currentNodeId, out var currentNode))
                 break;
 
-            var executor = _executorRegistry?.Get(currentNode.Type);
+            var executor = _executorRegistry?.Get(currentNode);
             if (executor is not null)
             {
-                var nodeName = currentNode.Name ?? currentNode.Id;
+                var nodeName = string.IsNullOrEmpty(currentNode.Name) ? currentNode.Id : currentNode.Name;
+                var currentTypeString = NodeTypeRegistry.TypeString(currentNode);
 
-                if (!NodeTypeRegistry.IsMeta(currentNode.Type))
+                if (!NodeTypeRegistry.IsMeta(currentNode))
                 {
-                    yield return ExecutionEvent.NodeExecuting(currentNode.Type, nodeName);
+                    yield return ExecutionEvent.NodeExecuting(currentTypeString, nodeName);
                 }
 
                 var collectedEvents = new List<ExecutionEvent>();
@@ -454,9 +494,9 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
                     TrackNodeResult(state, currentNodeId, nodeResult.Output);
                 }
 
-                if (!NodeTypeRegistry.IsMeta(currentNode.Type))
+                if (!NodeTypeRegistry.IsMeta(currentNode))
                 {
-                    yield return ExecutionEvent.NodeCompleted(currentNode.Type, nodeName, state.PreviousResult);
+                    yield return ExecutionEvent.NodeCompleted(currentTypeString, nodeName, state.PreviousResult);
                 }
 
                 if (nodeResult.ManagesOwnNavigation)
@@ -465,7 +505,7 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
                     currentNodeId = WorkflowGraphHelper.GetNextNodeId(
                         state.Adjacency, currentNodeId, nodeResult.OutputPort ?? OutputPorts.Output1);
 
-                if (_checkpointStore is not null && !NodeTypeRegistry.IsMeta(currentNode.Type))
+                if (_checkpointStore is not null && !NodeTypeRegistry.IsMeta(currentNode))
                 {
                     completedNodeIds.Add(currentNode.Id);
                     SaveCheckpointFireAndForget(state.ExecutionId, checkpointIteration++,
@@ -505,8 +545,8 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
             if (!state.NodeMap.TryGetValue(nodeId, out var node))
                 break;
 
-            // 優先走 NodeExecutorRegistry
-            var executor = _executorRegistry?.Get(node.Type);
+            // 優先走 NodeExecutorRegistry — state.NodeMap 直接存 NodeConfig
+            var executor = _executorRegistry?.Get(node);
             if (executor is not null)
             {
                 state.PreviousResult = result;
@@ -542,39 +582,13 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
             state.NodeResults[nodeId] = output;
     }
 
-    /// <summary>
-    /// 根據節點的 OutputFormat/OutputSchema 建構 ChatOptions。
-    /// </summary>
-    internal static ChatOptions? BuildResponseFormatOptions(WorkflowNode node)
-    {
-        ChatResponseFormat? responseFormat = null;
-        if (node.OutputFormat == "json")
-        {
-            responseFormat = ChatResponseFormat.Json;
-        }
-        else if (node.OutputFormat == "json_schema" && !string.IsNullOrWhiteSpace(node.OutputSchema))
-        {
-            try
-            {
-                var schemaElement = JsonDocument.Parse(node.OutputSchema).RootElement;
-                responseFormat = ChatResponseFormat.ForJsonSchema(
-                    schemaElement,
-                    schemaName: "OutputSchema",
-                    schemaDescription: "Agent output schema defined by user");
-            }
-            catch { /* invalid schema, fall back to text */ }
-        }
-
-        return responseFormat is not null ? new ChatOptions { ResponseFormat = responseFormat } : null;
-    }
-
-    internal static (WorkflowNode? Node, string Path) FindStartNode(WorkflowPayload payload)
+    internal static (Schema.NodeConfig? Node, string Path) FindStartNode(Schema.WorkflowPayload payload)
     {
         var nodeIds = new HashSet<string>(payload.Nodes.Select(n => n.Id));
 
         // Start 節點連出的目標就是起點
         var startNodeConn = payload.Connections
-            .FirstOrDefault(c => payload.Nodes.Any(n => n.Id == c.From && n.Type == NodeTypes.Start));
+            .FirstOrDefault(c => payload.Nodes.Any(n => n.Id == c.From && n is Schema.StartNode));
         if (startNodeConn is not null)
         {
             var target = payload.Nodes.FirstOrDefault(n => n.Id == startNodeConn.To);
@@ -594,23 +608,27 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
         var hasIncoming = new HashSet<string>(
             payload.Connections.Where(c => nodeIds.Contains(c.From)).Select(c => c.To));
         var firstExecutable = payload.Nodes
-            .Where(n => NodeTypeRegistry.IsExecutable(n.Type))
+            .Where(NodeTypeRegistry.IsExecutable)
             .FirstOrDefault(n => !hasIncoming.Contains(n.Id));
 
         if (firstExecutable is not null) return (firstExecutable, "no-incoming");
-        var fallback = payload.Nodes.FirstOrDefault(n => NodeTypeRegistry.IsAgentLike(n.Type) || n.Type == NodeTypes.Code);
+        var fallback = payload.Nodes.FirstOrDefault(n =>
+            NodeTypeRegistry.IsAgentLike(n) || n is Schema.CodeNode);
         return (fallback, "fallback-first-agent");
     }
 
-    internal static Dictionary<string, List<ChatMessage>> InitializeChatHistories(List<WorkflowNode> nodes)
+    internal static Dictionary<string, List<ChatMessage>> InitializeChatHistories(IEnumerable<Schema.NodeConfig> nodes)
     {
         var histories = new Dictionary<string, List<ChatMessage>>();
-        foreach (var node in nodes.Where(n => n.HistoryProvider == "inmemory"))
+        foreach (var node in nodes)
         {
-            var systemPrompt = string.IsNullOrWhiteSpace(node.Instructions)
+            if (node is not Schema.AgentNode agent) continue;
+            if (agent.History.Provider != Schema.HistoryProviderKind.InMemory) continue;
+
+            var systemPrompt = string.IsNullOrWhiteSpace(agent.Instructions)
                 ? "You are a helpful assistant."
-                : node.Instructions;
-            histories[node.Id] = [new(ChatRole.System, systemPrompt)];
+                : agent.Instructions;
+            histories[agent.Id] = [new(ChatRole.System, systemPrompt)];
         }
         return histories;
     }
@@ -618,12 +636,12 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
     /// <summary>
     /// 將輸入文字拆分為迭代陣列。
     /// </summary>
-    internal static List<string> SplitIterationInput(WorkflowNode node, string input)
+    internal static List<string> SplitIterationInput(string splitMode, string delimiter, string input)
     {
         if (string.IsNullOrWhiteSpace(input))
             return [];
 
-        var mode = node.SplitMode?.ToLowerInvariant() ?? "json-array";
+        var mode = splitMode?.ToLowerInvariant() ?? "json-array";
 
         if (mode == "json-array")
         {
@@ -652,8 +670,8 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
             catch { /* not valid JSON array, fall through to delimiter */ }
         }
 
-        var delimiter = string.IsNullOrEmpty(node.IterationDelimiter) ? "\n" : node.IterationDelimiter;
-        return input.Split(delimiter, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        var actualDelimiter = string.IsNullOrEmpty(delimiter) ? "\n" : delimiter;
+        return input.Split(actualDelimiter, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .ToList();
     }
 
@@ -689,11 +707,11 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
     /// 回傳 null 表示不適合投機（分支不存在、不是 agent 等），呼叫端應 fall through 到正常執行。
     /// </summary>
     private async Task<SpeculativeResult?> ExecuteSpeculativeConditionAsync(
-        string conditionNodeId, WorkflowNode conditionNode,
+        string conditionNodeId, Schema.NodeConfig conditionNode,
         NodeExecutors.INodeExecutor conditionExecutor,
         ImperativeExecutionState state, CancellationToken cancellationToken)
     {
-        var conditionName = conditionNode.Name ?? conditionNodeId;
+        var conditionName = string.IsNullOrEmpty(conditionNode.Name) ? conditionNodeId : conditionNode.Name;
 
         // 查兩條分支的起始節點
         var trueBranchId = WorkflowGraphHelper.GetNextNodeId(state.Adjacency, conditionNodeId, OutputPorts.Output1);
@@ -701,11 +719,11 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
 
         // 兩條分支都必須存在且是 agent-like 節點
         if (trueBranchId is null || falseBranchId is null) return null;
-        if (!state.NodeMap.TryGetValue(trueBranchId, out var trueNode) || !NodeTypeRegistry.IsAgentLike(trueNode.Type)) return null;
-        if (!state.NodeMap.TryGetValue(falseBranchId, out var falseNode) || !NodeTypeRegistry.IsAgentLike(falseNode.Type)) return null;
+        if (!state.NodeMap.TryGetValue(trueBranchId, out var trueNode) || !NodeTypeRegistry.IsAgentLike(trueNode)) return null;
+        if (!state.NodeMap.TryGetValue(falseBranchId, out var falseNode) || !NodeTypeRegistry.IsAgentLike(falseNode)) return null;
 
-        var trueExecutor = _executorRegistry?.Get(trueNode.Type);
-        var falseExecutor = _executorRegistry?.Get(falseNode.Type);
+        var trueExecutor = _executorRegistry?.Get(trueNode);
+        var falseExecutor = _executorRegistry?.Get(falseNode);
         if (trueExecutor is null || falseExecutor is null) return null;
 
         // 搶跑 input = condition 的 input（此時已確定）
@@ -747,19 +765,22 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
         var events = new List<ExecutionEvent>();
 
         // 1. Condition 節點 events
-        events.Add(ExecutionEvent.NodeExecuting(conditionNode.Type, conditionName));
-        events.Add(ExecutionEvent.NodeCompleted(conditionNode.Type, conditionName,
+        var conditionTypeString = NodeTypeRegistry.TypeString(conditionNode);
+        events.Add(ExecutionEvent.NodeExecuting(conditionTypeString, conditionName));
+        events.Add(ExecutionEvent.NodeCompleted(conditionTypeString, conditionName,
             $"[condition] {conditionName} → {(isTrue ? "TRUE" : "FALSE")} (speculative)"));
 
         // 2. 贏家分支 events
-        var winnerName = winnerNode.Name ?? winnerId;
-        events.Add(ExecutionEvent.NodeExecuting(winnerNode.Type, winnerName));
+        var winnerName = string.IsNullOrEmpty(winnerNode.Name) ? winnerId : winnerNode.Name;
+        var winnerTypeString = NodeTypeRegistry.TypeString(winnerNode);
+        events.Add(ExecutionEvent.NodeExecuting(winnerTypeString, winnerName));
         events.AddRange(winnerEvents);
-        events.Add(ExecutionEvent.NodeCompleted(winnerNode.Type, winnerName, winnerResult));
+        events.Add(ExecutionEvent.NodeCompleted(winnerTypeString, winnerName, winnerResult));
 
         // 3. 輸家取消 event
-        var loserName = loserNode.Name ?? loserId;
-        events.Add(ExecutionEvent.NodeCancelled(loserNode.Type, loserName, "speculative execution — wrong branch"));
+        var loserName = string.IsNullOrEmpty(loserNode.Name) ? loserId : loserNode.Name;
+        events.Add(ExecutionEvent.NodeCancelled(NodeTypeRegistry.TypeString(loserNode), loserName,
+            "speculative execution — wrong branch"));
 
         // 更新 state
         TrackNodeResult(state, winnerId, winnerResult);
@@ -773,7 +794,8 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
     /// PreviousResult 由呼叫端在啟動前統一設定，分支內不修改共享 state。
     /// </summary>
     private static async Task<(List<ExecutionEvent> Events, string Result)> ExecuteSpeculativeBranchAsync(
-        string nodeId, WorkflowNode node, NodeExecutors.INodeExecutor executor,
+        string nodeId, Schema.NodeConfig node,
+        NodeExecutors.INodeExecutor executor,
         ImperativeExecutionState state, string input,
         CancellationToken cancellationToken)
     {

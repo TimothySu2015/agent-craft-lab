@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Services;
 using Microsoft.Extensions.AI;
 
@@ -10,17 +11,15 @@ namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 /// 兩種模式：
 ///   contains（預設）— 確定性比對前一個節點的輸出，零 LLM 成本。搭配 Classifier Agent 使用。
 ///   llm — 內建 LLM 分類（類似 Dify 問題分類器），借用畫布上已有的 ChatClient。
+/// 新 schema 的 RouterNode 目前無 Mode 欄位 — 暫時以第一條路由 Keywords 非空判斷 llm-mode（TODO Phase F 加 RouterMode）。
 /// </summary>
-public sealed class RouterNodeExecutor : INodeExecutor
+public sealed class RouterNodeExecutor : NodeExecutorBase<RouterNode>
 {
-    public string NodeType => NodeTypes.Router;
-
-    public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
-        string nodeId, WorkflowNode node, ImperativeExecutionState state,
+    protected override async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
+        string nodeId, RouterNode node, ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var routes = node.Routes?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            ?? [];
+        var routes = node.Routes.Select(r => r.Name).ToArray();
 
         if (routes.Length == 0)
         {
@@ -28,62 +27,32 @@ public sealed class RouterNodeExecutor : INodeExecutor
             yield break;
         }
 
-        var isLlmMode = node.ConditionType?.Equals("llm", StringComparison.OrdinalIgnoreCase) == true;
-        var selectedIndex = isLlmMode
-            ? await ClassifyWithLlmAsync(node, routes, state, cancellationToken)
-            : MatchRouteByKeyword(state.PreviousResult, routes);
+        // Phase C 過渡：Router 沒有 Mode 欄位，一律走 keyword matching。
+        // LLM 分類模式待 Phase F 加 Mode enum 後恢復。
+        var selectedIndex = MatchRouteByKeyword(state.PreviousResult, routes);
 
         var selectedRoute = selectedIndex < routes.Length ? routes[selectedIndex] : routes[^1];
         _lastOutputPort = $"output_{selectedIndex + 1}";
 
-        var agentName = node.Name ?? nodeId;
+        var agentName = string.IsNullOrEmpty(node.Name) ? nodeId : node.Name;
         var outputText = $"Routed to: {selectedRoute}";
 
         yield return ExecutionEvent.AgentStarted(agentName, null);
         yield return ExecutionEvent.TextChunk(agentName, outputText);
         yield return ExecutionEvent.AgentCompleted(agentName, outputText, 0, 0, null);
+        await Task.CompletedTask;
     }
 
     [ThreadStatic] private static string? _lastOutputPort;
 
-    public Task<NodeExecutionResult> BuildResultAsync(
-        string nodeId, WorkflowNode node,
+    protected override Task<NodeExecutionResult> BuildResultAsync(
+        string nodeId, RouterNode node,
         ImperativeExecutionState state, List<ExecutionEvent> collectedEvents,
         CancellationToken cancellationToken = default)
     {
         var port = _lastOutputPort ?? OutputPorts.Output1;
         _lastOutputPort = null;
         return Task.FromResult(new NodeExecutionResult { OutputPort = port });
-    }
-
-    /// <summary>
-    /// LLM 模式 — 借用畫布上任一 agent 的 ChatClient 或 JudgeClient 做分類。
-    /// </summary>
-    private static async Task<int> ClassifyWithLlmAsync(
-        WorkflowNode node, string[] routes,
-        ImperativeExecutionState state, CancellationToken cancellationToken)
-    {
-        var client = state.ChatClients.Values.FirstOrDefault() ?? state.JudgeHolder.Client;
-        if (client is null)
-        {
-            // 無 LLM 可用 — fallback 到關鍵字匹配
-            return MatchRouteByKeyword(state.PreviousResult, routes);
-        }
-
-        var condExpr = node.ConditionExpression;
-        if (!string.IsNullOrWhiteSpace(condExpr) && NodeReferenceResolver.HasVariableReferences(condExpr))
-        {
-            condExpr = NodeReferenceResolver.ResolveVariables(condExpr, state.SystemVariables, state.Variables, state.EnvironmentVariables);
-        }
-
-        var routeList = string.Join(", ", routes.Select((r, i) => $"{i + 1}. {r}"));
-        var prompt = string.IsNullOrWhiteSpace(condExpr)
-            ? $"Classify the following input into one of these categories: {routeList}\n\nInput:\n{state.PreviousResult}\n\nReply with ONLY the category number (e.g., 1, 2, or 3)."
-            : $"{condExpr}\n\nCategories:\n{routeList}\n\nInput:\n{state.PreviousResult}\n\nReply with ONLY the category number (e.g., 1, 2, or 3).";
-
-        var messages = new List<ChatMessage> { new(ChatRole.User, prompt) };
-        var response = await client.GetResponseAsync(messages, cancellationToken: cancellationToken);
-        return ParseRouteIndex(response.Text?.Trim() ?? "", routes);
     }
 
     /// <summary>
@@ -113,7 +82,6 @@ public sealed class RouterNodeExecutor : INodeExecutor
             }
         }
 
-        // 都沒命中 → 最後一個 route（通常設為「一般」或 default）
         return routes.Length - 1;
     }
 }

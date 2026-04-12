@@ -6,7 +6,9 @@
 
 ## 1. 新增節點類型
 
-以新增一個 `timer` 節點為例，需修改四個位置。
+以新增一個 `timer` 節點為例，需修改七個位置。
+
+> **Schema v2 遷移說明：** 舊版使用扁平的 `WorkflowNode` 類別與 `WorkflowNodeConverter` 自訂 JSON 轉換器，已全部刪除。現在每種節點類型都有對應的 `Schema.NodeConfig` sealed record 子型別，透過 `[JsonDerivedType]` discriminator union 實現多型序列化。
 
 ### 步驟 1：NodeTypes 加常數
 
@@ -52,11 +54,12 @@ public sealed class TimerNodeExecutor : INodeExecutor
 
     public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
         string nodeId,
-        WorkflowNode node,
+        Schema.NodeConfig node,
         ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var delayMs = int.TryParse(node.ConditionExpression, out var ms) ? ms : 1000;
+        var timerNode = (Schema.TimerNodeConfig)node;
+        var delayMs = timerNode.DelayMs ?? 1000;
 
         yield return new ExecutionEvent(EventTypes.AgentStarted, node.Name, $"Timer: waiting {delayMs}ms");
         await Task.Delay(delayMs, cancellationToken);
@@ -73,7 +76,35 @@ services.AddSingleton<INodeExecutor, TimerNodeExecutor>();
 
 `NodeExecutorRegistry` 會自動透過 `IEnumerable<INodeExecutor>` 收集所有實作。
 
-### 步驟 4：JS NODE_REGISTRY 加前端渲染
+### 步驟 4：Schema/Nodes/ 加 sealed record
+
+在 `AgentCraftLab.Engine/Schema/Nodes/` 目錄建立節點的 Schema 子型別：
+
+```csharp
+namespace AgentCraftLab.Engine.Schema;
+
+public sealed record TimerNodeConfig : NodeConfig
+{
+    public int? DelayMs { get; init; }
+}
+```
+
+每種節點類型都有獨立的 sealed record，繼承自 `NodeConfig` 基底類別。所有節點專屬欄位都定義在此。
+
+### 步驟 5：NodeConfig.cs 加 `[JsonDerivedType]`
+
+在 `NodeConfig` 基底類別加上 discriminator 標註：
+
+```csharp
+[JsonDerivedType(typeof(TimerNodeConfig), "timer")]
+public abstract record NodeConfig { ... }
+```
+
+這讓 `System.Text.Json` 能透過 `$type` discriminator 自動序列化/反序列化正確的子型別。
+
+> **注意：** 舊版的 `WorkflowNode`、`WorkflowPayload`、`WorkflowNodeConverter`、`NodeReferenceResolver` 已全部刪除，不再使用。
+
+### 步驟 6：JS NODE_REGISTRY 加前端渲染
 
 檔案：`AgentCraftLab.Web/src/components/studio/nodes/registry.ts`
 
@@ -90,13 +121,17 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 1,
     defaultData: (name) => ({
-      type: 'timer', name, conditionExpression: '1000',
+      type: 'timer', name, delayMs: 1000,
     }),
   },
 }
 ```
 
-同時需要在 `AgentCraftLab.Web/src/types/workflow.ts` 的 `NodeType` 聯合型別中加入 `'timer'`，並建立對應的 React 節點元件。
+同時需要在 `AgentCraftLab.Web/src/types/workflow.ts` 的 `NodeType` 聯合型別與 `NodeData` 型別中加入 `'timer'` 對應的欄位定義。
+
+### 步驟 7：NodeSpecRegistry 加規格
+
+在 `NodeSpecRegistry` 中為新節點加入規格定義，供 AI Build 與驗證使用。
 
 ---
 
@@ -569,7 +604,7 @@ result = hash;
 
 | 擴充類型 | 修改檔案 |
 |----------|----------|
-| 新節點 | `Constants.cs` + `NodeExecutor` + `registry.ts` |
+| 新節點 | `Constants.cs` + `NodeExecutor` + `Schema/Nodes/*.cs` + `NodeConfig.cs` + `registry.ts` + `NodeSpecRegistry` |
 | 新工具 | `ToolImplementations.cs` + `ToolRegistryService.cs` |
 | 新策略 | `IWorkflowStrategy` 實作 + `WorkflowStrategyResolver.cs` |
 | 新 Middleware | `DelegatingChatClient` 子類 + `AgentContextBuilder.cs` |

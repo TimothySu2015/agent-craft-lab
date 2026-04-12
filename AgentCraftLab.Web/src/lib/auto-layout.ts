@@ -29,7 +29,9 @@ function buildPorts(nodeId: string, nodes: Node[], direction: string): ElkPort[]
 
   let actualOutputs = outputs
   if (nodeType === 'parallel') {
-    const branches = ((node?.data as any)?.branches ?? '').split(',').filter(Boolean)
+    // F3: parallel branches is now BranchConfig[]
+    const data = node?.data as NodeData | undefined
+    const branches = data?.type === 'parallel' ? (data.branches ?? []) : []
     actualOutputs = branches.length + 1
   }
 

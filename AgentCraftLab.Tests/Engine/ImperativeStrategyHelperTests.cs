@@ -1,5 +1,7 @@
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Strategies;
+using AgentCraftLab.Engine.Strategies.NodeExecutors;
 using Microsoft.Extensions.AI;
 
 namespace AgentCraftLab.Tests.Engine;
@@ -17,14 +19,14 @@ public class ImperativeStrategyHelperTests
     [Fact]
     public void FindStartNode_WithStartNode_ReturnsFirstAgent()
     {
-        var payload = new WorkflowPayload
+        var payload = new AgentCraftLab.Engine.Models.Schema.WorkflowPayload
         {
             Nodes =
             [
-                new WorkflowNode { Id = "s1", Type = NodeTypes.Start },
-                new WorkflowNode { Id = "a1", Type = NodeTypes.Agent, Name = "Agent1" }
+                new StartNode { Id = "s1" },
+                new AgentNode { Id = "a1", Name = "Agent1" }
             ],
-            Connections = [new WorkflowConnection { From = "s1", To = "a1" }]
+            Connections = [new AgentCraftLab.Engine.Models.Schema.Connection { From = "s1", To = "a1" }]
         };
         var (result, path) = ImperativeWorkflowStrategy.FindStartNode(payload);
         Assert.NotNull(result);
@@ -35,12 +37,12 @@ public class ImperativeStrategyHelperTests
     [Fact]
     public void FindStartNode_NoStartNode_ReturnsFirstExecutable()
     {
-        var payload = new WorkflowPayload
+        var payload = new AgentCraftLab.Engine.Models.Schema.WorkflowPayload
         {
             Nodes =
             [
-                new WorkflowNode { Id = "a1", Type = NodeTypes.Agent, Name = "Agent1" },
-                new WorkflowNode { Id = "a2", Type = NodeTypes.Agent, Name = "Agent2" }
+                new AgentNode { Id = "a1", Name = "Agent1" },
+                new AgentNode { Id = "a2", Name = "Agent2" }
             ],
             Connections = []
         };
@@ -51,7 +53,7 @@ public class ImperativeStrategyHelperTests
     [Fact]
     public void FindStartNode_EmptyPayload_ReturnsNull()
     {
-        var payload = new WorkflowPayload { Nodes = [], Connections = [] };
+        var payload = new AgentCraftLab.Engine.Models.Schema.WorkflowPayload { Nodes = [], Connections = [] };
         var (result, _) = ImperativeWorkflowStrategy.FindStartNode(payload);
         Assert.Null(result);
     }
@@ -63,10 +65,16 @@ public class ImperativeStrategyHelperTests
     [Fact]
     public void InitializeChatHistories_InmemoryNodes_GetHistory()
     {
-        var nodes = new List<WorkflowNode>
+        var nodes = new List<NodeConfig>
         {
-            new() { Id = "a1", Type = NodeTypes.Agent, Name = "A1", Instructions = "Be helpful", HistoryProvider = "inmemory" },
-            new() { Id = "a2", Type = NodeTypes.Agent, Name = "A2" } // no history
+            new AgentNode
+            {
+                Id = "a1",
+                Name = "A1",
+                Instructions = "Be helpful",
+                History = new HistoryConfig { Provider = HistoryProviderKind.InMemory }
+            },
+            new AgentNode { Id = "a2", Name = "A2" } // no history
         };
         var histories = ImperativeWorkflowStrategy.InitializeChatHistories(nodes);
         Assert.True(histories.ContainsKey("a1"));
@@ -78,9 +86,9 @@ public class ImperativeStrategyHelperTests
     [Fact]
     public void InitializeChatHistories_NoInmemoryNodes_Empty()
     {
-        var nodes = new List<WorkflowNode>
+        var nodes = new List<NodeConfig>
         {
-            new() { Id = "a1", Type = NodeTypes.Agent, Name = "A1" }
+            new AgentNode { Id = "a1", Name = "A1" }
         };
         var histories = ImperativeWorkflowStrategy.InitializeChatHistories(nodes);
         Assert.Empty(histories);
@@ -93,8 +101,7 @@ public class ImperativeStrategyHelperTests
     [Fact]
     public void SplitIteration_JsonArray_ParsesCorrectly()
     {
-        var node = new WorkflowNode { Id = "i1", Type = NodeTypes.Iteration, SplitMode = "json-array" };
-        var items = ImperativeWorkflowStrategy.SplitIterationInput(node, "[\"apple\",\"banana\",\"cherry\"]");
+        var items = ImperativeWorkflowStrategy.SplitIterationInput("json-array", "\n", "[\"apple\",\"banana\",\"cherry\"]");
         Assert.Equal(3, items.Count);
         Assert.Equal("apple", items[0]);
         Assert.Equal("banana", items[1]);
@@ -103,41 +110,36 @@ public class ImperativeStrategyHelperTests
     [Fact]
     public void SplitIteration_JsonArrayWithSurroundingText_ExtractsBrackets()
     {
-        var node = new WorkflowNode { Id = "i1", Type = NodeTypes.Iteration, SplitMode = "json-array" };
-        var items = ImperativeWorkflowStrategy.SplitIterationInput(node, "Here are the items: [\"a\",\"b\"] done.");
+        var items = ImperativeWorkflowStrategy.SplitIterationInput("json-array", "\n", "Here are the items: [\"a\",\"b\"] done.");
         Assert.Equal(2, items.Count);
     }
 
     [Fact]
     public void SplitIteration_Delimiter_SplitsCorrectly()
     {
-        var node = new WorkflowNode { Id = "i1", Type = NodeTypes.Iteration, SplitMode = "delimiter", IterationDelimiter = "," };
-        var items = ImperativeWorkflowStrategy.SplitIterationInput(node, "x,y,z");
+        var items = ImperativeWorkflowStrategy.SplitIterationInput("delimiter", ",", "x,y,z");
         Assert.Equal(3, items.Count);
     }
 
     [Fact]
     public void SplitIteration_DefaultNewline()
     {
-        var node = new WorkflowNode { Id = "i1", Type = NodeTypes.Iteration, SplitMode = "delimiter" };
-        var items = ImperativeWorkflowStrategy.SplitIterationInput(node, "line1\nline2\nline3");
+        var items = ImperativeWorkflowStrategy.SplitIterationInput("delimiter", "\n", "line1\nline2\nline3");
         Assert.Equal(3, items.Count);
     }
 
     [Fact]
     public void SplitIteration_EmptyInput_ReturnsEmpty()
     {
-        var node = new WorkflowNode { Id = "i1", Type = NodeTypes.Iteration };
-        var items = ImperativeWorkflowStrategy.SplitIterationInput(node, "");
+        var items = ImperativeWorkflowStrategy.SplitIterationInput("json-array", "\n", "");
         Assert.Empty(items);
     }
 
     [Fact]
     public void SplitIteration_InvalidJson_FallbackToDelimiter()
     {
-        var node = new WorkflowNode { Id = "i1", Type = NodeTypes.Iteration, SplitMode = "json-array" };
-        var items = ImperativeWorkflowStrategy.SplitIterationInput(node, "not json at all");
-        Assert.Single(items); // entire string as one item
+        var items = ImperativeWorkflowStrategy.SplitIterationInput("json-array", "\n", "not json at all");
+        Assert.Single(items);
     }
 
     // ════════════════════════════════════════
@@ -191,22 +193,25 @@ public class ImperativeStrategyHelperTests
     }
 
     // ════════════════════════════════════════
-    // BuildResponseFormatOptions
+    // BuildResponseFormatOptions — 已移到 AgentNodeExecutor，簽名收 OutputConfig
     // ════════════════════════════════════════
 
     [Fact]
     public void BuildResponseFormat_Text_ReturnsNull()
     {
-        var node = new WorkflowNode { Id = "a1", Type = NodeTypes.Agent };
-        var result = ImperativeWorkflowStrategy.BuildResponseFormatOptions(node);
+        var output = new AgentCraftLab.Engine.Models.Schema.OutputConfig();
+        var result = AgentNodeExecutor.BuildResponseFormatOptions(output);
         Assert.Null(result);
     }
 
     [Fact]
     public void BuildResponseFormat_Json_ReturnsChatOptions()
     {
-        var node = new WorkflowNode { Id = "a1", Type = NodeTypes.Agent, OutputFormat = "json" };
-        var result = ImperativeWorkflowStrategy.BuildResponseFormatOptions(node);
+        var output = new AgentCraftLab.Engine.Models.Schema.OutputConfig
+        {
+            Kind = AgentCraftLab.Engine.Models.Schema.OutputFormat.Json
+        };
+        var result = AgentNodeExecutor.BuildResponseFormatOptions(output);
         Assert.NotNull(result);
         Assert.NotNull(result!.ResponseFormat);
     }
@@ -214,26 +219,24 @@ public class ImperativeStrategyHelperTests
     [Fact]
     public void BuildResponseFormat_JsonSchema_WithValidSchema()
     {
-        var node = new WorkflowNode
+        var output = new AgentCraftLab.Engine.Models.Schema.OutputConfig
         {
-            Id = "a1", Type = NodeTypes.Agent,
-            OutputFormat = "json_schema",
-            OutputSchema = "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}"
+            Kind = AgentCraftLab.Engine.Models.Schema.OutputFormat.JsonSchema,
+            SchemaJson = "{\"type\":\"object\",\"properties\":{\"name\":{\"type\":\"string\"}}}"
         };
-        var result = ImperativeWorkflowStrategy.BuildResponseFormatOptions(node);
+        var result = AgentNodeExecutor.BuildResponseFormatOptions(output);
         Assert.NotNull(result);
     }
 
     [Fact]
     public void BuildResponseFormat_JsonSchema_InvalidSchema_ReturnsNull()
     {
-        var node = new WorkflowNode
+        var output = new AgentCraftLab.Engine.Models.Schema.OutputConfig
         {
-            Id = "a1", Type = NodeTypes.Agent,
-            OutputFormat = "json_schema",
-            OutputSchema = "not valid json"
+            Kind = AgentCraftLab.Engine.Models.Schema.OutputFormat.JsonSchema,
+            SchemaJson = "not valid json"
         };
-        var result = ImperativeWorkflowStrategy.BuildResponseFormatOptions(node);
+        var result = AgentNodeExecutor.BuildResponseFormatOptions(output);
         Assert.Null(result);
     }
 

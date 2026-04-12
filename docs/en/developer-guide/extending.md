@@ -6,7 +6,9 @@ This document explains how to add various extensions to AgentCraftLab. Each exte
 
 ## 1. Adding a New Node Type
 
-Using a `timer` node as an example, four locations need to be modified.
+Using a `timer` node as an example, seven locations need to be modified.
+
+> **Schema v2 note:** The old flat `WorkflowNode` class and `WorkflowNodeConverter` have been deleted. Node configuration is now represented by `Schema.NodeConfig` — a sealed record hierarchy using `[JsonDerivedType]` discriminator unions. Each node type has its own sealed record subtype under `Schema/Nodes/`.
 
 ### Step 1: Add Constant to NodeTypes
 
@@ -52,15 +54,16 @@ public sealed class TimerNodeExecutor : INodeExecutor
 
     public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
         string nodeId,
-        WorkflowNode node,
+        Schema.NodeConfig nodeConfig,
         ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var delayMs = int.TryParse(node.ConditionExpression, out var ms) ? ms : 1000;
+        var timerConfig = (Schema.Nodes.TimerNodeConfig)nodeConfig;
+        var delayMs = timerConfig.DelayMs ?? 1000;
 
-        yield return new ExecutionEvent(EventTypes.AgentStarted, node.Name, $"Timer: waiting {delayMs}ms");
+        yield return new ExecutionEvent(EventTypes.AgentStarted, nodeConfig.Name, $"Timer: waiting {delayMs}ms");
         await Task.Delay(delayMs, cancellationToken);
-        yield return new ExecutionEvent(EventTypes.AgentCompleted, node.Name, $"Timer completed after {delayMs}ms");
+        yield return new ExecutionEvent(EventTypes.AgentCompleted, nodeConfig.Name, $"Timer completed after {delayMs}ms");
     }
 }
 ```
@@ -73,7 +76,31 @@ services.AddSingleton<INodeExecutor, TimerNodeExecutor>();
 
 `NodeExecutorRegistry` automatically collects all implementations via `IEnumerable<INodeExecutor>`.
 
-### Step 4: Add Frontend Rendering to JS NODE_REGISTRY
+### Step 4: Add Sealed Record in Schema/Nodes/
+
+Create `AgentCraftLab.Engine/Schema/Nodes/TimerNodeConfig.cs`:
+
+```csharp
+namespace AgentCraftLab.Engine.Schema.Nodes;
+
+public sealed record TimerNodeConfig : NodeConfig
+{
+    public int? DelayMs { get; init; }
+}
+```
+
+### Step 5: Add `[JsonDerivedType]` to NodeConfig.cs
+
+File: `AgentCraftLab.Engine/Schema/NodeConfig.cs`
+
+```csharp
+[JsonDerivedType(typeof(Nodes.TimerNodeConfig), "timer")]  // <-- new
+public abstract record NodeConfig { ... }
+```
+
+This registers the discriminator so the JSON deserializer can round-trip the correct subtype.
+
+### Step 6: Add Frontend Rendering to JS NODE_REGISTRY and types
 
 File: `AgentCraftLab.Web/src/components/studio/nodes/registry.ts`
 
@@ -90,13 +117,17 @@ export const NODE_REGISTRY: Record<NodeType, NodeTypeConfig> = {
     inputs: 1,
     outputs: 1,
     defaultData: (name) => ({
-      type: 'timer', name, conditionExpression: '1000',
+      type: 'timer', name, delayMs: 1000,
     }),
   },
 }
 ```
 
-You also need to add `'timer'` to the `NodeType` union type in `AgentCraftLab.Web/src/types/workflow.ts` and create the corresponding React node component.
+You also need to add `'timer'` to the `NodeType` union type and the `NodeData` discriminated union in `AgentCraftLab.Web/src/types/workflow.ts`, and create the corresponding React node component.
+
+### Step 7: Add Spec to NodeSpecRegistry
+
+Register the node's AI Build specification in `NodeSpecRegistry` so that the AI Build feature knows how to generate this node type from natural language descriptions.
 
 ---
 
@@ -569,7 +600,7 @@ The `Name` property determines the global object name in the script, and the key
 
 | Extension Type | Files to Modify |
 |----------|----------|
-| New Node | `Constants.cs` + `NodeExecutor` + `registry.ts` |
+| New Node | `Constants.cs` + `NodeTypeRegistry` + `NodeExecutor` + `Schema/Nodes/*.cs` + `NodeConfig.cs [JsonDerivedType]` + `registry.ts` + `workflow.ts` + `NodeSpecRegistry` |
 | New Tool | `ToolImplementations.cs` + `ToolRegistryService.cs` |
 | New Strategy | `IWorkflowStrategy` implementation + `WorkflowStrategyResolver.cs` |
 | New Middleware | `DelegatingChatClient` subclass + `AgentContextBuilder.cs` |

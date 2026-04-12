@@ -65,7 +65,7 @@ public class RagService
     /// </summary>
     public async IAsyncEnumerable<ExecutionEvent> IngestAsync(
         FileAttachment file,
-        RagSettings settings,
+        Models.Schema.RagConfig settings,
         IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator,
         string indexName,
         string? dataSourceId = null,

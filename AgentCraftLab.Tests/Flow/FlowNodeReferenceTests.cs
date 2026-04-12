@@ -4,7 +4,9 @@ using AgentCraftLab.Autonomous.Flow.Models;
 using AgentCraftLab.Autonomous.Flow.Services;
 using AgentCraftLab.Engine.Models;
 using AgentCraftLab.Engine.Services;
+using AgentCraftLab.Engine.Services.Variables;
 using Microsoft.Extensions.Logging.Abstractions;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Tests.Flow;
 
@@ -18,6 +20,7 @@ public class FlowNodeReferenceTests
         var runner = new FlowNodeRunner(
             null!, // agentFactory — 不測試 LLM 呼叫
             null!, // httpApiTool
+            new VariableResolver(),
             NullLogger<FlowNodeRunner>.Instance)
         {
             NodeOutputs = nodeOutputs ?? new Dictionary<string, string>()
@@ -154,8 +157,8 @@ public class FlowNodeReferenceTests
         {
             Nodes =
             [
-                new PlannedNode { NodeType = "agent", Name = "search", Instructions = "Search for data" },
-                new PlannedNode { NodeType = "agent", Name = "summarize",
+                new Schema.AgentNode { Name = "search", Instructions = "Search for data" },
+                new Schema.AgentNode { Name = "summarize",
                     Instructions = "Summarize {{node:search}} results" }
             ]
         };
@@ -171,8 +174,8 @@ public class FlowNodeReferenceTests
         {
             Nodes =
             [
-                new PlannedNode { NodeType = "agent", Name = "search", Instructions = "Search" },
-                new PlannedNode { NodeType = "agent", Name = "summarize",
+                new Schema.AgentNode { Name = "search", Instructions = "Search" },
+                new Schema.AgentNode { Name = "summarize",
                     Instructions = "Use {{node:nonexistent}} data" }
             ]
         };
@@ -188,14 +191,14 @@ public class FlowNodeReferenceTests
         {
             Nodes =
             [
-                new PlannedNode { NodeType = "agent", Name = "raw_data", Instructions = "Get data" },
-                new PlannedNode
+                new Schema.AgentNode { Name = "raw_data", Instructions = "Get data" },
+                new Schema.ParallelNode
                 {
-                    NodeType = "parallel", Name = "analyze",
+                    Name = "analyze",
                     Branches =
                     [
-                        new ParallelBranchConfig { Name = "A", Goal = "Analyze {{node:raw_data}} for trends" },
-                        new ParallelBranchConfig { Name = "B", Goal = "Analyze {{node:missing}} for risks" }
+                        new Schema.BranchConfig { Name = "A", Goal = "Analyze {{node:raw_data}} for trends" },
+                        new Schema.BranchConfig { Name = "B", Goal = "Analyze {{node:missing}} for risks" }
                     ]
                 }
             ]
@@ -213,7 +216,7 @@ public class FlowNodeReferenceTests
         {
             Nodes =
             [
-                new PlannedNode { NodeType = "agent", Name = "step1",
+                new Schema.AgentNode { Name = "step1",
                     Instructions = "Use {{node:step1}} to improve" }
             ]
         };
@@ -264,67 +267,71 @@ public class FlowNodeReferenceTests
     }
 
     // ════════════════════════════════════════
-    // NodeReferenceResolver（Engine 共用）— 畫布 name→ID 反向查找
+    // VariableResolver — 畫布 name→ID 反向查找（透過 VariableContext.NodeNameMap）
     // ════════════════════════════════════════
+
+    private static readonly IVariableResolver CanvasResolver = new VariableResolver();
 
     [Fact]
     public void Resolver_CanvasMode_ResolvesNodeByName()
     {
-        var nodeResults = new Dictionary<string, string>
+        // NodeOutputs key 為 node ID，NodeNameMap 為 name → ID 反查表
+        var ctx = new VariableContext
         {
-            ["node_1"] = "search results",
-            ["node_2"] = "analysis"
-        };
-        var nodeMap = new Dictionary<string, WorkflowNode>
-        {
-            ["node_1"] = new() { Id = "node_1", Name = "Search Data" },
-            ["node_2"] = new() { Id = "node_2", Name = "Analyze" }
+            NodeOutputs = new Dictionary<string, string>
+            {
+                ["node_1"] = "search results",
+                ["node_2"] = "analysis"
+            },
+            NodeNameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Search Data"] = "node_1",
+                ["Analyze"] = "node_2"
+            }
         };
 
-        var result = NodeReferenceResolver.Resolve(
-            "Based on {{node:Search Data}}, summarize.",
-            nodeResults, nodeMap);
+        var result = CanvasResolver.Resolve(
+            "Based on {{node:Search Data}}, summarize.", ctx);
         Assert.Equal("Based on search results, summarize.", result);
     }
 
     [Fact]
     public void Resolver_CanvasMode_ResolvesNodeById()
     {
-        var nodeResults = new Dictionary<string, string>
+        // 直接用 ID 查也要可以（免反向查）
+        var ctx = new VariableContext
         {
-            ["node_1"] = "output"
-        };
-        var nodeMap = new Dictionary<string, WorkflowNode>
-        {
-            ["node_1"] = new() { Id = "node_1", Name = "Search" }
+            NodeOutputs = new Dictionary<string, string> { ["node_1"] = "output" },
+            NodeNameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Search"] = "node_1"
+            }
         };
 
-        var result = NodeReferenceResolver.Resolve(
-            "Use {{node:node_1}} data.", nodeResults, nodeMap);
+        var result = CanvasResolver.Resolve("Use {{node:node_1}} data.", ctx);
         Assert.Equal("Use output data.", result);
     }
 
     [Fact]
     public void Resolver_CanvasMode_CaseInsensitiveName()
     {
-        var nodeResults = new Dictionary<string, string>
+        var ctx = new VariableContext
         {
-            ["node_1"] = "data"
-        };
-        var nodeMap = new Dictionary<string, WorkflowNode>
-        {
-            ["node_1"] = new() { Id = "node_1", Name = "Search Data" }
+            NodeOutputs = new Dictionary<string, string> { ["node_1"] = "data" },
+            NodeNameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Search Data"] = "node_1"
+            }
         };
 
-        var result = NodeReferenceResolver.Resolve(
-            "Use {{node:search data}}.", nodeResults, nodeMap);
+        var result = CanvasResolver.Resolve("Use {{node:search data}}.", ctx);
         Assert.Equal("Use data.", result);
     }
 
     [Fact]
-    public void Resolver_ExtractNames_ReturnsDistinctNames()
+    public void Resolver_ExtractNodeReferenceNames_ReturnsDistinctNames()
     {
-        var names = NodeReferenceResolver.ExtractNames(
+        var names = VariableResolver.ExtractNodeReferenceNames(
             "{{node:a}} and {{node:b}} and {{node:a}} again");
         Assert.Equal(2, names.Count);
         Assert.Contains("a", names);
@@ -334,16 +341,19 @@ public class FlowNodeReferenceTests
     [Fact]
     public void Resolver_HasReferences_DetectsPattern()
     {
-        Assert.True(NodeReferenceResolver.HasReferences("Use {{node:search}} data"));
-        Assert.False(NodeReferenceResolver.HasReferences("No references here"));
-        Assert.False(NodeReferenceResolver.HasReferences(null));
+        Assert.True(CanvasResolver.HasReferences("Use {{node:search}} data"));
+        Assert.False(CanvasResolver.HasReferences("No references here"));
+        Assert.False(CanvasResolver.HasReferences(null));
     }
 
     [Fact]
     public void Resolver_NoReferences_SkipsRegex()
     {
-        var result = NodeReferenceResolver.Resolve(
-            "No refs", new Dictionary<string, string> { ["x"] = "y" });
+        var ctx = new VariableContext
+        {
+            NodeOutputs = new Dictionary<string, string> { ["x"] = "y" }
+        };
+        var result = CanvasResolver.Resolve("No refs", ctx);
         Assert.Equal("No refs", result);
     }
 
@@ -365,16 +375,15 @@ public class FlowNodeReferenceTests
     [Fact]
     public async Task ResolveAsync_CompressesLongOutput()
     {
-        var longOutput = new string('x', NodeReferenceResolver.CompressionThreshold + 100);
-        var nodeOutputs = new Dictionary<string, string>
+        var longOutput = new string('x', VariableResolver.CompressionThreshold + 100);
+        var ctx = new VariableContext
         {
-            ["search"] = longOutput
+            NodeOutputs = new Dictionary<string, string> { ["search"] = longOutput }
         };
         var compactor = new FakeCompactor();
 
-        var result = await NodeReferenceResolver.ResolveAsync(
-            "Based on {{node:search}}, summarize.",
-            nodeOutputs, compactor, "summarize context");
+        var result = await CanvasResolver.ResolveAsync(
+            "Based on {{node:search}}, summarize.", ctx, compactor, "summarize context");
 
         Assert.Equal(1, compactor.CallCount);
         Assert.Contains("[compressed:", result);
@@ -385,15 +394,14 @@ public class FlowNodeReferenceTests
     [Fact]
     public async Task ResolveAsync_SkipsCompressionForShortOutput()
     {
-        var nodeOutputs = new Dictionary<string, string>
+        var ctx = new VariableContext
         {
-            ["search"] = "short output"
+            NodeOutputs = new Dictionary<string, string> { ["search"] = "short output" }
         };
         var compactor = new FakeCompactor();
 
-        var result = await NodeReferenceResolver.ResolveAsync(
-            "Based on {{node:search}}, summarize.",
-            nodeOutputs, compactor, "context");
+        var result = await CanvasResolver.ResolveAsync(
+            "Based on {{node:search}}, summarize.", ctx, compactor, "context");
 
         Assert.Equal(0, compactor.CallCount);
         Assert.Equal("Based on short output, summarize.", result);
@@ -402,17 +410,19 @@ public class FlowNodeReferenceTests
     [Fact]
     public async Task ResolveAsync_MultipleRefs_OnlyCompressesLong()
     {
-        var longOutput = new string('y', NodeReferenceResolver.CompressionThreshold + 50);
-        var nodeOutputs = new Dictionary<string, string>
+        var longOutput = new string('y', VariableResolver.CompressionThreshold + 50);
+        var ctx = new VariableContext
         {
-            ["long_node"] = longOutput,
-            ["short_node"] = "brief"
+            NodeOutputs = new Dictionary<string, string>
+            {
+                ["long_node"] = longOutput,
+                ["short_node"] = "brief"
+            }
         };
         var compactor = new FakeCompactor();
 
-        var result = await NodeReferenceResolver.ResolveAsync(
-            "{{node:long_node}} and {{node:short_node}}",
-            nodeOutputs, compactor, "context");
+        var result = await CanvasResolver.ResolveAsync(
+            "{{node:long_node}} and {{node:short_node}}", ctx, compactor, "context");
 
         Assert.Equal(1, compactor.CallCount); // 只壓了 long_node
         Assert.Contains("[compressed:", result);
@@ -422,11 +432,14 @@ public class FlowNodeReferenceTests
     [Fact]
     public async Task ResolveAsync_NoReferences_SkipsCompactor()
     {
+        var ctx = new VariableContext
+        {
+            NodeOutputs = new Dictionary<string, string> { ["x"] = "y" }
+        };
         var compactor = new FakeCompactor();
 
-        var result = await NodeReferenceResolver.ResolveAsync(
-            "No refs here", new Dictionary<string, string> { ["x"] = "y" },
-            compactor, "context");
+        var result = await CanvasResolver.ResolveAsync(
+            "No refs here", ctx, compactor, "context");
 
         Assert.Equal(0, compactor.CallCount);
         Assert.Equal("No refs here", result);
@@ -435,20 +448,19 @@ public class FlowNodeReferenceTests
     [Fact]
     public async Task ResolveAsync_Canvas_CompressesLongOutput()
     {
-        var longOutput = new string('z', NodeReferenceResolver.CompressionThreshold + 200);
-        var nodeResults = new Dictionary<string, string>
+        var longOutput = new string('z', VariableResolver.CompressionThreshold + 200);
+        var ctx = new VariableContext
         {
-            ["node_1"] = longOutput
-        };
-        var nodeMap = new Dictionary<string, WorkflowNode>
-        {
-            ["node_1"] = new() { Id = "node_1", Name = "Search" }
+            NodeOutputs = new Dictionary<string, string> { ["node_1"] = longOutput },
+            NodeNameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Search"] = "node_1"
+            }
         };
         var compactor = new FakeCompactor();
 
-        var result = await NodeReferenceResolver.ResolveAsync(
-            "Use {{node:Search}}.", nodeResults, nodeMap,
-            compactor, "context");
+        var result = await CanvasResolver.ResolveAsync(
+            "Use {{node:Search}}.", ctx, compactor, "context");
 
         Assert.Equal(1, compactor.CallCount);
         Assert.Contains("[compressed:", result);

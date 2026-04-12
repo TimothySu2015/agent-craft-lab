@@ -1,0 +1,149 @@
+{
+  "dialog": {
+    "searchPlaceholder": "Search templates...",
+    "noResults": "No templates match your search.",
+    "all": "All",
+    "custom": "Custom"
+  },
+  "categories": {
+    "basic": "Basic",
+    "tools-search": "Tools & Search",
+    "rag-files": "RAG & Files",
+    "advanced": "Advanced",
+    "human-in-the-loop": "Human-in-the-Loop",
+    "skills": "Skills",
+    "autonomous": "Autonomous"
+  },
+  "items": {
+    "sequential": {
+      "name": "Research & Write",
+      "shortDescription": "Three agents collaborate: research, draft, edit.",
+      "sampleMessages": ["Write a blog post about AI agent frameworks in 2026"]
+    },
+    "loop": {
+      "name": "Writer-Reviewer Loop",
+      "shortDescription": "Write, review, iterate until approved.",
+      "sampleMessages": ["Draft a product announcement"]
+    },
+    "router": {
+      "name": "Customer Service Router",
+      "shortDescription": "Route customer queries to specialists.",
+      "sampleMessages": ["I was charged twice for my subscription"]
+    },
+    "code-transform": {
+      "name": "Code Transform Pipeline",
+      "shortDescription": "Agent output processed by Code node.",
+      "sampleMessages": ["Analyze the pros and cons of remote work"]
+    },
+    "http-webhook": {
+      "name": "HTTP API Pipeline",
+      "shortDescription": "Agent + HTTP call + Agent.",
+      "sampleMessages": ["Get today's weather for Taipei"]
+    },
+    "parallel-experts": {
+      "name": "Parallel Multi-Expert",
+      "shortDescription": "Multiple experts in parallel, then synthesize.",
+      "sampleMessages": ["Evaluate the feasibility of launching an AI SaaS subsidiary"]
+    },
+    "iteration-batch": {
+      "name": "Iteration Batch",
+      "shortDescription": "Split and process each item individually.",
+      "sampleMessages": ["Compare: React, Vue, Angular, Svelte"]
+    },
+    "structured-output": {
+      "name": "Structured Output",
+      "shortDescription": "JSON schema output + report.",
+      "sampleMessages": ["Analyze competitive advantages in the semiconductor industry"]
+    },
+    "translator": {
+      "name": "Parallel Translator",
+      "shortDescription": "Translate into 3 languages simultaneously.",
+      "sampleMessages": ["AI is changing the way we work"]
+    },
+    "plan-execute": {
+      "name": "Plan and Execute",
+      "shortDescription": "Break goal into steps, execute each.",
+      "sampleMessages": ["Plan: Evaluate opening a branch office in Japan"]
+    },
+    "single-tools": {
+      "name": "Single Agent + Tools",
+      "shortDescription": "One agent with web search.",
+      "sampleMessages": ["What are the latest developments in .NET 10?"]
+    },
+    "csv-log-analyzer": {
+      "name": "CSV Log Analyzer",
+      "shortDescription": "Analyze CSV logs and email report.",
+      "sampleMessages": ["Analyze the CSV logs and email me a report"]
+    },
+    "deep-research": {
+      "name": "Deep Research",
+      "shortDescription": "Multi-query research with synthesis.",
+      "sampleMessages": ["Deep dive into generative AI application trends"]
+    },
+    "finance-intel": {
+      "name": "Finance Intelligence",
+      "shortDescription": "Financial news scanner and analysis.",
+      "sampleMessages": ["TSMC CoWoS capacity analysis"]
+    },
+    "lead-outreach": {
+      "name": "Lead Outreach",
+      "shortDescription": "Research, draft, approve, send email.",
+      "sampleMessages": ["Research Gogoro and draft a partnership proposal email"]
+    },
+    "rag-pdf": {
+      "name": "PDF Q&A with RAG",
+      "shortDescription": "Upload PDF, ask questions with vector search.",
+      "sampleMessages": ["Summarize the key findings"]
+    },
+    "vision": {
+      "name": "Image Analysis",
+      "shortDescription": "Upload image for analysis.",
+      "sampleMessages": ["Describe what you see"]
+    },
+    "handoff": {
+      "name": "Multi-Agent Handoff",
+      "shortDescription": "Coordinator delegates to specialists.",
+      "sampleMessages": ["Write a Fibonacci function in Python"]
+    },
+    "mcp-agent": {
+      "name": "MCP Tool Integration",
+      "shortDescription": "Agent connected to MCP server.",
+      "sampleMessages": ["Use the echo tool"]
+    },
+    "human-approval": {
+      "name": "Human Approval Gate",
+      "shortDescription": "Draft, approve or reject.",
+      "sampleMessages": ["Draft a product announcement"]
+    },
+    "human-choice": {
+      "name": "Human Choice Branch",
+      "shortDescription": "User chooses output format.",
+      "sampleMessages": ["Analyze AI industry trends"]
+    },
+    "skill-code-review": {
+      "name": "Code Review",
+      "shortDescription": "Code review with documentation skills.",
+      "sampleMessages": ["Review this code for security issues"]
+    },
+    "skill-contract-review": {
+      "name": "Contract Review",
+      "shortDescription": "Legal review + human approval.",
+      "sampleMessages": ["Review this contract for risks"]
+    },
+    "skill-research-report": {
+      "name": "SWOT Report",
+      "shortDescription": "Parallel SWOT analysis and report.",
+      "sampleMessages": ["SWOT analysis of our semiconductor positioning"]
+    },
+    "autonomous-research": {
+      "name": "Autonomous Research",
+      "shortDescription": "AI autonomously researches and reports.",
+      "sampleMessages": ["Compare GPT-4o vs Claude Opus 4"]
+    },
+    "autonomous-pipeline": {
+      "name": "Plan → Research → Report",
+      "shortDescription": "Plan + Autonomous research + Report.",
+      "sampleMessages": ["Analyze the Claude 4 technology breakthrough"]
+    }
+  }
+}

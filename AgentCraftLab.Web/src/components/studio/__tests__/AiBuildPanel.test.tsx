@@ -375,6 +375,8 @@ describe('AiBuildPanel', () => {
     })
 
     it('flattens AI spec data fields into React Flow node data', async () => {
+      // LLM 仍輸出舊 flat shape（`model: 'gpt-4o'` 字串），AiBuildPanel 會在
+      // 邊界轉成新 nested Schema shape（`model: { provider, model: 'gpt-4o' }`）。
       const spec = JSON.stringify({
         nodes: [{
           type: 'agent', name: 'Expert',
@@ -388,7 +390,7 @@ describe('AiBuildPanel', () => {
       const agent = nodes[1] // index 0 is start
       expect(agent.data.instructions).toBe('Be thorough')
       expect(agent.data.tools).toEqual(['web_search'])
-      expect(agent.data.model).toBe('gpt-4o')
+      expect(agent.data.model.model).toBe('gpt-4o')
       expect(agent.data.name).toBe('Expert')
       expect(agent.data.type).toBe('agent')
       // Should NOT have nested data.data
@@ -409,7 +411,7 @@ describe('AiBuildPanel', () => {
       const agent = nodes[1]
       expect(agent.data.instructions).toBe('Search thoroughly')
       expect(agent.data.tools).toEqual(['web_search'])
-      expect(agent.data.model).toBe('gpt-4o')
+      expect(agent.data.model.model).toBe('gpt-4o')
       expect(agent.data.name).toBe('Researcher')
       // Flat fields should NOT leak type/name/id into data as duplicates
       expect(agent.data.data).toBeUndefined()

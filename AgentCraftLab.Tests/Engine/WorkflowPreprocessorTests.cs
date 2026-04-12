@@ -1,5 +1,6 @@
 using AgentCraftLab.Data;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Services;
 
 namespace AgentCraftLab.Tests.Engine;
@@ -93,70 +94,68 @@ public class WorkflowPreprocessorTests
     // NodeTypeRegistry 整合驗證（Preprocessor 依賴）
     // ════════════════════════════════════════
 
+    private static NodeConfig CreateNode(string type, string id = "n1") => type switch
+    {
+        NodeTypes.Agent => new AgentNode { Id = id, Name = id },
+        NodeTypes.Start => new StartNode { Id = id, Name = id },
+        NodeTypes.End => new EndNode { Id = id, Name = id },
+        NodeTypes.Rag => new RagNode { Id = id, Name = id },
+        NodeTypes.Code => new CodeNode { Id = id, Name = id },
+        NodeTypes.Human => new HumanNode { Id = id, Name = id },
+        NodeTypes.Condition => new ConditionNode { Id = id, Name = id },
+        NodeTypes.Loop => new LoopNode { Id = id, Name = id },
+        NodeTypes.Iteration => new IterationNode { Id = id, Name = id },
+        NodeTypes.Parallel => new ParallelNode { Id = id, Name = id },
+        NodeTypes.HttpRequest => new HttpRequestNode { Id = id, Name = id },
+        NodeTypes.A2AAgent => new A2AAgentNode { Id = id, Name = id },
+        NodeTypes.Autonomous => new AutonomousNode { Id = id, Name = id },
+        NodeTypes.Router => new RouterNode { Id = id, Name = id },
+        _ => throw new NotSupportedException($"Unknown fixture type: {type}")
+    };
+
     [Fact]
     public void HasAnyExecutable_AgentOnly_ReturnsTrue()
     {
-        var nodes = new List<WorkflowNode>
-        {
-            new() { Id = "a1", Type = NodeTypes.Agent, Name = "Agent" }
-        };
-
+        var nodes = new List<NodeConfig> { CreateNode(NodeTypes.Agent, "a1") };
         Assert.True(NodeTypeRegistry.HasAnyExecutable(nodes));
     }
 
     [Fact]
     public void HasAnyExecutable_OnlyStartEnd_ReturnsFalse()
     {
-        var nodes = new List<WorkflowNode>
+        var nodes = new List<NodeConfig>
         {
-            new() { Id = "s1", Type = NodeTypes.Start, Name = "Start" },
-            new() { Id = "e1", Type = NodeTypes.End, Name = "End" }
+            CreateNode(NodeTypes.Start, "s1"),
+            CreateNode(NodeTypes.End, "e1")
         };
-
         Assert.False(NodeTypeRegistry.HasAnyExecutable(nodes));
     }
 
     [Fact]
     public void HasAnyExecutable_OnlyRag_ReturnsFalse()
     {
-        var nodes = new List<WorkflowNode>
-        {
-            new() { Id = "r1", Type = NodeTypes.Rag, Name = "RAG" }
-        };
-
+        var nodes = new List<NodeConfig> { CreateNode(NodeTypes.Rag, "r1") };
         Assert.False(NodeTypeRegistry.HasAnyExecutable(nodes));
     }
 
     [Fact]
     public void HasAnyExecutable_CodeNode_ReturnsTrue()
     {
-        var nodes = new List<WorkflowNode>
-        {
-            new() { Id = "c1", Type = NodeTypes.Code, Name = "Code" }
-        };
-
+        var nodes = new List<NodeConfig> { CreateNode(NodeTypes.Code, "c1") };
         Assert.True(NodeTypeRegistry.HasAnyExecutable(nodes));
     }
 
     [Fact]
     public void HasAnyRequiringImperative_HumanNode_ReturnsTrue()
     {
-        var nodes = new List<WorkflowNode>
-        {
-            new() { Id = "h1", Type = NodeTypes.Human, Name = "Human" }
-        };
-
+        var nodes = new List<NodeConfig> { CreateNode(NodeTypes.Human, "h1") };
         Assert.True(NodeTypeRegistry.HasAnyRequiringImperative(nodes));
     }
 
     [Fact]
     public void HasAnyRequiringImperative_AgentOnly_ReturnsFalse()
     {
-        var nodes = new List<WorkflowNode>
-        {
-            new() { Id = "a1", Type = NodeTypes.Agent, Name = "Agent" }
-        };
-
+        var nodes = new List<NodeConfig> { CreateNode(NodeTypes.Agent, "a1") };
         Assert.False(NodeTypeRegistry.HasAnyRequiringImperative(nodes));
     }
 
@@ -173,11 +172,7 @@ public class WorkflowPreprocessorTests
     [InlineData(NodeTypes.Router)]
     public void HasAnyRequiringImperative_AllImperativeTypes(string nodeType)
     {
-        var nodes = new List<WorkflowNode>
-        {
-            new() { Id = "n1", Type = nodeType, Name = "Test" }
-        };
-
+        var nodes = new List<NodeConfig> { CreateNode(nodeType) };
         Assert.True(NodeTypeRegistry.HasAnyRequiringImperative(nodes));
     }
 

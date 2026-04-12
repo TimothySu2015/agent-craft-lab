@@ -7,7 +7,7 @@ const config = NODE_REGISTRY.iteration
 
 export function IterationNode({ data, selected }: NodeProps & { data: IterationNodeData }) {
   return (
-    <NodeShell {...config} title={data.name} subtitle={data.splitMode} selected={selected}>
+    <NodeShell {...config} title={data.name} subtitle={data.split} selected={selected}>
       <p>Max: {data.maxItems}{data.maxConcurrency && data.maxConcurrency > 1 ? ` · ×${data.maxConcurrency}` : ''}</p>
     </NodeShell>
   )

@@ -1,23 +1,22 @@
 using System.Runtime.CompilerServices;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 
 /// <summary>
 /// A2A Agent 節點執行器 — 呼叫遠端 A2A Agent。
 /// </summary>
-public sealed class A2ANodeExecutor : INodeExecutor
+public sealed class A2ANodeExecutor : NodeExecutorBase<A2AAgentNode>
 {
-    public string NodeType => NodeTypes.A2AAgent;
-
-    public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
-        string nodeId, WorkflowNode node, ImperativeExecutionState state,
+    protected override async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
+        string nodeId, A2AAgentNode node, ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var agentName = string.IsNullOrWhiteSpace(node.Name) ? $"A2A_{node.Id}" : node.Name;
         yield return ExecutionEvent.AgentStarted(agentName);
 
-        if (state.A2AClient is null || string.IsNullOrWhiteSpace(node.A2AUrl))
+        if (state.A2AClient is null || string.IsNullOrWhiteSpace(node.Url))
         {
             yield return ExecutionEvent.Error($"A2A Agent '{agentName}' has no URL or A2AClientService is not available.");
             yield break;
@@ -28,9 +27,8 @@ public sealed class A2ANodeExecutor : INodeExecutor
         var contextPrefix = ContextPassingHelper.BuildContextPrefix(state, nodeId);
         var message = string.IsNullOrEmpty(contextPrefix) ? state.PreviousResult : contextPrefix + "\n\n" + state.PreviousResult;
 
-        var format = node.A2AFormat ?? "auto";
         var result = await state.A2AClient.SendMessageAsync(
-            node.A2AUrl, message, format: format, timeoutSeconds: Timeouts.A2AAgentSeconds);
+            node.Url, message, format: FormatA2A(node.Format), timeoutSeconds: Timeouts.A2AAgentSeconds);
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -47,4 +45,11 @@ public sealed class A2ANodeExecutor : INodeExecutor
         yield return ExecutionEvent.TextChunk(agentName, result);
         yield return ExecutionEvent.AgentCompleted(agentName, result);
     }
+
+    private static string FormatA2A(A2AFormat format) => format switch
+    {
+        A2AFormat.Google => "google",
+        A2AFormat.Microsoft => "microsoft",
+        _ => "auto"
+    };
 }

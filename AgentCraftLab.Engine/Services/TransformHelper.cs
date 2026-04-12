@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Engine.Services;
 
@@ -60,18 +61,36 @@ public static class TransformHelper
     }
 
     /// <summary>
-    /// 對 WorkflowNode 的屬性執行 Code 轉換（9 種模式）。
+    /// 強型別入口 — 接受 <see cref="TransformKind"/> enum + <see cref="ScriptLanguage"/>。
     /// </summary>
-    public static string ApplyTransform(WorkflowNode node, string input)
+    public static string ApplyTransform(
+        TransformKind kind, string input, string? expression = null,
+        string? replacement = null, int maxLength = 0, string? delimiter = null, int splitIndex = 0,
+        ScriptLanguage? language = null)
     {
-        return ApplyTransform(
-            node.TransformType, input, node.Template, node.Pattern,
-            node.Replacement, node.MaxLength, node.Delimiter, node.SplitIndex,
-            node.ScriptLanguage);
+        var typeString = kind switch
+        {
+            TransformKind.Template => "template",
+            TransformKind.Regex => "regex-replace",
+            TransformKind.JsonPath => "json-path",
+            TransformKind.Trim or TransformKind.Truncate => "trim",
+            TransformKind.Split => "split-take",
+            TransformKind.Upper => "upper",
+            TransformKind.Lower => "lower",
+            TransformKind.Script => "script",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown TransformKind")
+        };
+        var langString = language switch
+        {
+            ScriptLanguage.JavaScript => "javascript",
+            ScriptLanguage.CSharp => "csharp",
+            _ => null
+        };
+        return ApplyTransform(typeString, input, expression, expression, replacement, maxLength, delimiter, splitIndex, langString);
     }
 
     /// <summary>
-    /// 核心轉換邏輯：9 種模式 — template/regex-extract/regex-replace/json-path/trim/split-take/upper/lower/script。
+    /// 舊字串入口（向下相容）：9 種模式 — template/regex-extract/regex-replace/json-path/trim/split-take/upper/lower/script。
     /// </summary>
     public static string ApplyTransform(
         string transformType, string input, string? template = null, string? pattern = null,

@@ -1,9 +1,11 @@
 using System.Text.Json;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Services;
 using AgentCraftLab.Engine.Strategies;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using SchemaPayload = AgentCraftLab.Engine.Models.Schema.WorkflowPayload;
 
 namespace AgentCraftLab.Tests.Engine;
 
@@ -14,31 +16,64 @@ public class WorkflowExecutionServiceTests
     // ════════════════════════════════════════
 
     [Fact]
-    public void Parse_ValidWorkflowJson_ReturnsPayload()
+    public void Parse_FlatJsonWithoutDiscriminator_ReturnsError()
     {
+        // F2b 之後後端只接受 Schema v2（需有 type discriminator + nested 結構）
+        // 送 flat JSON 沒有 type discriminator 會被 polymorphic deserializer 拒絕
         var json = JsonSerializer.Serialize(new
         {
             nodes = new[]
             {
-                new { id = "a1", type = "agent", name = "Agent 1", provider = "openai", model = "gpt-4o", instructions = "test" }
+                new { id = "a1", name = "Agent 1", provider = "openai", model = "gpt-4o", instructions = "test" }
             },
             connections = Array.Empty<object>()
         });
 
-        var result = WorkflowExecutionService.ParseAndValidatePayload(json, out var error);
+        var (payload, _, _, error) = WorkflowExecutionService.ParseAndValidatePayload(json);
 
-        Assert.NotNull(result);
+        Assert.Null(payload);
+        Assert.NotNull(error);
+        Assert.Contains("type discriminator", error);
+    }
+
+    [Fact]
+    public void Parse_ValidSchemaJson_ReturnsSchemaPayload()
+    {
+        // 新 Schema v2 格式：頂層有 version + settings，節點是 nested discriminator union
+        var json = """
+        {
+          "version": "2.0",
+          "settings": { "strategy": "auto" },
+          "nodes": [
+            {
+              "type": "agent",
+              "id": "a1",
+              "name": "Agent 1",
+              "instructions": "test",
+              "model": { "provider": "openai", "model": "gpt-4o" }
+            }
+          ],
+          "connections": []
+        }
+        """;
+
+        var (payload, _, _, error) = WorkflowExecutionService.ParseAndValidatePayload(json);
+
+        Assert.NotNull(payload);
         Assert.Null(error);
-        Assert.Single(result.Nodes);
-        Assert.Equal("a1", result.Nodes[0].Id);
+        Assert.Equal("2.0", payload.Version);
+        Assert.Single(payload.Nodes);
+        var agent = Assert.IsType<AgentCraftLab.Engine.Models.Schema.AgentNode>(payload.Nodes[0]);
+        Assert.Equal("a1", agent.Id);
+        Assert.Equal("gpt-4o", agent.Model.Model);
     }
 
     [Fact]
     public void Parse_InvalidJson_ReturnsNullWithError()
     {
-        var result = WorkflowExecutionService.ParseAndValidatePayload("not json at all", out var error);
+        var (payload, _, _, error) = WorkflowExecutionService.ParseAndValidatePayload("not json at all");
 
-        Assert.Null(result);
+        Assert.Null(payload);
         Assert.NotNull(error);
         Assert.Contains("Invalid workflow JSON", error);
     }
@@ -48,18 +83,18 @@ public class WorkflowExecutionServiceTests
     {
         var json = JsonSerializer.Serialize(new { nodes = Array.Empty<object>(), connections = Array.Empty<object>() });
 
-        var result = WorkflowExecutionService.ParseAndValidatePayload(json, out var error);
+        var (payload, _, _, error) = WorkflowExecutionService.ParseAndValidatePayload(json);
 
-        Assert.Null(result);
+        Assert.Null(payload);
         Assert.Equal("Workflow has no nodes.", error);
     }
 
     [Fact]
     public void Parse_NullDeserialization_ReturnsNullWithError()
     {
-        var result = WorkflowExecutionService.ParseAndValidatePayload("null", out var error);
+        var (payload, _, _, error) = WorkflowExecutionService.ParseAndValidatePayload("null");
 
-        Assert.Null(result);
+        Assert.Null(payload);
         Assert.NotNull(error);
         Assert.Contains("deserialization returned null", error);
     }
@@ -69,35 +104,36 @@ public class WorkflowExecutionServiceTests
     {
         var longJson = new string('x', 1000);
 
-        var result = WorkflowExecutionService.ParseAndValidatePayload(longJson, out var error);
+        var (payload, _, _, error) = WorkflowExecutionService.ParseAndValidatePayload(longJson);
 
-        Assert.Null(result);
+        Assert.Null(payload);
         Assert.NotNull(error);
         Assert.Contains("...", error); // 確認有截斷
     }
 
     [Fact]
-    public void Parse_ValidJson_PreservesConnections()
+    public void Parse_SchemaJson_PreservesConnections()
     {
-        var json = JsonSerializer.Serialize(new
+        var json = """
         {
-            nodes = new[]
-            {
-                new { id = "a1", type = "agent", name = "A1", provider = "openai", model = "gpt-4o", instructions = "" },
-                new { id = "a2", type = "agent", name = "A2", provider = "openai", model = "gpt-4o", instructions = "" }
-            },
-            connections = new[]
-            {
-                new { from = "a1", to = "a2" }
-            }
-        });
+          "version": "2.0",
+          "settings": { "strategy": "auto" },
+          "nodes": [
+            { "type": "agent", "id": "a1", "name": "A1", "model": { "provider": "openai", "model": "gpt-4o" } },
+            { "type": "agent", "id": "a2", "name": "A2", "model": { "provider": "openai", "model": "gpt-4o" } }
+          ],
+          "connections": [
+            { "from": "a1", "to": "a2", "port": "output_1" }
+          ]
+        }
+        """;
 
-        var result = WorkflowExecutionService.ParseAndValidatePayload(json, out _);
+        var (payload, _, _, _) = WorkflowExecutionService.ParseAndValidatePayload(json);
 
-        Assert.NotNull(result);
-        Assert.Equal(2, result.Nodes.Count);
-        Assert.Single(result.Connections);
-        Assert.Equal("a1", result.Connections[0].From);
+        Assert.NotNull(payload);
+        Assert.Equal(2, payload.Nodes.Count);
+        Assert.Single(payload.Connections);
+        Assert.Equal("a1", payload.Connections[0].From);
     }
 
     // ════════════════════════════════════════
@@ -115,10 +151,29 @@ public class WorkflowExecutionServiceTests
         return ids.ToDictionary(id => id, id => new ChatClientAgent(client, $"Agent {id}"));
     }
 
-    private static WorkflowPayload CreatePayload(params (string Id, string Type)[] nodeDefs)
+    private static SchemaPayload CreatePayload(params (string Id, string Type)[] nodeDefs)
     {
-        var nodes = nodeDefs.Select(d => new WorkflowNode { Id = d.Id, Type = d.Type, Name = d.Id }).ToList();
-        return new WorkflowPayload { Nodes = nodes };
+        // Phase C：測試直接建構 Schema.WorkflowPayload，避開 old→new 轉換
+        var nodes = nodeDefs
+            .Select(d => (AgentCraftLab.Engine.Models.Schema.NodeConfig)(d.Type switch
+            {
+                NodeTypes.Agent => new AgentCraftLab.Engine.Models.Schema.AgentNode { Id = d.Id, Name = d.Id },
+                NodeTypes.A2AAgent => new AgentCraftLab.Engine.Models.Schema.A2AAgentNode { Id = d.Id, Name = d.Id },
+                NodeTypes.Autonomous => new AgentCraftLab.Engine.Models.Schema.AutonomousNode { Id = d.Id, Name = d.Id },
+                NodeTypes.Human => new AgentCraftLab.Engine.Models.Schema.HumanNode { Id = d.Id, Name = d.Id },
+                NodeTypes.Code => new AgentCraftLab.Engine.Models.Schema.CodeNode { Id = d.Id, Name = d.Id },
+                NodeTypes.Condition => new AgentCraftLab.Engine.Models.Schema.ConditionNode { Id = d.Id, Name = d.Id },
+                NodeTypes.Loop => new AgentCraftLab.Engine.Models.Schema.LoopNode { Id = d.Id, Name = d.Id },
+                NodeTypes.Router => new AgentCraftLab.Engine.Models.Schema.RouterNode { Id = d.Id, Name = d.Id },
+                NodeTypes.Iteration => new AgentCraftLab.Engine.Models.Schema.IterationNode { Id = d.Id, Name = d.Id },
+                NodeTypes.Parallel => new AgentCraftLab.Engine.Models.Schema.ParallelNode { Id = d.Id, Name = d.Id },
+                NodeTypes.HttpRequest => new AgentCraftLab.Engine.Models.Schema.HttpRequestNode { Id = d.Id, Name = d.Id },
+                NodeTypes.Start => new AgentCraftLab.Engine.Models.Schema.StartNode { Id = d.Id, Name = d.Id },
+                NodeTypes.End => new AgentCraftLab.Engine.Models.Schema.EndNode { Id = d.Id, Name = d.Id },
+                _ => throw new NotSupportedException($"Unknown type: {d.Type}")
+            }))
+            .ToList();
+        return new AgentCraftLab.Engine.Models.Schema.WorkflowPayload { Nodes = nodes };
     }
 
     [Fact]
@@ -206,7 +261,7 @@ public class WorkflowExecutionServiceTests
     {
         var resolver = CreateResolver();
         var payload = CreatePayload(("a1", "agent"), ("a2", "agent"));
-        payload.WorkflowSettings = new WorkflowSettings { Type = WorkflowTypes.Sequential };
+        payload = payload with { Settings = new AgentCraftLab.Engine.Models.Schema.WorkflowSettings { Strategy = WorkflowTypes.Sequential } };
         var ctx = new AgentExecutionContext(CreateAgents("a1", "a2"), new(), new(), new());
 
         var (strategy, reason) = resolver.Resolve(payload, ctx, [], new WorkflowExecutionRequest());
@@ -220,7 +275,7 @@ public class WorkflowExecutionServiceTests
     {
         var resolver = CreateResolver();
         var payload = CreatePayload(("a1", "agent"), ("a2", "agent"));
-        payload.WorkflowSettings = new WorkflowSettings { Type = WorkflowTypes.Concurrent };
+        payload = payload with { Settings = new AgentCraftLab.Engine.Models.Schema.WorkflowSettings { Strategy = WorkflowTypes.Concurrent } };
         var ctx = new AgentExecutionContext(CreateAgents("a1", "a2"), new(), new(), new());
 
         var (strategy, reason) = resolver.Resolve(payload, ctx, [], new WorkflowExecutionRequest());
@@ -234,7 +289,7 @@ public class WorkflowExecutionServiceTests
     {
         var resolver = CreateResolver();
         var payload = CreatePayload(("a1", "agent"), ("a2", "agent"));
-        payload.WorkflowSettings = new WorkflowSettings { Type = WorkflowTypes.Handoff };
+        payload = payload with { Settings = new AgentCraftLab.Engine.Models.Schema.WorkflowSettings { Strategy = WorkflowTypes.Handoff } };
         var ctx = new AgentExecutionContext(CreateAgents("a1", "a2"), new(), new(), new());
 
         var (strategy, reason) = resolver.Resolve(payload, ctx, [], new WorkflowExecutionRequest());
@@ -265,7 +320,7 @@ public class WorkflowExecutionServiceTests
     {
         var resolver = CreateResolver();
         var payload = CreatePayload(("a1", "agent"), ("a2", "agent"), ("h1", "human"));
-        payload.WorkflowSettings = new WorkflowSettings { Type = WorkflowTypes.Sequential };
+        payload = payload with { Settings = new AgentCraftLab.Engine.Models.Schema.WorkflowSettings { Strategy = WorkflowTypes.Sequential } };
         var ctx = new AgentExecutionContext(CreateAgents("a1", "a2"), new(), new(), new());
 
         var (strategy, reason) = resolver.Resolve(payload, ctx, [], new WorkflowExecutionRequest());
@@ -301,6 +356,58 @@ public class WorkflowExecutionServiceTests
         var ctx = WorkflowExecutionService.CreateHookContext(request, "user-1", "WF", error: "boom");
 
         Assert.Equal("boom", ctx.Error);
+    }
+
+    // ════════════════════════════════════════
+    // Parse — All Node Types Round-Trip
+    // ════════════════════════════════════════
+
+    [Fact]
+    public void Parse_SchemaJson_AllNodeTypes_DeserializesCorrectly()
+    {
+        var json = """
+        {
+          "version": "2.0",
+          "settings": { "strategy": "auto" },
+          "nodes": [
+            { "type": "agent", "id": "n1", "name": "A", "model": { "provider": "openai", "model": "gpt-4o" } },
+            { "type": "a2a-agent", "id": "n2", "name": "B", "url": "http://x", "format": "auto" },
+            { "type": "autonomous", "id": "n3", "name": "C", "model": { "provider": "openai", "model": "gpt-4o" } },
+            { "type": "condition", "id": "n4", "name": "D", "condition": { "kind": "contains", "value": "yes" } },
+            { "type": "loop", "id": "n5", "name": "E", "condition": { "kind": "regex", "value": "done" }, "maxIterations": 3, "bodyAgent": { "type": "agent", "id": "ba", "name": "BA" } },
+            { "type": "router", "id": "n6", "name": "F", "routes": [{ "name": "r1", "keywords": [], "isDefault": false }] },
+            { "type": "human", "id": "n7", "name": "G", "prompt": "ok?", "kind": "approval" },
+            { "type": "code", "id": "n8", "name": "H", "kind": "template", "expression": "{{input}}" },
+            { "type": "iteration", "id": "n9", "name": "I", "split": "jsonArray", "bodyAgent": { "type": "agent", "id": "iba", "name": "IBA" } },
+            { "type": "parallel", "id": "n10", "name": "J", "branches": [{ "name": "b1", "goal": "g1" }], "merge": "labeled" },
+            { "type": "http-request", "id": "n11", "name": "K", "spec": { "kind": "inline", "url": "http://x", "method": "get", "headers": [], "contentType": "application/json", "auth": { "kind": "none" }, "retry": { "count": 0, "delayMs": 1000 }, "timeoutSeconds": 15, "response": { "kind": "text" }, "responseMaxLength": 2000 } },
+            { "type": "rag", "id": "n12", "name": "L", "rag": { "dataSource": "upload", "chunkSize": 800, "chunkOverlap": 80, "topK": 5, "embeddingModel": "text-embedding-3-small", "searchMode": "hybrid", "minScore": 0.005, "queryExpansion": true, "contextCompression": false, "tokenBudget": 1500 }, "knowledgeBaseIds": [] },
+            { "type": "start", "id": "n13", "name": "S" },
+            { "type": "end", "id": "n14", "name": "E" }
+          ],
+          "connections": []
+        }
+        """;
+
+        var (payload, _, _, error) = WorkflowExecutionService.ParseAndValidatePayload(json);
+
+        Assert.NotNull(payload);
+        Assert.Null(error);
+        Assert.Equal(14, payload.Nodes.Count);
+        Assert.IsType<AgentNode>(payload.Nodes[0]);
+        Assert.IsType<A2AAgentNode>(payload.Nodes[1]);
+        Assert.IsType<AutonomousNode>(payload.Nodes[2]);
+        Assert.IsType<ConditionNode>(payload.Nodes[3]);
+        Assert.IsType<LoopNode>(payload.Nodes[4]);
+        Assert.IsType<RouterNode>(payload.Nodes[5]);
+        Assert.IsType<HumanNode>(payload.Nodes[6]);
+        Assert.IsType<CodeNode>(payload.Nodes[7]);
+        Assert.IsType<IterationNode>(payload.Nodes[8]);
+        Assert.IsType<ParallelNode>(payload.Nodes[9]);
+        Assert.IsType<HttpRequestNode>(payload.Nodes[10]);
+        Assert.IsType<RagNode>(payload.Nodes[11]);
+        Assert.IsType<StartNode>(payload.Nodes[12]);
+        Assert.IsType<EndNode>(payload.Nodes[13]);
     }
 }
 

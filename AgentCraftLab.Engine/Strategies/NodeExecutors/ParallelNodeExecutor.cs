@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 
@@ -8,19 +9,18 @@ namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 /// Parallel 節點執行器 — N 個分支同時執行，合併結果。
 /// 支援共用節點偵測（降級為序列）和 linked cancellation。
 /// </summary>
-public sealed class ParallelNodeExecutor : INodeExecutor
+public sealed class ParallelNodeExecutor : NodeExecutorBase<ParallelNode>
 {
-    public string NodeType => NodeTypes.Parallel;
-
-    public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
-        string nodeId, WorkflowNode node, ImperativeExecutionState state,
+    protected override async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
+        string nodeId, ParallelNode node, ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var nodeName = string.IsNullOrWhiteSpace(node.Name) ? $"Parallel_{node.Id}" : node.Name;
         yield return ExecutionEvent.AgentStarted(nodeName);
 
-        var branchNames = (node.Branches ?? "Branch1,Branch2")
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var branchNames = node.Branches.Count > 0
+            ? node.Branches.Select(b => b.Name).ToArray()
+            : ["Branch1", "Branch2"];
 
         yield return ExecutionEvent.ToolCall(nodeName, "Parallel", $"{branchNames.Length} branches");
 
@@ -30,7 +30,6 @@ public sealed class ParallelNodeExecutor : INodeExecutor
             yield break;
         }
 
-        // 收集分支起點 + 共用節點偵測
         var branchStartIds = new List<(string Name, string? StartId)>();
         var allBranchNodeIds = new HashSet<string>();
         var hasSharedNodes = false;
@@ -99,23 +98,30 @@ public sealed class ParallelNodeExecutor : INodeExecutor
             }
         }
 
-        var merged = ImperativeWorkflowStrategy.MergeParallelResults(results, node.MergeStrategy);
-        // 合計所有分支的 token 估算（各分支 input + output）
+        var merged = ImperativeWorkflowStrategy.MergeParallelResults(results, FormatMerge(node.Merge));
         var branchTokens = results.Sum(r => ModelPricing.EstimateTokens(r.Result));
         yield return ExecutionEvent.TextChunk(nodeName, merged);
-        yield return ExecutionEvent.AgentCompleted(nodeName, merged, branchTokens, branchTokens, node.Model);
+        // ParallelNode 沒有 Model 欄位（分支內各 agent 才有自己的 model），token metadata 不附 model
+        yield return ExecutionEvent.AgentCompleted(nodeName, merged, branchTokens, branchTokens, null);
     }
 
-    public Task<NodeExecutionResult> BuildResultAsync(
-        string nodeId, WorkflowNode node,
+    protected override Task<NodeExecutionResult> BuildResultAsync(
+        string nodeId, ParallelNode node,
         ImperativeExecutionState state, List<ExecutionEvent> collectedEvents,
         CancellationToken cancellationToken = default)
     {
         // Done port = 分支數 + 1
-        var branchCount = (node.Branches ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Length;
+        var branchCount = node.Branches.Count > 0 ? node.Branches.Count : 2;
         return Task.FromResult(new NodeExecutionResult
         {
             OutputPort = $"output_{branchCount + 1}"
         });
     }
+
+    private static string FormatMerge(MergeStrategyKind kind) => kind switch
+    {
+        MergeStrategyKind.Join => "join",
+        MergeStrategyKind.Json => "json",
+        _ => "labeled"
+    };
 }

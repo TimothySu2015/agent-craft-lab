@@ -100,8 +100,8 @@ This document describes all available node types in the AgentCraftLab Workflow S
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| `conditionType` | Condition evaluation method | Empty |
-| `conditionExpression` | Condition expression (applied to the previous node's output) | Empty |
+| `condition.kind` | Condition evaluation method | Empty |
+| `condition.value` | Condition expression (applied to the previous node's output) | Empty |
 
 **Applicable Scenarios:** Determining the subsequent flow based on the previous Agent's output. Example: if sentiment analysis returns positive, take path A; if negative, take path B.
 
@@ -153,7 +153,7 @@ This document describes all available node types in the AgentCraftLab Workflow S
 
 | Field | Description | Default |
 |-------|-------------|---------|
-| `splitMode` | Split method: `json-array` (JSON array) / `delimiter` (delimiter-based) | json-array |
+| `split` | Split method: `json-array` (JSON array) / `delimiter` (delimiter-based) | json-array |
 | `iterationDelimiter` | Delimiter (only for delimiter mode) | Newline |
 | `maxItems` | Maximum number of items to process | 50 |
 
@@ -168,7 +168,7 @@ This document describes all available node types in the AgentCraftLab Workflow S
 | Field | Description | Default |
 |-------|-------------|---------|
 | `branches` | Branch names (comma-separated) | Branch1,Branch2 |
-| `mergeStrategy` | Result merge strategy: `labeled` (with labels) / `join` (concatenate) / `json` (JSON object) | labeled |
+| `merge` | Result merge strategy: `labeled` (with labels) / `join` (concatenate) / `json` (JSON object) | labeled |
 
 **Applicable Scenarios:** Processing multiple independent subtasks simultaneously. Examples: translating into multiple languages at once, analyzing the same data from multiple perspectives simultaneously.
 
@@ -184,7 +184,7 @@ This document describes all available node types in the AgentCraftLab Workflow S
 
 | Field | Description |
 |-------|-------------|
-| `transformType` | Transform mode (see the nine modes below) |
+| `kind` | Transform mode (see the nine modes below) |
 | `template` | Template string (used in template / script modes) |
 | `pattern` | Regular expression (used in regex-extract / regex-replace / json-path) |
 | `replacement` | Replacement string (used in regex-replace) |

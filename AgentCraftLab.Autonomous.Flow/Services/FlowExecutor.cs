@@ -9,6 +9,7 @@ using AgentCraftLab.Engine.Services;
 using AgentCraftLab.Engine.Services.Compression;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Autonomous.Flow.Services;
 
@@ -175,25 +176,28 @@ public sealed class FlowExecutor : IGoalExecutor
                 continue;
 
             var plannedNode = plan.Nodes[nodeIndex];
+            var nodeTypeString = NodeConfigHelpers.GetNodeTypeString(plannedNode);
             cancellationToken.ThrowIfCancellationRequested();
             stepSequence++;
 
             var stepSw = Stopwatch.StartNew();
-            yield return ExecutionEvent.NodeExecuting(plannedNode.NodeType, plannedNode.Name);
+            yield return ExecutionEvent.NodeExecuting(nodeTypeString, plannedNode.Name);
 
             var step = new TraceStep
             {
                 Sequence = stepSequence,
-                NodeType = plannedNode.NodeType,
+                NodeType = nodeTypeString,
                 NodeName = plannedNode.Name,
-                Config = plannedNode.ToConfig(),
+                Config = plannedNode,
                 Input = previousResult
             };
 
             // F3 Context Windowing：agent 節點的 input 超過門檻時壓縮（code/condition/http 需要精確輸入，不壓縮）
-            if (plannedNode.NodeType == NodeTypes.Agent && previousResult.Length > ContextWindowingThreshold && contextCompactor is not null)
+            if (plannedNode is Schema.AgentNode agentForWindow && previousResult.Length > ContextWindowingThreshold && contextCompactor is not null)
             {
-                var nextInstructions = plannedNode.Instructions ?? plannedNode.Name ?? "";
+                var nextInstructions = string.IsNullOrEmpty(agentForWindow.Instructions)
+                    ? agentForWindow.Name
+                    : agentForWindow.Instructions;
                 var compressed = await contextCompactor.CompressAsync(
                     previousResult, nextInstructions, ContextWindowingBudget, cancellationToken);
                 if (compressed is not null)
@@ -213,7 +217,7 @@ public sealed class FlowExecutor : IGoalExecutor
             long stepTokens = 0;
             string? conditionOutputPort = null;
             await foreach (var evt in _nodeRunner.ExecuteNodeAsync(
-                plannedNode, previousResult, request, cancellationToken))
+                step.Config, previousResult, request, cancellationToken))
             {
                 // 攔截 AgentCompleted 取得輸出 + token 計數
                 if (evt.Type == EventTypes.AgentCompleted)
@@ -248,7 +252,7 @@ public sealed class FlowExecutor : IGoalExecutor
             }
 
             // F4 Adaptive Replanning：agent 節點失敗（空 output）且有剩餘步驟時，嘗試重規劃
-            if (string.IsNullOrEmpty(previousResult) && plannedNode.NodeType == NodeTypes.Agent
+            if (string.IsNullOrEmpty(previousResult) && plannedNode is Schema.AgentNode
                 && replanBudget > 0 && nodeIndex < plan!.Nodes.Count - 1 && plannerClient is not null)
             {
                 replanBudget--;
@@ -284,12 +288,12 @@ public sealed class FlowExecutor : IGoalExecutor
             }
 
             // Condition 分支邏輯：
-            // 優先用 PlannedNode 的 TrueBranchIndex/FalseBranchIndex（明確指定）
+            // 優先用 Meta 中 stash 的 TrueBranchIndex/FalseBranchIndex（明確指定）
             // 未指定時 fallback：TRUE = index+1, FALSE = index+2
-            if (plannedNode.NodeType == NodeTypes.Condition && conditionOutputPort is not null)
+            if (plannedNode is Schema.ConditionNode && conditionOutputPort is not null)
             {
-                var trueIdx = plannedNode.TrueBranchIndex ?? nodeIndex + 1;
-                var falseIdx = plannedNode.FalseBranchIndex ?? nodeIndex + 2;
+                var trueIdx = NodeConfigHelpers.GetBranchIndex(plannedNode, NodeConfigHelpers.MetaTrueBranchIndex) ?? nodeIndex + 1;
+                var falseIdx = NodeConfigHelpers.GetBranchIndex(plannedNode, NodeConfigHelpers.MetaFalseBranchIndex) ?? nodeIndex + 2;
 
                 if (conditionOutputPort == OutputPorts.Output1)
                 {
@@ -325,7 +329,7 @@ public sealed class FlowExecutor : IGoalExecutor
                 {
                     var snapshot = new FlowCheckpointSnapshot
                     {
-                        PlanJson = JsonSerializer.Serialize(plan, PlanJsonOptions),
+                        PlanJson = JsonSerializer.Serialize(plan, Schema.SchemaJsonOptions.Default),
                         CompletedNodeIndex = nodeIndex,
                         PreviousResult = previousResult,
                         SkipIndices = skipIndices,
@@ -431,9 +435,9 @@ public sealed class FlowExecutor : IGoalExecutor
         string? deserializeError = null;
         try
         {
-            snapshot = JsonSerializer.Deserialize<FlowCheckpointSnapshot>(doc.StateJson, PlanJsonOptions);
+            snapshot = JsonSerializer.Deserialize<FlowCheckpointSnapshot>(doc.StateJson, Schema.SchemaJsonOptions.Default);
             plan = snapshot is not null
-                ? JsonSerializer.Deserialize<FlowPlan>(snapshot.PlanJson, PlanJsonOptions)
+                ? JsonSerializer.Deserialize<FlowPlan>(snapshot.PlanJson, Schema.SchemaJsonOptions.Default)
                 : null;
         }
         catch (Exception ex)
@@ -493,7 +497,7 @@ public sealed class FlowExecutor : IGoalExecutor
 
             var plannedNode = plan.Nodes[nodeIndex];
             cancellationToken.ThrowIfCancellationRequested();
-            yield return ExecutionEvent.NodeExecuting(plannedNode.NodeType, plannedNode.Name);
+            yield return ExecutionEvent.NodeExecuting(NodeConfigHelpers.GetNodeTypeString(plannedNode), plannedNode.Name);
 
             await foreach (var evt in _nodeRunner.ExecuteNodeAsync(
                 plannedNode, previousResult, request, cancellationToken))
@@ -571,13 +575,13 @@ public sealed class FlowExecutor : IGoalExecutor
                 ? (response.Usage.InputTokenCount ?? 0) + (response.Usage.OutputTokenCount ?? 0)
                 : text.Length / 4;
 
-            var jsonBlock = ExtractJsonBlock(text);
+            var jsonBlock = LlmJsonExtractor.Extract(text);
             if (jsonBlock is null)
             {
                 return (null, 0, "No JSON block found in planning response");
             }
 
-            var plan = JsonSerializer.Deserialize<FlowPlan>(jsonBlock, PlanJsonOptions);
+            var plan = JsonSerializer.Deserialize<FlowPlan>(jsonBlock, Schema.SchemaJsonOptions.Default);
             if (plan?.Nodes is null || plan.Nodes.Count == 0)
             {
                 return (null, 0, "Empty plan");
@@ -591,36 +595,11 @@ public sealed class FlowExecutor : IGoalExecutor
         }
     }
 
-    private static string? ExtractJsonBlock(string text)
-    {
-        // 嘗試 ```json ... ``` 格式
-        var jsonStart = text.IndexOf("```json", StringComparison.OrdinalIgnoreCase);
-        if (jsonStart >= 0)
-        {
-            jsonStart = text.IndexOf('\n', jsonStart) + 1;
-            var jsonEnd = text.IndexOf("```", jsonStart, StringComparison.Ordinal);
-            if (jsonEnd > jsonStart)
-            {
-                return text[jsonStart..jsonEnd].Trim();
-            }
-        }
-
-        // 嘗試直接 JSON
-        var firstBrace = text.IndexOf('{');
-        var lastBrace = text.LastIndexOf('}');
-        if (firstBrace >= 0 && lastBrace > firstBrace)
-        {
-            return text[firstBrace..(lastBrace + 1)];
-        }
-
-        return null;
-    }
-
     private static string FormatPlanForDisplay(FlowPlan plan)
     {
         var lines = plan.Nodes.Select((n, i) =>
-            $"  {i + 1}. [{n.NodeType}] {n.Name}" +
-            (n.NodeType == NodeTypes.Agent ? $" — {Truncate(n.Instructions ?? "", 80)}" : ""));
+            $"  {i + 1}. [{NodeConfigHelpers.GetNodeTypeString(n)}] {n.Name}" +
+            (n is Schema.AgentNode agent ? $" — {Truncate(agent.Instructions ?? "", 80)}" : ""));
         return $"Flow Plan ({plan.Nodes.Count} nodes):\n{string.Join("\n", lines)}";
     }
 
@@ -639,11 +618,4 @@ public sealed class FlowExecutor : IGoalExecutor
         return string.Join(" ", words);
     }
 
-    private static readonly JsonSerializerOptions PlanJsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        AllowTrailingCommas = true,
-        ReadCommentHandling = JsonCommentHandling.Skip
-    };
 }
