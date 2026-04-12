@@ -384,7 +384,7 @@ export const api = {
     get: (id: string) => request<RefineryProject>(`/api/refinery/${id}`),
     create: (data: { name: string; description?: string; schemaTemplateId?: string; customSchemaJson?: string; provider?: string; model?: string; outputLanguage?: string; extractionMode?: string }) =>
       request<RefineryProject>('/api/refinery', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: { name?: string; description?: string; schemaTemplateId?: string; customSchemaJson?: string; provider?: string; model?: string; outputLanguage?: string; extractionMode?: string }) =>
+    update: (id: string, data: { name?: string; description?: string; schemaTemplateId?: string; customSchemaJson?: string; provider?: string; model?: string; outputLanguage?: string; extractionMode?: string; enableChallenge?: boolean; imageProcessingMode?: string }) =>
       request<RefineryProject>(`/api/refinery/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/api/refinery/${id}`, { method: 'DELETE' }),
     listFiles: (id: string) => request<RefineryFileDoc[]>(`/api/refinery/${id}/files`),

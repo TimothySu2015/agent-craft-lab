@@ -128,7 +128,7 @@ function CopilotGenerativeActions() {
         return 'Failed to load tools. Is the backend running?'
       }
     },
-    render: ({ status, result }) => {
+    render: ({ status, result }: { status: string; result?: unknown }) => {
       if (status === 'executing') {
         return <div className="text-xs text-muted-foreground animate-pulse my-1">Loading tools...</div>
       }
@@ -141,7 +141,7 @@ function CopilotGenerativeActions() {
         })
         return <ToolListCard tools={tools} />
       }
-      return null
+      return <></>
     },
   })
 
@@ -162,7 +162,7 @@ function CopilotGenerativeActions() {
         return JSON.stringify({ status: 'error', error: String(err) })
       }
     },
-    render: ({ status, args, result }) => {
+    render: ({ status, args, result }: { status: string; args?: any; result?: unknown }) => {
       if (status === 'executing') {
         return <div className="text-xs text-muted-foreground animate-pulse my-1">Connecting to {args.url}...</div>
       }
@@ -176,9 +176,9 @@ function CopilotGenerativeActions() {
               items={data.tools?.map((t: { name: string; description?: string }) => ({ name: t.name, description: t.description }))}
             />
           )
-        } catch { return null }
+        } catch { return <></> }
       }
-      return null
+      return <></>
     },
   })
 
@@ -200,7 +200,7 @@ function CopilotGenerativeActions() {
         return JSON.stringify({ status: 'error', error: String(err) })
       }
     },
-    render: ({ status, args, result }) => {
+    render: ({ status, args, result }: { status: string; args?: any; result?: unknown }) => {
       if (status === 'executing') {
         return <div className="text-xs text-muted-foreground animate-pulse my-1">Discovering A2A agent at {args.url}...</div>
       }
@@ -214,9 +214,9 @@ function CopilotGenerativeActions() {
               items={data.agent ? [{ name: data.agent.name, description: data.agent.description }] : undefined}
             />
           )
-        } catch { return null }
+        } catch { return <></> }
       }
-      return null
+      return <></>
     },
   })
 

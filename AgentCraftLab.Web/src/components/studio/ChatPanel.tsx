@@ -164,7 +164,7 @@ export function ChatPanel({ onCollapse }: ChatPanelProps) {
               regenerateResponse: t('regenerate'),
             }}
             className="copilot-chat-studio"
-            AssistantMessage={ChatAssistantMessage}
+            AssistantMessage={ChatAssistantMessage as any}
             Input={StableChatInput}
             onSubmitMessage={() => {
               // 訊息送出後清除附件

@@ -5,6 +5,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
+// NodeProps 的 Required 欄位預設值（React Flow v12 要求）
+const nodeDefaults = { draggable: true, dragging: false, selectable: true, deletable: true, zIndex: 0, isConnectable: true, positionAbsoluteX: 0, positionAbsoluteY: 0 }
+
 // Mock @xyflow/react — Handle 和 Position 需要 mock 才能脫離 ReactFlowProvider
 vi.mock('@xyflow/react', async () => {
   const actual = await vi.importActual('@xyflow/react')
@@ -58,31 +61,31 @@ describe('AgentNode', () => {
   }
 
   it('renders name and provider/model subtitle', () => {
-    render(<AgentNode data={baseData} selected={false} id="a1" type="agent" />)
+    render(<AgentNode data={baseData} {...nodeDefaults} selected={false} id="a1" type="agent" />)
     expect(screen.getByText('MyAgent')).toBeInTheDocument()
     expect(screen.getByText('openai / gpt-4o')).toBeInTheDocument()
   })
 
   it('renders instructions', () => {
-    render(<AgentNode data={baseData} selected={false} id="a1" type="agent" />)
+    render(<AgentNode data={baseData} {...nodeDefaults} selected={false} id="a1" type="agent" />)
     expect(screen.getByText('Be helpful')).toBeInTheDocument()
   })
 
   it('hides instructions when empty', () => {
     const data = { ...baseData, instructions: '' }
-    render(<AgentNode data={data} selected={false} id="a1" type="agent" />)
+    render(<AgentNode data={data} {...nodeDefaults} selected={false} id="a1" type="agent" />)
     expect(screen.queryByText('Be helpful')).not.toBeInTheDocument()
   })
 
   it('renders tool badges', () => {
     const data = { ...baseData, tools: ['web_search', 'calculator'] }
-    render(<AgentNode data={data} selected={false} id="a1" type="agent" />)
+    render(<AgentNode data={data} {...nodeDefaults} selected={false} id="a1" type="agent" />)
     expect(screen.getByText('web_search')).toBeInTheDocument()
     expect(screen.getByText('calculator')).toBeInTheDocument()
   })
 
   it('hides tool badges when empty', () => {
-    render(<AgentNode data={baseData} selected={false} id="a1" type="agent" />)
+    render(<AgentNode data={baseData} {...nodeDefaults} selected={false} id="a1" type="agent" />)
     expect(screen.queryByText('web_search')).not.toBeInTheDocument()
   })
 })
@@ -96,19 +99,19 @@ describe('ConditionNode', () => {
   }
 
   it('renders name and conditionType subtitle', () => {
-    render(<ConditionNode data={data} selected={false} id="c1" type="condition" />)
+    render(<ConditionNode data={data} {...nodeDefaults} selected={false} id="c1" type="condition" />)
     expect(screen.getByText('Check')).toBeInTheDocument()
     expect(screen.getByText('contains')).toBeInTheDocument()
   })
 
   it('renders True/False labels', () => {
-    render(<ConditionNode data={data} selected={false} id="c1" type="condition" />)
+    render(<ConditionNode data={data} {...nodeDefaults} selected={false} id="c1" type="condition" />)
     expect(screen.getByText('True')).toBeInTheDocument()
     expect(screen.getByText('False')).toBeInTheDocument()
   })
 
   it('renders condition expression', () => {
-    render(<ConditionNode data={data} selected={false} id="c1" type="condition" />)
+    render(<ConditionNode data={data} {...nodeDefaults} selected={false} id="c1" type="condition" />)
     expect(screen.getByText('DONE')).toBeInTheDocument()
   })
 })
@@ -123,7 +126,7 @@ describe('LoopNode', () => {
   }
 
   it('renders subtitle with conditionType and max iterations', () => {
-    render(<LoopNode data={data} selected={false} id="l1" type="loop" />)
+    render(<LoopNode data={data} {...nodeDefaults} selected={false} id="l1" type="loop" />)
     expect(screen.getByText('contains (max 3)')).toBeInTheDocument()
   })
 })
@@ -137,7 +140,7 @@ describe('CodeNode', () => {
       expression: '## {{input}}', replacement: '',
       maxLength: 0, delimiter: '\\n', splitIndex: 0,
     }
-    render(<CodeNode data={data} selected={false} id="code1" type="code" />)
+    render(<CodeNode data={data} {...nodeDefaults} selected={false} id="code1" type="code" />)
     expect(screen.getByText('## {{input}}')).toBeInTheDocument()
   })
 
@@ -147,7 +150,7 @@ describe('CodeNode', () => {
       expression: '{{input}}', replacement: '',
       maxLength: 0, delimiter: '\\n', splitIndex: 0,
     }
-    render(<CodeNode data={data} selected={false} id="code1" type="code" />)
+    render(<CodeNode data={data} {...nodeDefaults} selected={false} id="code1" type="code" />)
     expect(screen.queryByText('{{input}}')).not.toBeInTheDocument()
   })
 })
@@ -165,7 +168,7 @@ describe('ParallelNode', () => {
       ],
       merge: 'labeled' as const,
     }
-    const { container } = render(<ParallelNode data={data} selected={false} id="p1" type="parallel" />)
+    const { container } = render(<ParallelNode data={data} {...nodeDefaults} selected={false} id="p1" type="parallel" />)
     // 3 branches + 1 Done = 4 output handles
     const sourceHandles = container.querySelectorAll('[data-testid^="handle-source-output_"]')
     expect(sourceHandles).toHaveLength(4)
@@ -175,7 +178,7 @@ describe('ParallelNode', () => {
     const data = {
       type: 'parallel' as const, name: 'Fan', branches: [], merge: 'labeled' as const,
     }
-    const { container } = render(<ParallelNode data={data} selected={false} id="p1" type="parallel" />)
+    const { container } = render(<ParallelNode data={data} {...nodeDefaults} selected={false} id="p1" type="parallel" />)
     // 0 branches + 1 Done = 1 output
     const sourceHandles = container.querySelectorAll('[data-testid^="handle-source"]')
     expect(sourceHandles).toHaveLength(1)
@@ -190,7 +193,7 @@ describe('ParallelNode', () => {
       ],
       merge: 'json' as const,
     }
-    render(<ParallelNode data={data} selected={false} id="p1" type="parallel" />)
+    render(<ParallelNode data={data} {...nodeDefaults} selected={false} id="p1" type="parallel" />)
     expect(screen.getByText('json')).toBeInTheDocument()
   })
 })
@@ -207,7 +210,7 @@ describe('RouterNode', () => {
         { name: 'general', keywords: [], isDefault: true },
       ],
     }
-    const { container } = render(<RouterNode data={data} selected={false} id="r1" type="router" />)
+    const { container } = render(<RouterNode data={data} {...nodeDefaults} selected={false} id="r1" type="router" />)
     // 3 routes = 3 outputs
     const sourceHandles = container.querySelectorAll('[data-testid^="handle-source-output_"]')
     expect(sourceHandles).toHaveLength(3)
@@ -218,7 +221,7 @@ describe('RouterNode', () => {
       type: 'router' as const, name: 'Route',
       routes: [{ name: 'only', keywords: [], isDefault: false }],
     }
-    const { container } = render(<RouterNode data={data} selected={false} id="r1" type="router" />)
+    const { container } = render(<RouterNode data={data} {...nodeDefaults} selected={false} id="r1" type="router" />)
     const sourceHandles = container.querySelectorAll('[data-testid^="handle-source-output_"]')
     expect(sourceHandles).toHaveLength(2)
   })
@@ -232,7 +235,7 @@ describe('IterationNode', () => {
       type: 'iteration' as const, name: 'ForEach', split: 'jsonArray' as const,
       delimiter: '\\n', maxItems: 50, maxConcurrency: 1,
     }
-    render(<IterationNode data={data} selected={false} id="i1" type="iteration" />)
+    render(<IterationNode data={data} {...nodeDefaults} selected={false} id="i1" type="iteration" />)
     expect(screen.getByText('Max: 50')).toBeInTheDocument()
   })
 })
@@ -247,7 +250,7 @@ describe('AutonomousNode', () => {
       maxIterations: 25,
       tools: [], skills: [], mcpServers: [], a2AAgents: [], httpApis: [],
     }
-    render(<AutonomousNode data={data} selected={false} id="au1" type="autonomous" />)
+    render(<AutonomousNode data={data} {...nodeDefaults} selected={false} id="au1" type="autonomous" />)
     expect(screen.getByText('openai / gpt-4o')).toBeInTheDocument()
     expect(screen.getByText('Research')).toBeInTheDocument()
   })
@@ -273,7 +276,7 @@ describe('RagNode', () => {
       },
       knowledgeBaseIds: [],
     }
-    render(<RagNode data={data} selected={false} id="rag1" type="rag" />)
+    render(<RagNode data={data} {...nodeDefaults} selected={false} id="rag1" type="rag" />)
     expect(screen.getByText('TopK: 5 · hybrid')).toBeInTheDocument()
   })
 })
@@ -286,7 +289,7 @@ describe('HttpRequestNode', () => {
       type: 'http-request' as const, name: 'API',
       spec: { kind: 'catalog' as const, apiId: 'weather-api', args: {} },
     }
-    render(<HttpRequestNode data={data} selected={false} id="h1" type="http-request" />)
+    render(<HttpRequestNode data={data} {...nodeDefaults} selected={false} id="h1" type="http-request" />)
     expect(screen.getByText('weather-api')).toBeInTheDocument()
   })
 
@@ -306,7 +309,7 @@ describe('HttpRequestNode', () => {
         responseMaxLength: 2000,
       },
     }
-    render(<HttpRequestNode data={data} selected={false} id="h1" type="http-request" />)
+    render(<HttpRequestNode data={data} {...nodeDefaults} selected={false} id="h1" type="http-request" />)
     expect(screen.queryByText('weather-api')).not.toBeInTheDocument()
   })
 })

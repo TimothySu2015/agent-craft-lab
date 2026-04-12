@@ -37,15 +37,14 @@ public sealed class CodeNodeExecutor : NodeExecutorBase<CodeNode>
         }
 
         var result = TransformHelper.ApplyTransform(
-            FormatTransformType(node.Kind, node.Replacement),
+            node.Kind,
             input,
-            template: node.Expression,
-            pattern: node.Expression,
+            expression: node.Expression,
             replacement: node.Replacement,
             maxLength: node.MaxLength,
             delimiter: node.Delimiter,
             splitIndex: node.SplitIndex,
-            scriptLanguage: node.Language is { } lang ? FormatScriptLanguage(lang) : null);
+            language: node.Language);
 
         // Script 模式：提取 __variables__ 寫回 state
         if (isScript)
@@ -58,31 +57,6 @@ public sealed class CodeNodeExecutor : NodeExecutorBase<CodeNode>
         yield return ExecutionEvent.AgentCompleted(nodeName, result);
         await Task.CompletedTask;
     }
-
-    /// <summary>
-    /// 將新 <see cref="TransformKind"/> enum 轉為 TransformHelper 期望的舊字串常數。
-    /// 舊 schema 的 "regex-extract" / "regex-replace" 在新 enum 合併為 Regex — 透過
-    /// <paramref name="replacement"/> 有無區分（有 replacement → replace；無 → extract）。
-    /// </summary>
-    private static string FormatTransformType(TransformKind kind, string? replacement) => kind switch
-    {
-        TransformKind.Template => "template",
-        TransformKind.Regex => string.IsNullOrEmpty(replacement) ? "regex-extract" : "regex-replace",
-        TransformKind.JsonPath => "json-path",
-        TransformKind.Trim => "trim",
-        TransformKind.Truncate => "trim", // 舊 "trim" 實際做的是 max-length 截斷
-        TransformKind.Split => "split-take",
-        TransformKind.Upper => "upper",
-        TransformKind.Lower => "lower",
-        TransformKind.Script => "script",
-        _ => "template"
-    };
-
-    private static string FormatScriptLanguage(ScriptLanguage lang) => lang switch
-    {
-        ScriptLanguage.CSharp => "csharp",
-        _ => "javascript"
-    };
 
     /// <summary>
     /// 從 script output 提取 __variables__ mutations 寫回 state.Variables。

@@ -198,6 +198,8 @@ interface NodeBase {
   description?: string;
   /** Meta 字典 — Flow planner 可能塞入 `flow:trueBranchIndex` 等結構化資料 */
   meta?: Record<string, string>;
+  /** Index signature — 讓 NodeData 滿足 React Flow Node<T extends Record<string, unknown>> 約束 */
+  [key: string]: unknown;
 }
 
 // ─── 14 node subtypes ────────────────────────────────────────────
