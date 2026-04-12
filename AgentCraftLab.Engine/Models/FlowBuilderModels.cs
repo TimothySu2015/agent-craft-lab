@@ -23,4 +23,7 @@ public class FlowBuildRequest
 
     /// <summary>LLM 提供者名稱（openai, azure-openai, ollama, anthropic 等）。</summary>
     public string Provider { get; set; } = Providers.OpenAI;
+
+    /// <summary>使用者 UI 語系（en / zh-TW / ja），用於決定 AI Build 回覆語言和 agent instructions 語言。</summary>
+    public string Locale { get; set; } = "zh-TW";
 }

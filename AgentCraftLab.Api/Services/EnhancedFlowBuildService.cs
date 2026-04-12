@@ -205,8 +205,8 @@ public sealed class EnhancedFlowBuildService
 
         var basePrompt = FlowPlannerPrompt.Build(goalRequest, _toolDescriptions);
 
-        // 加入串流 UX 指示 + 繁體中文要求
-        var enhancedPrompt = basePrompt + StreamingUxInstructions;
+        // 加入串流 UX 指示 + locale 語言指令
+        var enhancedPrompt = basePrompt + GetStreamingUxInstructions(request.Locale);
 
         var messages = new List<ChatMessage>
         {
@@ -224,7 +224,7 @@ public sealed class EnhancedFlowBuildService
         var userContent = new StringBuilder();
         if (!string.IsNullOrWhiteSpace(request.CurrentWorkflowJson))
         {
-            userContent.AppendLine("【目前畫布上的 Workflow（供參考，需要時可修改）】");
+            userContent.AppendLine("[Current canvas Workflow (for reference, modify as needed)]");
             userContent.AppendLine(request.CurrentWorkflowJson);
             userContent.AppendLine();
         }
@@ -234,28 +234,37 @@ public sealed class EnhancedFlowBuildService
         return messages;
     }
 
-    private const string StreamingUxInstructions = """
+    private static string GetStreamingUxInstructions(string locale)
+    {
+        var langRule = locale switch
+        {
+            "en" => "Write your design explanation and agent `instructions` in **English**.",
+            "ja" => "Write your design explanation in **Japanese (日本語)**. Write agent `instructions` in Japanese, ending with 「日本語で回答してください。」",
+            _ => "Write your design explanation in **Traditional Chinese (繁體中文)**. Write agent `instructions` in Traditional Chinese, ending with 「請使用繁體中文回答。」 If the user explicitly requests a specific language for an agent, write that agent's instructions in the requested language.",
+        };
 
-        ## 額外規則（覆蓋上方 General Rules 第 1 條，並強化重點）
+        return $"""
 
-        ### 回覆格式
-        上方說「Output ONLY a JSON object」，但這裡覆蓋該規則。請按以下格式回覆：
-        1. 先用繁體中文簡短說明你的設計思路（2-4 句，一段即可，不要重複）
-        2. 然後輸出 JSON（用 ```json 包裹）
-        3. Agent 的 instructions 預設使用繁體中文，結尾加「請使用繁體中文回答。」。但若使用者要求某個 Agent 用其他語言輸出，則該 Agent 的 instructions 必須用目標語言撰寫（如日文 Agent 用日文寫 instructions，結尾加「日本語で回答してください。」）
-        4. Agent 的 name 請使用英文
-        5. JSON 結束後不需要再說明
+        ## Additional Rules (overrides General Rule 1, adds key reminders)
 
-        ### 常見錯誤提醒（最容易犯的，請特別注意）
-        - **禁止插入純格式轉換的 code 節點**：如果前一個 agent 已經輸出 JSON 陣列，不要加一個 code 節點再轉換一次，直接接下一個節點
-        - **子問題拆解 + 分別搜尋的正確做法**：如果使用者要求「拆解成子問題並分別搜尋」，不要用 parallel（因為子問題在規劃時未知，違反 Rule 12）。正確做法：
-          1. Agent（拆解子問題為 JSON 陣列）
-          2. iteration（splitMode: json-array）+ 帶搜尋工具的 body agent
-          3. Agent（彙整所有結果）
-          4. Code（格式化表格，零 token）
-        - **parallel 只用於已知的具體項目**：如「比較 React vs Vue vs Angular」→ 三個具體名稱可以用 parallel。「拆解後搜尋」→ 項目未知，不能用 parallel
-        - **每個節點都要有明確作用**：如果移除某個節點後流程不變，就不要加它
+        ### Response Format
+        The rules above say "Output ONLY a JSON object", but this overrides that. Respond as follows:
+        1. Briefly explain your design rationale (2-4 sentences, one paragraph, no repetition). {langRule}
+        2. Then output JSON (wrapped in ```json)
+        3. Agent names must be in English
+        4. Do not add anything after the JSON block
+
+        ### Common Mistakes (pay special attention)
+        - **Do NOT insert code nodes for format conversion**: If the previous agent already outputs a JSON array, do not add a code node to transform it again — connect directly to the next node
+        - **Correct approach for "decompose into sub-questions and search each"**: Do NOT use parallel (sub-questions are unknown at planning time, violating Rule 12). Correct:
+          1. Agent (decompose into JSON array)
+          2. iteration (split: jsonArray) + body agent with search tools
+          3. Agent (merge all results)
+          4. Code (format table, zero tokens)
+        - **parallel only for known concrete items**: e.g., "compare React vs Vue vs Angular" → three concrete names → parallel OK. "decompose then search" → items unknown → do NOT use parallel
+        - **Every node must have a clear purpose**: If removing a node doesn't change the flow, don't add it
         """;
+    }
 
     private static readonly JsonSerializerOptions PlanJsonOptions = new()
     {

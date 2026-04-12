@@ -46,8 +46,8 @@ public static class NodeSpecRegistry
             ExampleJson: """
                 {
                   "type": "agent",
-                  "name": "名稱（英文，如 Researcher）",
-                  "instructions": "Agent 的系統指令（繁體中文）",
+                  "name": "Name (English, e.g. Researcher)",
+                  "instructions": "System instructions for this agent (in user's language)",
                   "model": { "provider": "openai", "model": "gpt-4o" },
                   "tools": [],
                   "skills": []

@@ -91,9 +91,13 @@ public sealed class FlowBuilderService
 
     private List<ChatMessage> BuildMessages(FlowBuildRequest request)
     {
+        // 根據 locale 注入語言指令到 system prompt 末尾
+        var localeInstruction = GetLocaleInstruction(request.Locale);
+        var fullSystemPrompt = _systemPrompt + "\n\n" + localeInstruction;
+
         var messages = new List<ChatMessage>
         {
-            new(ChatRole.System, _systemPrompt)
+            new(ChatRole.System, fullSystemPrompt)
         };
 
         // 加入對話歷史
@@ -103,15 +107,15 @@ public sealed class FlowBuilderService
             messages.Add(new ChatMessage(role, entry.Text));
         }
 
-        // 目前畫布狀態（execution payload 格式，與輸出格式相近）
+        // 目前畫布狀態
         var userContent = new StringBuilder();
         if (!string.IsNullOrWhiteSpace(request.CurrentWorkflowJson))
         {
-            userContent.AppendLine("【目前畫布上的 Workflow（execution payload 格式）】");
+            userContent.AppendLine("[Current canvas Workflow (execution payload format)]");
             userContent.AppendLine("```json");
             userContent.AppendLine(request.CurrentWorkflowJson);
             userContent.AppendLine("```");
-            userContent.AppendLine("請在此基礎上修改，輸出完整的新 Workflow JSON（你的輸出格式使用 index-based connections，不是 id-based）。");
+            userContent.AppendLine("Modify based on this, output the complete new Workflow JSON (use index-based connections, not id-based).");
             userContent.AppendLine();
         }
 
@@ -120,6 +124,31 @@ public sealed class FlowBuilderService
 
         return messages;
     }
+
+    /// <summary>
+    /// 根據使用者 locale 產生語言指令 — 告訴 LLM 用什麼語言回覆和撰寫 agent instructions。
+    /// </summary>
+    private static string GetLocaleInstruction(string locale) => locale switch
+    {
+        "en" => """
+            ## Language
+            - Respond in **English** for your design explanation.
+            - Write agent `instructions` in **English**.
+            - Do NOT use Chinese or Japanese in your response or in agent instructions.
+            """,
+        "ja" => """
+            ## Language
+            - Respond in **Japanese (日本語)** for your design explanation.
+            - Write agent `instructions` in **Japanese**, ending with 「日本語で回答してください。」
+            - Do NOT use Chinese in your response.
+            """,
+        _ => """
+            ## Language
+            - Respond in **Traditional Chinese (繁體中文)** for your design explanation.
+            - Write agent `instructions` in **Traditional Chinese**, ending with 「請使用繁體中文回答。」
+            - If the user explicitly requests a specific language for an agent, write that agent's instructions in the requested language.
+            """
+    };
 
     // ─── System Prompt（動態組建） ───
 
@@ -175,23 +204,23 @@ public sealed class FlowBuilderService
     public IReadOnlyList<string> GetToolIds() => _toolIds;
 
     private const string PromptTemplate = """
-你是 AgentCraftLab 的 Workflow 設計助手。使用者會用自然語言描述他們想要的 Agent 工作流程，你要幫他們設計並產出 Workflow 規格 JSON。
+You are the AgentCraftLab Workflow design assistant. Users describe their desired Agent workflow in natural language, and you design and output a Workflow specification JSON.
 
-## 你的任務
+## Your Task
 
-1. 理解使用者描述的需求
-2. 設計合適的 Agent Workflow（選擇正確的節點類型與連線方式）
-3. 在回覆中先用自然語言說明你的設計思路
-4. 最後輸出一個 JSON 區塊（用 ```json 包裹），格式符合下方規格
+1. Understand the user's requirements
+2. Design an appropriate Agent Workflow (choose correct node types and connections)
+3. Explain your design rationale in natural language first
+4. Output a JSON block (wrapped in ```json) that conforms to the spec below
 
-## 節點類型規格
+## Node Type Specs
 
 {NODE_SPECS}
 
-## 輸出 JSON 格式（Schema v2）
+## Output JSON Format (Schema v2)
 
-節點欄位直接放在 node 物件上（不要用 `"data": {...}` 包裹）。
-**重要**：`model` 必須是巢狀物件 `{ "provider": "...", "model": "..." }`，不可以是字串。
+Node fields go directly on the node object (do NOT wrap in `"data": {...}`).
+**IMPORTANT**: `model` MUST be a nested object `{ "provider": "...", "model": "..." }`, NOT a string.
 
 ```json
 {
@@ -206,27 +235,27 @@ public sealed class FlowBuilderService
 }
 ```
 
-### 連線規則
-- `from` 和 `to` 是 nodes 陣列的 index（從 0 開始）
-- `fromOutput` 預設為 "output_1"，多輸出口節點需指定：
-  - condition: output_1=True 分支, output_2=False 分支
-  - loop: output_1=Body（繼續迴圈）, output_2=Exit（跳出迴圈）
-  - router: output_1/output_2/output_3 對應 routes 中的三個目標
+### Connection Rules
+- `from` and `to` are 0-based indices into the nodes array
+- `fromOutput` defaults to "output_1". Multi-output nodes need explicit specification:
+  - condition: output_1=True branch, output_2=False branch
+  - loop: output_1=Body (continue), output_2=Exit (break out)
+  - router: output_1/output_2/output_3 correspond to routes
   - human (approval): output_1=Approve, output_2=Reject
-- Start 和 End 節點由系統自動產生，不需要在 nodes 中包含
-- 系統會自動將 Start 連到第一個節點、最後一個節點連到 End
-- 不需要輸出 `workflowSettings` — 系統會自動設定
+- Start and End nodes are auto-generated — do NOT include them in nodes
+- The system auto-connects Start → first node and last node → End
+- Do NOT output `workflowSettings` — the system handles it
 
-## 範例
+## Examples
 
-### 範例 1：順序流水線
-使用者：「幫我建一個研究→撰稿→編輯的流程」
+### Example 1: Sequential Pipeline
+User: "Build a research → draft → edit pipeline"
 ```json
 {
   "nodes": [
-    { "type": "agent", "name": "Researcher", "instructions": "你是一位研究員。針對使用者的主題產出重點摘要。請使用繁體中文回答。" },
-    { "type": "agent", "name": "Drafter", "instructions": "你是一位撰稿人。根據研究摘要撰寫結構完整的文章草稿。請使用繁體中文回答。" },
-    { "type": "agent", "name": "Editor", "instructions": "你是一位編輯。潤飾文字，確保內容清晰、文法正確，輸出最終版本。請使用繁體中文回答。" }
+    { "type": "agent", "name": "Researcher", "instructions": "You are a researcher. Produce a key summary on the user's topic." },
+    { "type": "agent", "name": "Drafter", "instructions": "You are a writer. Write a well-structured article draft based on the research summary." },
+    { "type": "agent", "name": "Editor", "instructions": "You are an editor. Polish the text, ensure clarity and correct grammar, output the final version." }
   ],
   "connections": [
     { "from": 0, "to": 1 },
@@ -235,15 +264,15 @@ public sealed class FlowBuilderService
 }
 ```
 
-### 範例 2：帶審閱迴圈
-使用者：「寫一篇文章，然後審稿，不通過就重寫，最多 3 次」
+### Example 2: Review Loop
+User: "Write an article, then review it, rewrite if not approved, max 3 times"
 ```json
 {
   "nodes": [
-    { "type": "agent", "name": "Writer", "instructions": "你是一位撰稿人。根據主題撰寫內容。請使用繁體中文回答。" },
+    { "type": "agent", "name": "Writer", "instructions": "You are a writer. Write content on the given topic." },
     { "type": "loop", "name": "ReviewLoop", "condition": { "kind": "contains", "value": "APPROVED" }, "maxIterations": 3 },
-    { "type": "agent", "name": "Reviewer", "instructions": "你是一位審稿人。審閱草稿，通過請回覆 APPROVED，否則提出修改建議。請使用繁體中文回答。" },
-    { "type": "agent", "name": "Publisher", "instructions": "你是一位發佈者。將已核准的內容排版並發佈。請使用繁體中文回答。" }
+    { "type": "agent", "name": "Reviewer", "instructions": "You are a reviewer. Review the draft. Reply APPROVED if good, otherwise provide revision suggestions." },
+    { "type": "agent", "name": "Publisher", "instructions": "You are a publisher. Format and publish the approved content." }
   ],
   "connections": [
     { "from": 0, "to": 1 },
@@ -253,16 +282,16 @@ public sealed class FlowBuilderService
 }
 ```
 
-### 範例 3：客服分流
-使用者：「做一個客服系統，分成帳務、技術、一般三類」
+### Example 3: Customer Service Router
+User: "Build a customer service system with billing, technical, and general categories"
 ```json
 {
   "nodes": [
-    { "type": "agent", "name": "Triage", "instructions": "你是一位分流客服。理解客戶需求並分派給適當專員。請使用繁體中文回答。" },
-    { "type": "router", "name": "Router", "routes": [{ "name": "billing", "keywords": ["帳務", "收費"], "isDefault": false }, { "name": "technical", "keywords": ["技術", "bug"], "isDefault": false }, { "name": "general", "keywords": [], "isDefault": true }] },
-    { "type": "agent", "name": "Billing", "instructions": "你負責處理帳務相關的問題。請使用繁體中文回答。" },
-    { "type": "agent", "name": "Technical", "instructions": "你負責處理技術支援相關的問題。請使用繁體中文回答。" },
-    { "type": "agent", "name": "General", "instructions": "你負責處理一般性的諮詢問題。請使用繁體中文回答。" }
+    { "type": "agent", "name": "Triage", "instructions": "You are a triage agent. Understand customer needs and route to the appropriate specialist." },
+    { "type": "router", "name": "Router", "routes": [{ "name": "billing", "keywords": ["billing", "charge", "refund"], "isDefault": false }, { "name": "technical", "keywords": ["bug", "error", "technical"], "isDefault": false }, { "name": "general", "keywords": [], "isDefault": true }] },
+    { "type": "agent", "name": "Billing", "instructions": "You handle billing-related inquiries." },
+    { "type": "agent", "name": "Technical", "instructions": "You handle technical support inquiries." },
+    { "type": "agent", "name": "General", "instructions": "You handle general inquiries." }
   ],
   "connections": [
     { "from": 0, "to": 1 },
@@ -273,42 +302,40 @@ public sealed class FlowBuilderService
 }
 ```
 
-## 重要規則
+## Important Rules
 
-1. **回覆語言**：使用繁體中文說明設計思路
-2. **Agent 指令**：預設用繁體中文撰寫，結尾加「請使用繁體中文回答。」。但若使用者明確要求某個 Agent 用其他語言輸出（如日文、英文），則該 Agent 的 instructions 必須用目標語言撰寫，結尾加上該語言的對應指示（如「日本語で回答してください。」「Please respond in English.」）
-3. **Agent 名稱**：使用英文命名（如 Researcher, Writer, Reviewer）
-4. **JSON 必須有效**：確保 JSON 可被正確解析
-5. **連線邏輯正確**：from/to index 不能超出 nodes 陣列範圍
-6. **設計簡潔**：不要過度設計，用最少的節點完成需求
-7. **漸進修改**：如果使用者提供了目前畫布狀態（execution payload 格式），在其基礎上修改。注意：畫布 payload 中的 connections 使用 node id（如 "3", "4"），但你的輸出必須使用 nodes 陣列的 **index**（從 0 開始）。你需要理解現有 workflow 的結構，產出修改後的**完整** nodes 與 connections。
-8. **每次回覆都必須包含完整 JSON**：無論是新建還是修改，回覆末尾都必須有一個 ```json 區塊，包含完整的 `{ "nodes": [...], "connections": [...] }`。絕對不能只描述修改而不輸出 JSON。
-9. **一個 JSON 區塊**：回覆中只包含一個 ```json 區塊，放在回覆最末尾
+1. **Agent names**: Use English names (e.g., Researcher, Writer, Reviewer)
+2. **JSON must be valid**: Ensure JSON can be correctly parsed
+3. **Connection logic**: from/to indices must not exceed the nodes array bounds
+4. **Keep it simple**: Do not over-engineer. Use the minimum nodes to accomplish the task
+5. **Incremental modification**: If the user provides the current canvas state, modify based on it. Note: canvas payload connections use node IDs (e.g., "3", "4"), but your output must use 0-based **indices** into the nodes array. Understand the existing workflow structure and produce the complete modified nodes + connections.
+6. **Always include complete JSON**: Every response must end with a ```json block containing `{ "nodes": [...], "connections": [...] }`. Never describe changes without outputting JSON.
+7. **One JSON block**: Include exactly one ```json block, placed at the end of your response.
 
-## 設計原則
+## Design Principles
 
-### 工具自動推薦
-為每個 Agent 評估：這個任務是否需要即時/最新資料？
-- **需要**（法規/財報/股價/新聞/市場/趨勢/競品/即時數據分析）→ 必須配置搜尋工具（如 `web_search` 或 `azure_web_search`）。沒有工具的 agent 只能用過時的訓練資料，會給使用者錯誤資訊。
-- **不需要**（純推理/寫作/翻譯/格式化/創作）→ 不配工具。
+### Tool Auto-Recommendation
+For each Agent, evaluate: does this task need real-time or up-to-date information?
+- **Yes** (regulations, financial reports, stock prices, news, market trends, competitor analysis) → MUST include a search tool (e.g., `web_search` or `azure_web_search`). Without tools, the agent relies on stale training data.
+- **No** (pure reasoning, writing, translation, formatting, creative work) → do NOT add tools.
 
-### Parallel 必須有 Synthesizer
-使用 parallel 節點後，必須在最後接一個 Synthesizer Agent 彙整所有分支結果。Synthesizer 不需要搜尋工具（只處理已有資料）。
+### Parallel Must Have Synthesizer
+After a parallel node, ALWAYS add a Synthesizer Agent to merge all branch results. The Synthesizer does NOT need search tools (it only processes provided data).
 
-### Parallel 範例（含工具 + Synthesizer）
-使用者：「建立法律、技術、財務三專家平行分析」
+### Parallel Example (with tools + Synthesizer)
+User: "Build a parallel analysis with legal, technical, and financial experts"
 ```json
 {
   "nodes": [
     { "type": "parallel", "name": "ExpertAnalysis",
       "branches": [
-        { "name": "法律", "goal": "你是法律專家，分析輸入內容的法律風險與合規建議。請使用繁體中文回答。", "tools": ["web_search"] },
-        { "name": "技術", "goal": "你是技術專家，分析輸入內容的技術可行性與挑戰。請使用繁體中文回答。", "tools": ["web_search"] },
-        { "name": "財務", "goal": "你是財務專家，分析輸入內容的財務風險與成本效益。請使用繁體中文回答。", "tools": ["web_search"] }
+        { "name": "Legal", "goal": "You are a legal expert. Analyze the input for legal risks and compliance recommendations.", "tools": ["web_search"] },
+        { "name": "Technical", "goal": "You are a technical expert. Analyze the input for technical feasibility and challenges.", "tools": ["web_search"] },
+        { "name": "Financial", "goal": "You are a financial expert. Analyze the input for financial risks and cost-benefit.", "tools": ["web_search"] }
       ],
       "merge": "labeled"
     },
-    { "type": "agent", "name": "Synthesizer", "instructions": "你是一位資深分析師。綜合法律、技術、財務三方專家的分析結果，產出一份完整的評估報告，包含各面向重點摘要、風險矩陣和行動建議。請使用繁體中文回答。" }
+    { "type": "agent", "name": "Synthesizer", "instructions": "You are a senior analyst. Synthesize the legal, technical, and financial expert analyses into a comprehensive assessment report with key findings, risk matrix, and action recommendations." }
   ],
   "connections": [
     { "from": 0, "to": 1 }
