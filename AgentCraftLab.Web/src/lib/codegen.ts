@@ -1,6 +1,8 @@
 /**
  * Code Generation — 將 React Flow 畫布轉為 C# 程式碼。
  * 簡化版，涵蓋 single agent / sequential / concurrent / handoff / imperative 五種模式。
+ *
+ * F3 之後：NodeData 為 nested Schema shape，所有 model/provider 透過 `data.model.*` 讀取。
  */
 import type { Node, Edge } from '@xyflow/react'
 import type { NodeData, AgentNodeData } from '@/types/workflow'
@@ -13,7 +15,7 @@ export function generateCSharpCode(nodes: Node<NodeData>[], edges: Edge[]): stri
 
   if (agentNodes.length === 0) return '// No agents defined. Add agent nodes to the canvas.'
 
-  const providers = [...new Set(agentNodes.map((a) => a.data.provider || 'openai'))]
+  const providers = [...new Set(agentNodes.map((a) => a.data.model?.provider || 'openai'))]
   const pattern = hasLogicNodes ? 'imperative'
     : agentNodes.length === 1 ? 'single'
     : detectPattern(agentNodes, edges)
@@ -39,7 +41,9 @@ export function generateCSharpCode(nodes: Node<NodeData>[], edges: Edge[]): stri
     const v = camel(agent.data.name)
     const d = agent.data
     const instr = esc(d.instructions || 'You are a helpful assistant.')
-    const client = clientExpr(d.provider, d.model)
+    const provider = d.model?.provider ?? 'openai'
+    const model = d.model?.model ?? 'gpt-4o'
+    const client = clientExpr(provider, model)
     const toolsStr = d.tools?.length ? `,\n    tools: [${d.tools.map((t) => camel(t)).join(', ')}]` : ''
 
     code += `ChatClientAgent ${v} = new(\n`
@@ -93,14 +97,14 @@ export function generateCSharpCode(nodes: Node<NodeData>[], edges: Edge[]): stri
     code += 'Console.WriteLine(result);\n'
   } else {
     // imperative — 指向 Engine JSON 執行
-    code += '// ─── Imperative Mode (JSON Workflow) ───\n'
+    code += '// ─── Imperative Mode (Schema v2 JSON Workflow) ───\n'
     code += '// This workflow uses condition/loop/human/code nodes.\n'
     code += '// Use WorkflowExecutionService from AgentCraftLab.Engine:\n'
     code += '//\n'
     code += '// var engine = serviceProvider.GetRequiredService<WorkflowExecutionService>();\n'
     code += '// var request = new WorkflowExecutionRequest\n'
     code += '// {\n'
-    code += '//     WorkflowJson = File.ReadAllText("workflow.json"),\n'
+    code += '//     WorkflowJson = File.ReadAllText("workflow.json"),  // Schema v2 nested format\n'
     code += '//     UserMessage = "Your message here",\n'
     code += '//     Credentials = credentials,\n'
     code += '// };\n'
@@ -134,8 +138,8 @@ function providerUsings(p: string): string {
 }
 
 function providerSetup(p: string, agents: Node<AgentNodeData>[]): string {
-  const agent = agents.find((a) => a.data.provider === p)
-  const model = agent?.data.model || 'gpt-4o'
+  const agent = agents.find((a) => a.data.model?.provider === p)
+  const model = agent?.data.model?.model || 'gpt-4o'
   switch (p) {
     case 'openai':
       return `var openAiClient = new OpenAIClient(Environment.GetEnvironmentVariable("OPENAI_API_KEY"));\n`
@@ -165,7 +169,6 @@ function detectPattern(agents: Node<AgentNodeData>[], edges: Edge[]): string {
   const hasMultiOut = agents.some((a) => edges.filter((e) => e.source === a.id).length > 1)
   if (hasMultiOut) return 'handoff'
   // Check if all agents form a chain
-  const sources = new Set(edges.map((e) => e.source))
   const targets = new Set(edges.map((e) => e.target))
   const roots = agents.filter((a) => !targets.has(a.id))
   if (roots.length === 1) return 'sequential'

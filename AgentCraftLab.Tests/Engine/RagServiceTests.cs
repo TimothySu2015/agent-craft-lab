@@ -115,7 +115,7 @@ public class RagServiceTests
     private static FileAttachment MakeFile(string name = "test.txt", string content = "hello world")
         => new() { FileName = name, MimeType = "text/plain", Data = System.Text.Encoding.UTF8.GetBytes(content) };
 
-    private static RagSettings DefaultSettings => new() { ChunkSize = 10, ChunkOverlap = 0 };
+    private static AgentCraftLab.Engine.Models.Schema.RagConfig DefaultSettings => new() { ChunkSize = 10, ChunkOverlap = 0 };
 
     private static async Task<List<ExecutionEvent>> CollectEvents(IAsyncEnumerable<ExecutionEvent> stream)
     {
@@ -158,7 +158,7 @@ public class RagServiceTests
         var svc = CreateService(extractor, engine);
 
         var events = await CollectEvents(
-            svc.IngestAsync(MakeFile("test.txt", text), new RagSettings { ChunkSize = 10, ChunkOverlap = 0 },
+            svc.IngestAsync(MakeFile("test.txt", text), new AgentCraftLab.Engine.Models.Schema.RagConfig { ChunkSize = 10, ChunkOverlap = 0 },
                 embedGen, "my-index"));
 
         // 最後一個事件是 RagReady
@@ -184,7 +184,7 @@ public class RagServiceTests
         var svc = CreateService(extractor, engine);
 
         await CollectEvents(
-            svc.IngestAsync(MakeFile("big.txt", longText), new RagSettings { ChunkSize = 10, ChunkOverlap = 0 },
+            svc.IngestAsync(MakeFile("big.txt", longText), new AgentCraftLab.Engine.Models.Schema.RagConfig { ChunkSize = 10, ChunkOverlap = 0 },
                 embedGen, "idx"));
 
         // 150 chunks / 100 batch = 2 batches

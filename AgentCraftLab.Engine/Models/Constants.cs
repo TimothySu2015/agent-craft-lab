@@ -1,6 +1,7 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Engine.Models;
 
@@ -67,8 +68,47 @@ public static class NodeTypeRegistry
     public static bool RequiresImperative(string type) => Registry.TryGetValue(type, out var info) && info.RequiresImperative;
     public static bool IsAgentLike(string type) => Registry.TryGetValue(type, out var info) && info.IsAgentLike;
     public static bool IsMeta(string type) => Registry.TryGetValue(type, out var info) && info.IsMeta;
-    public static bool HasAnyRequiringImperative(IEnumerable<WorkflowNode> nodes) => nodes.Any(n => RequiresImperative(n.Type));
-    public static bool HasAnyExecutable(IEnumerable<WorkflowNode> nodes) => nodes.Any(n => IsExecutable(n.Type));
+
+    // ─── NodeConfig overloads (Phase C — 強型別世界) ───
+
+    /// <summary>
+    /// 將 <see cref="NodeConfig"/> 子型別映射回字串常數（供事件發送、telemetry 用）。
+    /// 未知子型別直接拋例外 — 新增節點型別時測試會立刻 fail，避免 silent "unknown"
+    /// 污染 trace 資料。
+    /// </summary>
+    public static string TypeString(NodeConfig node) => node switch
+    {
+        AgentNode => NodeTypes.Agent,
+        A2AAgentNode => NodeTypes.A2AAgent,
+        AutonomousNode => NodeTypes.Autonomous,
+        ConditionNode => NodeTypes.Condition,
+        LoopNode => NodeTypes.Loop,
+        RouterNode => NodeTypes.Router,
+        HumanNode => NodeTypes.Human,
+        CodeNode => NodeTypes.Code,
+        IterationNode => NodeTypes.Iteration,
+        ParallelNode => NodeTypes.Parallel,
+        HttpRequestNode => NodeTypes.HttpRequest,
+        RagNode => NodeTypes.Rag,
+        StartNode => NodeTypes.Start,
+        EndNode => NodeTypes.End,
+        _ => throw new ArgumentOutOfRangeException(nameof(node),
+            $"Unknown NodeConfig subtype: {node.GetType().Name}. " +
+            $"Add a case to NodeTypeRegistry.TypeString when introducing a new node type.")
+    };
+
+    public static bool IsExecutable(NodeConfig node) => node is not (StartNode or EndNode or RagNode);
+    public static bool RequiresImperative(NodeConfig node) =>
+        node is not (AgentNode or StartNode or EndNode or RagNode);
+    public static bool IsAgentLike(NodeConfig node) =>
+        node is AgentNode or A2AAgentNode or AutonomousNode;
+    public static bool IsMeta(NodeConfig node) => node is StartNode or EndNode;
+    public static bool IsDataNode(NodeConfig node) => node is RagNode;
+
+    public static bool HasAnyRequiringImperative(IEnumerable<NodeConfig> nodes) =>
+        nodes.Any(RequiresImperative);
+    public static bool HasAnyExecutable(IEnumerable<NodeConfig> nodes) =>
+        nodes.Any(IsExecutable);
 }
 
 /// <summary>

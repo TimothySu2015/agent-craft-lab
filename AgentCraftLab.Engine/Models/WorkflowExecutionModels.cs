@@ -318,30 +318,6 @@ public class ExecutionEvent
         };
 }
 
-public class WorkflowPayload
-{
-    public List<WorkflowNode> Nodes { get; set; } = [];
-    public List<WorkflowConnection> Connections { get; set; } = [];
-    public WorkflowSettings WorkflowSettings { get; set; } = new();
-    public List<McpServerDefinition> McpServers { get; set; } = [];
-    public List<A2AAgentDefinition> A2AAgents { get; set; } = [];
-    public Dictionary<string, HttpApiDefinition> HttpApis { get; set; } = new();
-    public List<string> Skills { get; set; } = [];
-    /// <summary>Workflow 變數定義（使用者在畫布上定義，執行時初始化）。</summary>
-    public List<WorkflowVariable> Variables { get; set; } = [];
-}
-
-/// <summary>
-/// Workflow 變數定義 — 使用者在畫布設定，執行時透過 {{var:name}} 引用。
-/// </summary>
-public class WorkflowVariable
-{
-    public string Name { get; set; } = "";
-    public string Type { get; set; } = "string";    // string | number | boolean | json
-    public string DefaultValue { get; set; } = "";
-    public string Description { get; set; } = "";
-}
-
 public class McpServerDefinition
 {
     public string Name { get; set; } = "";
@@ -354,151 +330,6 @@ public class A2AAgentDefinition
     public string Url { get; set; } = "";
     public string Description { get; set; } = "";
     public string Format { get; set; } = "auto";
-}
-
-public class WorkflowNode : IWorkflowNodeContract
-{
-    public string Id { get; set; } = "";
-    public string Type { get; set; } = "";
-    public string Name { get; set; } = "";
-    public string Instructions { get; set; } = "";
-    public string Model { get; set; } = "gpt-4o";
-    public string Provider { get; set; } = "openai";
-    public string Middleware { get; set; } = "";
-    public float? Temperature { get; set; }
-    public float? TopP { get; set; }
-    public int? MaxOutputTokens { get; set; }
-    public string HistoryProvider { get; set; } = "none";
-    public int MaxMessages { get; set; } = 20;
-    public List<string> Tools { get; set; } = [];
-    public List<string> McpServers { get; set; } = [];
-    public List<string> A2AAgents { get; set; } = [];
-    public List<string> HttpApis { get; set; } = [];
-    public string OutputFormat { get; set; } = "text"; // text | json | json_schema
-    public string OutputSchema { get; set; } = "";
-    public Dictionary<string, Dictionary<string, string>> MiddlewareConfig { get; set; } = new();
-    public List<string> Skills { get; set; } = [];
-    public string ConditionType { get; set; } = "";
-    public string ConditionExpression { get; set; } = "";
-    public int MaxIterations { get; set; } = 5;
-    public RagSettings? RagConfig { get; set; }
-    public string A2AUrl { get; set; } = "";
-    public string A2AFormat { get; set; } = "auto";
-
-    // Human node
-    public string Prompt { get; set; } = "";
-    public string InputType { get; set; } = "text";    // text | choice | approval
-    public string Choices { get; set; } = "";            // 逗號分隔選項
-    public int TimeoutSeconds { get; set; }              // 0=無限等待
-
-    // HTTP Request node — catalog 模式（向下相容）
-    public string HttpApiId { get; set; } = "";
-    public string HttpArgsTemplate { get; set; } = "{}";  // JSON args，{input} 會被替換為前一節點輸出
-
-    // HTTP Request node — inline 模式（httpApiId 為空時使用）
-    public string HttpUrl { get; set; } = "";
-    public string HttpMethod { get; set; } = "GET";
-    public string HttpHeaders { get; set; } = "";          // 每行一組 Key: Value
-    public string HttpBodyTemplate { get; set; } = "";
-    public string HttpContentType { get; set; } = "application/json";
-    public int HttpResponseMaxLength { get; set; } = 2000;   // 0=不截斷
-    public int HttpTimeoutSeconds { get; set; } = 15;         // 0=使用全域預設
-    public string HttpAuthMode { get; set; } = "none";        // none | bearer | basic | apikey-header | apikey-query
-    public string HttpAuthCredential { get; set; } = "";
-    public string HttpAuthKeyName { get; set; } = "";
-    public int HttpRetryCount { get; set; } = 0;
-    public int HttpRetryDelayMs { get; set; } = 1000;
-    public string HttpResponseFormat { get; set; } = "text";   // text | json | jsonpath
-    public string HttpResponseJsonPath { get; set; } = "";
-
-    // Parallel node
-    public string Branches { get; set; } = "Branch1,Branch2";
-    public string MergeStrategy { get; set; } = "labeled";   // labeled | join | json
-
-    // Router node
-    public string Routes { get; set; } = "";
-
-    // Knowledge Base
-    public List<string> KnowledgeBaseIds { get; set; } = [];
-
-    // Iteration node
-    public string SplitMode { get; set; } = "json-array";   // json-array | delimiter
-    public string IterationDelimiter { get; set; } = "\n";
-    public int MaxItems { get; set; } = 50;
-    public int MaxConcurrency { get; set; } = 1;   // 1=順序, >1=並行（SemaphoreSlim 節流）
-
-    // Code node transform properties
-    public string TransformType { get; set; } = "template";
-    public string Pattern { get; set; } = "";
-    public string Replacement { get; set; } = "";
-    public string Template { get; set; } = "{{input}}";
-    public int MaxLength { get; set; } = 0;
-    public string Delimiter { get; set; } = "\n";
-    public int SplitIndex { get; set; } = 0;
-
-    /// <summary>腳本語言（script 模式用）：javascript（預設）或 csharp。</summary>
-    public string ScriptLanguage { get; set; } = "javascript";
-}
-
-public class WorkflowConnection : IWorkflowConnectionContract
-{
-    public string From { get; set; } = "";
-    public string To { get; set; } = "";
-    public string FromOutput { get; set; } = "";
-}
-
-public class WorkflowSettings
-{
-    public string Type { get; set; } = "auto";
-    public int MaxTurns { get; set; } = 10;
-    public WorkflowHooks Hooks { get; set; } = new();
-    public string ContextPassing { get; set; } = Strategies.NodeExecutors.ContextPassingModes.PreviousOnly;
-
-    /// <summary>
-    /// 啟用投機執行 — llm-judge Condition 節點評估時同時搶跑兩條分支的第一個節點。
-    /// 預設關閉（opt-in），啟用後輸家分支會消耗額外 token。
-    /// </summary>
-    public bool SpeculativeExecution { get; set; }
-}
-
-/// <summary>
-/// 工作流程 Hook 設定：6 個插入點，每個可配 code 或 webhook 類型。
-/// </summary>
-public class WorkflowHooks
-{
-    public WorkflowHook? OnInput { get; set; }
-    public WorkflowHook? PreExecute { get; set; }
-    public WorkflowHook? PreAgent { get; set; }
-    public WorkflowHook? PostAgent { get; set; }
-    public WorkflowHook? OnComplete { get; set; }
-    public WorkflowHook? OnError { get; set; }
-}
-
-/// <summary>
-/// 單一 Hook 定義。Type 決定執行方式：code（本地轉換）或 webhook（HTTP 通知）。
-/// </summary>
-public class WorkflowHook
-{
-    public string Type { get; set; } = "code"; // code | webhook
-
-    // code 類型（複用 Code 節點的 8 種 TransformType）
-    public string TransformType { get; set; } = "template";
-    public string Template { get; set; } = "{{input}}";
-    public string Pattern { get; set; } = "";
-    public string Replacement { get; set; } = "";
-    public int MaxLength { get; set; }
-    public string Delimiter { get; set; } = "\n";
-    public int SplitIndex { get; set; }
-
-    // webhook 類型
-    public string Url { get; set; } = "";
-    public string Method { get; set; } = "POST";
-    public Dictionary<string, string> Headers { get; set; } = new();
-    public string? BodyTemplate { get; set; }
-
-    // 共用：是否阻擋（OnInput 可用來攔截訊息）
-    public string? BlockPattern { get; set; }
-    public string? BlockMessage { get; set; }
 }
 
 /// <summary>
@@ -560,29 +391,14 @@ public class A2AAgentCard
 
 public class RagContext
 {
-    public required List<WorkflowNode> RagNodes { get; init; }
-    public required List<WorkflowConnection> WorkflowConnections { get; init; }
+    public required List<Schema.RagNode> RagNodes { get; init; }
+    public required List<Schema.Connection> WorkflowConnections { get; init; }
     public required IEmbeddingGenerator<string, Embedding<float>> EmbeddingGenerator { get; init; }
     public AgentCraftLab.Search.Abstractions.ISearchEngine? SearchEngine { get; init; }
     public required string IndexName { get; init; }                     // 臨時上傳索引（可為空字串）
     public List<string> KnowledgeBaseIndexNames { get; init; } = [];    // 知識庫索引列表
     /// <summary>索引名稱 → DataSourceId 映射（用於搜尋時路由到對應引擎，null = 預設引擎）。</summary>
     public Dictionary<string, string?> IndexDataSourceMap { get; init; } = new();
-}
-
-public class RagSettings
-{
-    public string DataSource { get; set; } = "upload";
-    public int ChunkSize { get; set; } = Defaults.DefaultChunkSize;
-    public int ChunkOverlap { get; set; } = Defaults.DefaultChunkOverlap;
-    public int TopK { get; set; } = Defaults.DefaultTopK;
-    public string EmbeddingModel { get; set; } = Defaults.DefaultEmbeddingModel;
-    public string SearchMode { get; set; } = "hybrid";
-    public float MinScore { get; set; } = Search.Abstractions.SearchEngineOptions.DefaultRagMinScore;
-    public bool QueryExpansion { get; set; } = true;
-    public string? FileNameFilter { get; set; }
-    public bool ContextCompression { get; set; }
-    public int TokenBudget { get; set; } = 1500;
 }
 
 public enum ToolCategory { Search, Utility, Web, Data }

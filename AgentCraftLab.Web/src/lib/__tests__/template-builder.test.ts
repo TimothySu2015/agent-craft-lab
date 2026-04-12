@@ -7,28 +7,30 @@ vi.mock('@/components/studio/nodes/registry', () => ({
     agent: {
       type: 'agent',
       defaultData: (name: string) => ({
-        type: 'agent', name, instructions: '', model: 'gpt-4o', provider: 'openai',
-        endpoint: '', deploymentName: '', historyProvider: 'none', maxMessages: 20,
-        middleware: '', tools: [], skills: [],
+        type: 'agent', name, instructions: '',
+        model: { provider: 'openai', model: 'gpt-4o' },
+        tools: [], mcpServers: [], a2AAgents: [], httpApis: [], skills: [],
+        output: { kind: 'text' }, history: { provider: 'none', maxMessages: 20 },
+        middleware: [],
       }),
     },
     condition: {
       type: 'condition',
       defaultData: (name: string) => ({
-        type: 'condition', name, conditionType: 'contains', conditionExpression: '', maxIterations: 5,
+        type: 'condition', name, condition: { kind: 'contains', value: '' },
       }),
     },
     code: {
       type: 'code',
       defaultData: (name: string) => ({
-        type: 'code', name, transformType: 'template', pattern: '', replacement: '',
-        template: '{{input}}', maxLength: 0, delimiter: '\\n', splitIndex: 0,
+        type: 'code', name, kind: 'template', expression: '{{input}}',
+        delimiter: '\n', splitIndex: 0, maxLength: 0,
       }),
     },
     human: {
       type: 'human',
       defaultData: (name: string) => ({
-        type: 'human', name, prompt: '', inputType: 'text', choices: '', timeoutSeconds: 0,
+        type: 'human', name, prompt: '', kind: 'text', timeoutSeconds: 0,
       }),
     },
     start: { type: 'start', defaultData: (name: string) => ({ type: 'start', name }) },
@@ -67,9 +69,10 @@ describe('buildTemplate', () => {
   })
 
   it('merges custom data with defaults', () => {
+    // Schema v2: 欄位直接在 node 物件上（無 data wrapper）
     const def: TemplateDef = {
       nodes: [
-        { type: 'agent', name: 'Expert', data: { instructions: 'Be thorough.', tools: ['web_search'] } },
+        { type: 'agent', name: 'Expert', instructions: 'Be thorough.', tools: ['web_search'] },
       ],
       connections: [],
     }
@@ -79,8 +82,8 @@ describe('buildTemplate', () => {
     expect(agent.data.name).toBe('Expert')
     expect((agent.data as any).instructions).toBe('Be thorough.')
     expect((agent.data as any).tools).toEqual(['web_search'])
-    // Default fields preserved
-    expect((agent.data as any).model).toBe('gpt-4o')
+    // Default nested model preserved
+    expect((agent.data as any).model?.model).toBe('gpt-4o')
   })
 
   it('creates Start → first node edge automatically', () => {

@@ -161,7 +161,7 @@ public sealed class EnhancedFlowBuildService
             // 修復 LLM 截斷造成的未閉合 JSON（unclosed string / brackets）
             cleaned = RepairTruncatedJson(cleaned);
 
-            var plan = JsonSerializer.Deserialize<FlowPlan>(cleaned, PlanJsonOptions);
+            var plan = JsonSerializer.Deserialize<FlowPlan>(cleaned, AgentCraftLab.Engine.Models.Schema.SchemaJsonOptions.Default);
             if (plan?.Nodes is null || plan.Nodes.Count == 0) return null;
 
             // 驗證 + 自動修正

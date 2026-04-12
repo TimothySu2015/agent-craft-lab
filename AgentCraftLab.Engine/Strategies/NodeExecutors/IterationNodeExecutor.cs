@@ -1,23 +1,23 @@
 using System.Runtime.CompilerServices;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 
 /// <summary>
 /// Iteration 節點執行器 — 拆分 input 為陣列，對每個元素走訪 body 子流程。
 /// </summary>
-public sealed class IterationNodeExecutor : INodeExecutor
+public sealed class IterationNodeExecutor : NodeExecutorBase<IterationNode>
 {
-    public string NodeType => NodeTypes.Iteration;
-
-    public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
-        string nodeId, WorkflowNode node, ImperativeExecutionState state,
+    protected override async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
+        string nodeId, IterationNode node, ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var nodeName = string.IsNullOrWhiteSpace(node.Name) ? $"Iteration_{node.Id}" : node.Name;
         yield return ExecutionEvent.AgentStarted(nodeName);
 
-        var items = ImperativeWorkflowStrategy.SplitIterationInput(node, state.PreviousResult);
+        var items = ImperativeWorkflowStrategy.SplitIterationInput(
+            FormatSplitMode(node.Split), node.Delimiter, state.PreviousResult);
         var maxItems = node.MaxItems > 0 ? node.MaxItems : 50;
         if (items.Count > maxItems)
             items = items.Take(maxItems).ToList();
@@ -30,7 +30,6 @@ public sealed class IterationNodeExecutor : INodeExecutor
 
         if (maxConcurrency <= 1 || bodyStartId is null || state.ExecuteBodyChain is null)
         {
-            // 順序執行（預設）
             var sequential = new List<string>();
             for (var i = 0; i < items.Count; i++)
             {
@@ -54,7 +53,6 @@ public sealed class IterationNodeExecutor : INodeExecutor
         }
         else
         {
-            // 並行執行 — SemaphoreSlim 節流防 429
             yield return ExecutionEvent.ToolResult(nodeName, "Iteration",
                 $"Parallel: {items.Count} items × {maxConcurrency} concurrent");
 
@@ -80,12 +78,18 @@ public sealed class IterationNodeExecutor : INodeExecutor
         yield return ExecutionEvent.AgentCompleted(nodeName, aggregated);
     }
 
-    public Task<NodeExecutionResult> BuildResultAsync(
-        string nodeId, WorkflowNode node,
+    protected override Task<NodeExecutionResult> BuildResultAsync(
+        string nodeId, IterationNode node,
         ImperativeExecutionState state, List<ExecutionEvent> collectedEvents,
         CancellationToken cancellationToken = default) =>
         Task.FromResult(new NodeExecutionResult
         {
             OutputPort = OutputPorts.Output2 // Done port
         });
+
+    private static string FormatSplitMode(SplitModeKind kind) => kind switch
+    {
+        SplitModeKind.Delimiter => "delimiter",
+        _ => "json-array"
+    };
 }

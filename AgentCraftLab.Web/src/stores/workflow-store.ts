@@ -155,9 +155,18 @@ const defaultNodes: Node<NodeData>[] = [
   {
     id: 'agent-1', type: 'agent', position: { x: 300, y: 160 },
     data: {
-      type: 'agent', name: 'Agent-1', instructions: '', model: 'gpt-4o', provider: 'openai',
-      endpoint: '', deploymentName: '', historyProvider: 'none', maxMessages: 20,
-      middleware: '', tools: [], skills: [],
+      type: 'agent',
+      name: 'Agent-1',
+      instructions: '',
+      model: { provider: 'openai', model: 'gpt-4o' },
+      tools: [],
+      mcpServers: [],
+      a2AAgents: [],
+      httpApis: [],
+      skills: [],
+      output: { kind: 'text' },
+      history: { provider: 'none', maxMessages: 20 },
+      middleware: [],
     },
   },
   { id: 'end-1', type: 'end', position: { x: 600, y: 200 }, data: { type: 'end', name: 'End' } },
@@ -191,7 +200,7 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     pushHistory(nodes, edges)
     const sourceNode = nodes.find((n) => n.id === connection.source)
     const branchCount = sourceNode?.type === 'parallel'
-      ? ((sourceNode.data as any)?.branches ?? '').split(',').filter(Boolean).length
+      ? ((sourceNode.data as NodeData & { type: 'parallel' }).branches?.length ?? 0)
       : undefined
     const esl = getEdgeStyleAndLabel(connection.sourceHandle, sourceNode?.type, branchCount)
     const edge = esl.label
@@ -221,8 +230,11 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       const configured = Object.entries(creds).find(([, v]) => v.apiKey)
       if (configured) {
         const [provider, entry] = configured
-        data.provider = provider
-        data.model = entry.model || getModelsForProvider(provider)[0] || 'gpt-4o-mini'
+        data.model = {
+          ...data.model,
+          provider,
+          model: entry.model || getModelsForProvider(provider)[0] || 'gpt-4o-mini',
+        }
       }
     }
 

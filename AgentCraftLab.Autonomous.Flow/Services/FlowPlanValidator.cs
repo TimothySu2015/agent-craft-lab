@@ -1,19 +1,28 @@
 using AgentCraftLab.Autonomous.Flow.Models;
 using AgentCraftLab.Engine.Models;
 using AgentCraftLab.Engine.Services;
+using AgentCraftLab.Engine.Services.Variables;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Autonomous.Flow.Services;
 
 /// <summary>
 /// Flow Plan 驗證器 — 純邏輯檢查，零 LLM 成本。
 /// 在執行前驗證 Plan 的結構正確性，自動修正可修正的問題。
+/// Phase F：Plan 的 Nodes 是 <see cref="Schema.NodeConfig"/>，pattern match 上各子型別。
 /// </summary>
 public static class FlowPlanValidator
 {
-    private static readonly HashSet<string> SupportedNodeTypes =
+    private static readonly HashSet<Type> SupportedNodeTypes =
     [
-        NodeTypes.Agent, NodeTypes.Code, NodeTypes.Condition, NodeTypes.Router,
-        NodeTypes.Iteration, NodeTypes.Parallel, NodeTypes.Loop, NodeTypes.HttpRequest
+        typeof(Schema.AgentNode),
+        typeof(Schema.CodeNode),
+        typeof(Schema.ConditionNode),
+        typeof(Schema.RouterNode),
+        typeof(Schema.IterationNode),
+        typeof(Schema.ParallelNode),
+        typeof(Schema.LoopNode),
+        typeof(Schema.HttpRequestNode)
     ];
 
     private const int MaxParallelBranches = 6;
@@ -27,81 +36,96 @@ public static class FlowPlanValidator
         FlowPlan plan, GoalExecutionRequest request)
     {
         var warnings = new List<string>();
-        var fixedNodes = new List<PlannedNode>();
+        var fixedNodes = new List<Schema.NodeConfig>();
 
         for (var i = 0; i < plan.Nodes.Count; i++)
         {
             var node = plan.Nodes[i];
 
             // 1. 不支援的節點類型 → 跳過
-            if (!SupportedNodeTypes.Contains(node.NodeType))
+            if (!SupportedNodeTypes.Contains(node.GetType()))
             {
-                warnings.Add($"Removed unsupported node type '{node.NodeType}' ({node.Name})");
+                warnings.Add($"Removed unsupported node type '{NodeConfigHelpers.GetNodeTypeString(node)}' ({node.Name})");
                 continue;
             }
 
-            // 2. 工具 ID 過濾 — 移除不存在的工具
-            if (node.Tools is { Count: > 0 })
+            // 2. 工具 ID 過濾 — 移除 agent / autonomous 不存在的工具
+            if (node is Schema.AgentNode agent && agent.Tools.Count > 0)
             {
-                var validTools = node.Tools.Where(t => request.AvailableTools.Contains(t)).ToList();
-                var invalidTools = node.Tools.Except(validTools).ToList();
+                var validTools = agent.Tools.Where(t => request.AvailableTools.Contains(t)).ToList();
+                var invalidTools = agent.Tools.Except(validTools).ToList();
                 if (invalidTools.Count > 0)
                 {
-                    warnings.Add($"[{node.Name}] Removed invalid tools: {string.Join(", ", invalidTools)}");
-                    node = Clone(node, tools: validTools);
+                    warnings.Add($"[{agent.Name}] Removed invalid tools: {string.Join(", ", invalidTools)}");
+                    node = agent with { Tools = validTools };
                 }
             }
 
-            // 3. Parallel 分支數量限制
-            if (node.NodeType == NodeTypes.Parallel && node.Branches is { Count: > MaxParallelBranches })
+            // 3. Parallel 分支數量 + 分支工具過濾
+            if (node is Schema.ParallelNode parallel)
             {
-                warnings.Add($"[{node.Name}] Trimmed parallel branches from {node.Branches.Count} to {MaxParallelBranches}");
-                node = Clone(node, branches:node.Branches.Take(MaxParallelBranches).ToList());
-            }
+                var branches = parallel.Branches;
 
-            // 4. Parallel 分支工具過濾
-            if (node.NodeType == NodeTypes.Parallel && node.Branches is { Count: > 0 })
-            {
-                var fixedBranches = node.Branches.Select(b =>
+                if (branches.Count > MaxParallelBranches)
                 {
-                    if (b.Tools is not { Count: > 0 }) return b;
-                    var valid = b.Tools.Where(t => request.AvailableTools.Contains(t)).ToList();
-                    return valid.Count == b.Tools.Count ? b : new ParallelBranchConfig
+                    warnings.Add($"[{parallel.Name}] Trimmed parallel branches from {branches.Count} to {MaxParallelBranches}");
+                    branches = branches.Take(MaxParallelBranches).ToList();
+                }
+
+                // 分支工具過濾
+                var anyBranchChanged = false;
+                var fixedBranches = new List<Schema.BranchConfig>(branches.Count);
+                foreach (var b in branches)
+                {
+                    if (b.Tools is { Count: > 0 })
                     {
-                        Name = b.Name, Goal = b.Goal, Tools = valid
-                    };
-                }).ToList();
-                node = Clone(node, branches:fixedBranches);
+                        var validTools = b.Tools.Where(t => request.AvailableTools.Contains(t)).ToList();
+                        if (validTools.Count != b.Tools.Count)
+                        {
+                            anyBranchChanged = true;
+                            fixedBranches.Add(b with { Tools = validTools });
+                            continue;
+                        }
+                    }
+                    fixedBranches.Add(b);
+                }
+
+                if (fixedBranches.Count != parallel.Branches.Count || anyBranchChanged)
+                {
+                    node = parallel with { Branches = fixedBranches };
+                }
             }
 
-            // 5. Loop maxIterations 上限
-            if (node.NodeType == NodeTypes.Loop && (node.MaxIterations ?? 5) > MaxLoopIterations)
+            // 4. Loop maxIterations 上限
+            if (node is Schema.LoopNode loop && loop.MaxIterations > MaxLoopIterations)
             {
-                warnings.Add($"[{node.Name}] Capped loop maxIterations from {node.MaxIterations} to {MaxLoopIterations}");
-                node = Clone(node, maxIterations: MaxLoopIterations);
+                warnings.Add($"[{loop.Name}] Capped loop maxIterations from {loop.MaxIterations} to {MaxLoopIterations}");
+                node = loop with { MaxIterations = MaxLoopIterations };
             }
 
-            // 6. Condition 結構驗證
-            if (node.NodeType == NodeTypes.Condition)
+            // 5. Condition 結構驗證
+            if (node is Schema.ConditionNode condNode)
             {
                 if (i + 1 >= plan.Nodes.Count)
                 {
-                    warnings.Add($"[{node.Name}] Condition at end of plan has no branches — removed");
+                    warnings.Add($"[{condNode.Name}] Condition at end of plan has no branches — removed");
                     continue;
                 }
 
-                // 驗證 TrueBranchIndex/FalseBranchIndex 如果有指定
-                if (node.TrueBranchIndex is not null && node.TrueBranchIndex >= plan.Nodes.Count)
-                    warnings.Add($"[{node.Name}] TrueBranchIndex {node.TrueBranchIndex} out of range");
-                if (node.FalseBranchIndex is not null && node.FalseBranchIndex >= plan.Nodes.Count)
-                    warnings.Add($"[{node.Name}] FalseBranchIndex {node.FalseBranchIndex} out of range");
+                // 驗證 TrueBranchIndex/FalseBranchIndex（stash 在 Meta）
+                var trueIdx = NodeConfigHelpers.GetBranchIndex(condNode, NodeConfigHelpers.MetaTrueBranchIndex);
+                var falseIdx = NodeConfigHelpers.GetBranchIndex(condNode, NodeConfigHelpers.MetaFalseBranchIndex);
+                if (trueIdx is not null && trueIdx >= plan.Nodes.Count)
+                    warnings.Add($"[{condNode.Name}] TrueBranchIndex {trueIdx} out of range");
+                if (falseIdx is not null && falseIdx >= plan.Nodes.Count)
+                    warnings.Add($"[{condNode.Name}] FalseBranchIndex {falseIdx} out of range");
             }
 
-            // 7. {{node:step_name}} 引用驗證 — 確認引用的節點名稱存在於前驅節點中
+            // 6. {{node:step_name}} 引用驗證 — 確認引用的節點名稱存在於前驅節點中
             var nodeTexts = GatherNodeTexts(node);
             foreach (var text in nodeTexts)
             {
-                foreach (var refName in NodeReferenceResolver.ExtractNames(text))
+                foreach (var refName in VariableResolver.ExtractNodeReferenceNames(text))
                 {
                     if (!fixedNodes.Any(n => n.Name == refName))
                     {
@@ -113,55 +137,115 @@ public static class FlowPlanValidator
             fixedNodes.Add(node);
         }
 
-        // 8. 節點數量上限
+        // 7. 節點數量上限
         if (fixedNodes.Count > MaxPlanNodes)
         {
             warnings.Add($"Plan has {fixedNodes.Count} nodes, trimmed to {MaxPlanNodes}");
             fixedNodes = fixedNodes.Take(MaxPlanNodes).ToList();
         }
 
-        // 9. Plan 不能為空
+        // 8. Plan 不能為空
         if (fixedNodes.Count == 0)
         {
             warnings.Add("Plan is empty after validation — no executable nodes");
         }
 
+        // 9. 工具推薦 — agent instructions 含即時資料關鍵字但沒有搜尋工具
+        foreach (var node in fixedNodes)
+        {
+            if (node is Schema.AgentNode agent && agent.Tools.Count == 0)
+            {
+                if (LikelyNeedsRealtimeData(agent.Instructions))
+                {
+                    warnings.Add($"[{agent.Name}] Instructions suggest real-time data needs (法規/股價/新聞/市場/最新) but no search tools assigned");
+                }
+            }
+
+            if (node is Schema.ParallelNode parallel)
+            {
+                foreach (var branch in parallel.Branches)
+                {
+                    if ((branch.Tools is null or { Count: 0 }) && LikelyNeedsRealtimeData(branch.Goal))
+                    {
+                        warnings.Add($"[{parallel.Name}/{branch.Name}] Branch goal suggests real-time data needs but no search tools assigned");
+                    }
+                }
+            }
+        }
+
+        // 10. Parallel 後面應有 Synthesizer — 最後一個 parallel 後面沒有 agent
+        for (var i = fixedNodes.Count - 1; i >= 0; i--)
+        {
+            if (fixedNodes[i] is Schema.ParallelNode lastParallel)
+            {
+                var hasAgentAfter = fixedNodes.Skip(i + 1).OfType<Schema.AgentNode>().Any();
+                if (!hasAgentAfter)
+                {
+                    warnings.Add($"[{lastParallel.Name}] Parallel node is not followed by a Synthesizer agent — branch results won't be merged");
+                }
+                break; // 只檢最後一個 parallel
+            }
+        }
+
         return (new FlowPlan { Nodes = fixedNodes }, warnings);
     }
 
+    /// <summary>
+    /// 啟發式判斷：instructions 是否暗示需要即時/最新資料。
+    /// keyword 匹配作為確定性安全網 — 主力判斷在 Planner LLM prompt。
+    /// </summary>
+    private static bool LikelyNeedsRealtimeData(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return false;
+
+        ReadOnlySpan<string> keywords =
+        [
+            "最新", "即時", "今年", "今日", "現在", "當前", "目前",
+            "股價", "財報", "財務報表", "營收", "市值",
+            "法規", "法律", "法案", "條例", "修法",
+            "新聞", "報導", "趨勢", "市場",
+            "real-time", "latest", "current", "today",
+            "stock", "financial", "regulation", "news", "market",
+        ];
+
+        foreach (var kw in keywords)
+        {
+            if (text.Contains(kw, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>收集節點中所有可能含 {{node:}} 引用的文字欄位。</summary>
-    private static List<string> GatherNodeTexts(PlannedNode node)
+    private static List<string> GatherNodeTexts(Schema.NodeConfig node)
     {
         var texts = new List<string>();
-        if (!string.IsNullOrEmpty(node.Instructions))
-            texts.Add(node.Instructions);
-        if (node.Branches is { Count: > 0 })
+
+        switch (node)
         {
-            foreach (var b in node.Branches)
-            {
-                if (!string.IsNullOrEmpty(b.Goal))
-                    texts.Add(b.Goal);
-            }
+            case Schema.AgentNode agent:
+                if (!string.IsNullOrEmpty(agent.Instructions)) texts.Add(agent.Instructions);
+                break;
+
+            case Schema.ParallelNode parallel:
+                foreach (var b in parallel.Branches)
+                {
+                    if (!string.IsNullOrEmpty(b.Goal)) texts.Add(b.Goal);
+                }
+                break;
+
+            case Schema.LoopNode loop:
+                if (!string.IsNullOrEmpty(loop.BodyAgent.Instructions))
+                    texts.Add(loop.BodyAgent.Instructions);
+                break;
+
+            case Schema.IterationNode iter:
+                if (!string.IsNullOrEmpty(iter.BodyAgent.Instructions))
+                    texts.Add(iter.BodyAgent.Instructions);
+                break;
         }
 
         return texts;
     }
-
-    // PlannedNode 是 sealed class 不支援 with，用通用 clone + optional 覆蓋
-    private static PlannedNode Clone(PlannedNode src,
-        List<string>? tools = null,
-        List<ParallelBranchConfig>? branches = null,
-        int? maxIterations = null) => new()
-    {
-        NodeType = src.NodeType, Name = src.Name, Instructions = src.Instructions,
-        Tools = tools ?? src.Tools, Provider = src.Provider, Model = src.Model,
-        ConditionType = src.ConditionType, ConditionValue = src.ConditionValue,
-        MaxIterations = maxIterations ?? src.MaxIterations,
-        TransformType = src.TransformType,
-        TransformPattern = src.TransformPattern, TransformReplacement = src.TransformReplacement,
-        Branches = branches ?? src.Branches, MergeStrategy = src.MergeStrategy,
-        SplitMode = src.SplitMode, Delimiter = src.Delimiter, MaxItems = src.MaxItems,
-        HttpApiId = src.HttpApiId, HttpArgsTemplate = src.HttpArgsTemplate,
-        OutputFormat = src.OutputFormat, OutputSchema = src.OutputSchema
-    };
 }

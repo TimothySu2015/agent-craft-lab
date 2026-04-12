@@ -2,11 +2,12 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using AgentCraftLab.Engine.Models;
 using Microsoft.Extensions.Logging;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Engine.Services;
 
 /// <summary>
-/// 執行 Workflow Hook（code / webhook 兩種類型）。
+/// 執行 Workflow Hook（<see cref="Schema.CodeHook"/> / <see cref="Schema.WebhookHook"/> 兩種 polymorphic 類型）。
 /// 回傳值：(blocked, transformedInput)
 /// - blocked=true 表示 hook 攔截了請求，不應繼續執行
 /// - transformedInput 是經過 hook 處理後的輸入（僅 code 類型有意義）
@@ -28,7 +29,7 @@ public class WorkflowHookRunner
     /// <summary>
     /// 執行單一 hook。回傳 (是否阻擋, 處理後的文字, 錯誤訊息)。
     /// </summary>
-    public async Task<HookResult> ExecuteAsync(WorkflowHook hook, HookContext context, CancellationToken ct = default)
+    public async Task<HookResult> ExecuteAsync(Schema.WorkflowHook hook, HookContext context, CancellationToken ct = default)
     {
         try
         {
@@ -43,30 +44,35 @@ public class WorkflowHookRunner
                 }
             }
 
-            return hook.Type switch
+            return hook switch
             {
-                HookTypes.Webhook => await ExecuteWebhookAsync(hook, context, ct),
-                _ => ExecuteCode(hook, context) // HookTypes.Code 或其他預設
+                Schema.WebhookHook wh => await ExecuteWebhookAsync(wh, context, ct),
+                Schema.CodeHook ch => ExecuteCode(ch, context),
+                _ => HookResult.Ok(context.Input, $"Unknown hook type: {hook.GetType().Name}")
             };
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Hook execution failed: {Type}", hook.Type);
+            _logger.LogWarning(ex, "Hook execution failed: {Type}", hook.GetType().Name);
             return HookResult.Ok(context.Input, $"Hook error: {ex.Message}");
         }
     }
 
-    private HookResult ExecuteCode(WorkflowHook hook, HookContext context)
+    private HookResult ExecuteCode(Schema.CodeHook hook, HookContext context)
     {
-        // 先展開 HookContext 變數到 template
-        var expandedTemplate = ExpandTemplate(hook.Template, context);
+        var expandedExpression = ExpandTemplate(hook.Expression, context);
         var result = TransformHelper.ApplyTransform(
-            hook.TransformType, context.Input, expandedTemplate, hook.Pattern,
-            hook.Replacement, hook.MaxLength, hook.Delimiter, hook.SplitIndex);
+            hook.Kind,
+            context.Input,
+            expandedExpression,
+            hook.Replacement,
+            hook.MaxLength,
+            hook.Delimiter,
+            hook.SplitIndex);
         return HookResult.Ok(result);
     }
 
-    private async Task<HookResult> ExecuteWebhookAsync(WorkflowHook hook, HookContext context, CancellationToken ct)
+    private async Task<HookResult> ExecuteWebhookAsync(Schema.WebhookHook hook, HookContext context, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(hook.Url))
         {
@@ -83,14 +89,26 @@ public class WorkflowHookRunner
         var body = hook.BodyTemplate ?? JsonSerializer.Serialize(context, JsonOptions);
         body = ExpandTemplate(body, context);
 
-        using var request = new HttpRequestMessage(new HttpMethod(hook.Method ?? "POST"), hook.Url)
+        var methodString = hook.Method switch
+        {
+            Schema.HttpMethodKind.Get => "GET",
+            Schema.HttpMethodKind.Post => "POST",
+            Schema.HttpMethodKind.Put => "PUT",
+            Schema.HttpMethodKind.Delete => "DELETE",
+            Schema.HttpMethodKind.Patch => "PATCH",
+            Schema.HttpMethodKind.Head => "HEAD",
+            Schema.HttpMethodKind.Options => "OPTIONS",
+            _ => "POST"
+        };
+
+        using var request = new HttpRequestMessage(new HttpMethod(methodString), hook.Url)
         {
             Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json")
         };
 
-        foreach (var (key, value) in hook.Headers)
+        foreach (var header in hook.Headers)
         {
-            request.Headers.TryAddWithoutValidation(key, ExpandTemplate(value, context));
+            request.Headers.TryAddWithoutValidation(header.Name, ExpandTemplate(header.Value, context));
         }
 
         try

@@ -1,6 +1,8 @@
 /**
  * SimpleForm 測試 — 驗證 Router/Parallel 的列表解析與增刪、
- * Iteration 的條件渲染、Tool 的 MCP/approval 切換。
+ * Iteration 的條件渲染。
+ *
+ * F3 重寫：routes / branches 從 CSV 字串 改為 RouteConfig[] / BranchConfig[] 結構化陣列。
  */
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -24,7 +26,13 @@ vi.mock('../../PropertiesPanel', () => ({
 
 describe('SimpleForm — Router', () => {
   const baseData: RouterNodeData = {
-    type: 'router', name: 'R', conditionExpression: '', routes: 'billing,technical,general',
+    type: 'router',
+    name: 'R',
+    routes: [
+      { name: 'billing', keywords: [], isDefault: false },
+      { name: 'technical', keywords: [], isDefault: false },
+      { name: 'general', keywords: [], isDefault: true },
+    ],
   }
 
   it('parses and renders route list', () => {
@@ -49,13 +57,12 @@ describe('SimpleForm — Router', () => {
 
     const input = screen.getByPlaceholderText('New route name')
     fireEvent.change(input, { target: { value: 'vip' } })
-    // The Plus button is the one next to the input field (in the same flex container)
     const addButton = input.closest('.flex')!.querySelector('button')!
     fireEvent.click(addButton)
 
-    expect(onUpdate).toHaveBeenCalledWith({
-      routes: 'billing,technical,general,vip',
-    })
+    expect(onUpdate).toHaveBeenCalled()
+    const call = onUpdate.mock.calls[0][0] as { routes: RouterNodeData['routes'] }
+    expect(call.routes.map((r) => r.name)).toEqual(['billing', 'technical', 'general', 'vip'])
   })
 
   it('adds a new route via Enter key', () => {
@@ -66,9 +73,9 @@ describe('SimpleForm — Router', () => {
     fireEvent.change(input, { target: { value: 'vip' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
-    expect(onUpdate).toHaveBeenCalledWith({
-      routes: 'billing,technical,general,vip',
-    })
+    expect(onUpdate).toHaveBeenCalled()
+    const call = onUpdate.mock.calls[0][0] as { routes: RouterNodeData['routes'] }
+    expect(call.routes.some((r) => r.name === 'vip')).toBe(true)
   })
 
   it('does not add empty route', () => {
@@ -86,38 +93,33 @@ describe('SimpleForm — Router', () => {
     const onUpdate = vi.fn()
     render(<SimpleForm data={baseData} onUpdate={onUpdate} />)
 
-    // 3 routes → 3 remove buttons
     const removeButtons = screen.getAllByRole('button').filter((b) => b.querySelector('svg'))
-    // Click the first remove button (after Plus button)
     fireEvent.click(removeButtons[0])
 
-    expect(onUpdate).toHaveBeenCalledWith({
-      routes: 'technical,general',
-    })
+    expect(onUpdate).toHaveBeenCalled()
+    const call = onUpdate.mock.calls[0][0] as { routes: RouterNodeData['routes'] }
+    expect(call.routes.map((r) => r.name)).toEqual(['technical', 'general'])
   })
 
-  it('handles empty routes string', () => {
+  it('handles empty routes array', () => {
     const onUpdate = vi.fn()
-    const data = { ...baseData, routes: '' }
+    const data: RouterNodeData = { ...baseData, routes: [] }
     render(<SimpleForm data={data} onUpdate={onUpdate} />)
 
-    // No route items rendered
     expect(screen.queryByText('(default)')).not.toBeInTheDocument()
-  })
-
-  it('trims whitespace from routes', () => {
-    const onUpdate = vi.fn()
-    const data = { ...baseData, routes: ' billing , technical , general ' }
-    render(<SimpleForm data={data} onUpdate={onUpdate} />)
-
-    expect(screen.getByText('billing')).toBeInTheDocument()
-    expect(screen.getByText('technical')).toBeInTheDocument()
   })
 })
 
 describe('SimpleForm — Parallel', () => {
   const baseData: ParallelNodeData = {
-    type: 'parallel', name: 'P', branches: 'Legal,Technical,Financial', mergeStrategy: 'labeled',
+    type: 'parallel',
+    name: 'P',
+    branches: [
+      { name: 'Legal', goal: '' },
+      { name: 'Technical', goal: '' },
+      { name: 'Financial', goal: '' },
+    ],
+    merge: 'labeled',
   }
 
   it('parses and renders branch list', () => {
@@ -137,9 +139,9 @@ describe('SimpleForm — Parallel', () => {
     fireEvent.change(input, { target: { value: 'Marketing' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
-    expect(onUpdate).toHaveBeenCalledWith({
-      branches: 'Legal,Technical,Financial,Marketing',
-    })
+    expect(onUpdate).toHaveBeenCalled()
+    const call = onUpdate.mock.calls[0][0] as { branches: ParallelNodeData['branches'] }
+    expect(call.branches.map((b) => b.name)).toEqual(['Legal', 'Technical', 'Financial', 'Marketing'])
   })
 
   it('removes a branch', () => {
@@ -147,20 +149,25 @@ describe('SimpleForm — Parallel', () => {
     render(<SimpleForm data={baseData} onUpdate={onUpdate} />)
 
     const removeButtons = screen.getAllByRole('button').filter((b) => b.querySelector('svg'))
-    fireEvent.click(removeButtons[1]) // Remove second branch
+    fireEvent.click(removeButtons[1])
 
-    expect(onUpdate).toHaveBeenCalledWith({
-      branches: 'Legal,Financial',
-    })
+    expect(onUpdate).toHaveBeenCalled()
+    const call = onUpdate.mock.calls[0][0] as { branches: ParallelNodeData['branches'] }
+    expect(call.branches.map((b) => b.name)).toEqual(['Legal', 'Financial'])
   })
 })
 
 describe('SimpleForm — Iteration', () => {
   const baseData: IterationNodeData = {
-    type: 'iteration', name: 'I', splitMode: 'json-array', iterationDelimiter: '\\n', maxItems: 50,
+    type: 'iteration',
+    name: 'I',
+    split: 'jsonArray',
+    delimiter: '\n',
+    maxItems: 50,
+    maxConcurrency: 1,
   }
 
-  it('hides delimiter field for json-array mode', () => {
+  it('hides delimiter field for jsonArray mode', () => {
     const onUpdate = vi.fn()
     render(<SimpleForm data={baseData} onUpdate={onUpdate} />)
 
@@ -169,7 +176,7 @@ describe('SimpleForm — Iteration', () => {
 
   it('shows delimiter field for delimiter mode', () => {
     const onUpdate = vi.fn()
-    const data = { ...baseData, splitMode: 'delimiter' }
+    const data: IterationNodeData = { ...baseData, split: 'delimiter' }
     render(<SimpleForm data={data} onUpdate={onUpdate} />)
 
     expect(screen.getByPlaceholderText('\\n')).toBeInTheDocument()

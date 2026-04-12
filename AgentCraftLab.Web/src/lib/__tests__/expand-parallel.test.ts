@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { expandFlowPlanParallel } from '../expand-parallel'
 
+type Spec = { nodes: any[]; connections?: any[] }
+
 describe('expandFlowPlanParallel', () => {
   it('leaves non-parallel nodes unchanged', () => {
-    const spec = {
+    const spec: Spec = {
       nodes: [
         { type: 'agent', name: 'A' },
         { type: 'agent', name: 'B' },
@@ -17,7 +19,7 @@ describe('expandFlowPlanParallel', () => {
   })
 
   it('generates sequential connections when no connections provided', () => {
-    const spec = {
+    const spec: Spec = {
       nodes: [
         { type: 'agent', name: 'A' },
         { type: 'agent', name: 'B' },
@@ -33,7 +35,7 @@ describe('expandFlowPlanParallel', () => {
   })
 
   it('expands parallel node branches into individual agent nodes', () => {
-    const spec = {
+    const spec: Spec = {
       nodes: [
         {
           type: 'parallel',
@@ -50,10 +52,13 @@ describe('expandFlowPlanParallel', () => {
     // parallel node + 2 branch agents = 3 nodes
     expect(spec.nodes).toHaveLength(3)
 
-    // parallel node has branch names joined
+    // parallel node keeps BranchConfig[] shape
     expect(spec.nodes[0].type).toBe('parallel')
-    expect(spec.nodes[0].branches).toBe('Worker1,Worker2')
-    expect(spec.nodes[0].mergeStrategy).toBe('labeled')
+    expect(spec.nodes[0].branches).toEqual([
+      { name: 'Worker1', goal: 'do task 1', tools: ['t1'] },
+      { name: 'Worker2', goal: 'do task 2', tools: ['t2'] },
+    ])
+    expect(spec.nodes[0].merge).toBe('labeled')
 
     // branch agents
     expect(spec.nodes[1]).toMatchObject({
@@ -71,7 +76,7 @@ describe('expandFlowPlanParallel', () => {
   })
 
   it('creates connections from parallel node to each branch agent', () => {
-    const spec = {
+    const spec: Spec = {
       nodes: [
         {
           type: 'parallel',
@@ -92,7 +97,7 @@ describe('expandFlowPlanParallel', () => {
   })
 
   it('uses Done port for parallel-to-next sequential connection', () => {
-    const spec = {
+    const spec: Spec = {
       nodes: [
         { type: 'agent', name: 'Start' },
         {
@@ -117,7 +122,7 @@ describe('expandFlowPlanParallel', () => {
   })
 
   it('preserves existing connections when provided', () => {
-    const spec = {
+    const spec: Spec = {
       nodes: [
         { type: 'agent', name: 'A' },
         { type: 'agent', name: 'B' },
@@ -132,7 +137,7 @@ describe('expandFlowPlanParallel', () => {
   })
 
   it('reads nodeType as fallback for type field', () => {
-    const spec = {
+    const spec: Spec = {
       nodes: [
         {
           nodeType: 'parallel',
@@ -147,7 +152,7 @@ describe('expandFlowPlanParallel', () => {
   })
 
   it('reads branches from data.branches', () => {
-    const spec = {
+    const spec: Spec = {
       nodes: [
         {
           type: 'parallel',
@@ -166,7 +171,7 @@ describe('expandFlowPlanParallel', () => {
   })
 
   it('uses instructions field when goal is absent', () => {
-    const spec = {
+    const spec: Spec = {
       nodes: [
         {
           type: 'parallel',
@@ -179,22 +184,22 @@ describe('expandFlowPlanParallel', () => {
     expect(spec.nodes[1].instructions).toBe('fallback instructions')
   })
 
-  it('reads mergeStrategy from data.mergeStrategy', () => {
-    const spec = {
+  it('reads merge from data.mergeStrategy (legacy) or merge', () => {
+    const spec: Spec = {
       nodes: [
         {
           type: 'parallel',
-          data: { mergeStrategy: 'concatenate', branches: [{ name: 'A' }] },
+          data: { mergeStrategy: 'concatenate', branches: [{ name: 'A', goal: '' }] },
         },
       ],
     }
     expandFlowPlanParallel(spec)
 
-    expect(spec.nodes[0].mergeStrategy).toBe('concatenate')
+    expect(spec.nodes[0].merge).toBe('concatenate')
   })
 
   it('handles single-node spec without crashing', () => {
-    const spec = { nodes: [{ type: 'agent', name: 'Solo' }] }
+    const spec: Spec = { nodes: [{ type: 'agent', name: 'Solo' }] }
     expandFlowPlanParallel(spec)
 
     expect(spec.nodes).toHaveLength(1)
@@ -202,7 +207,7 @@ describe('expandFlowPlanParallel', () => {
   })
 
   it('handles empty nodes array', () => {
-    const spec = { nodes: [] as any[] }
+    const spec: Spec = { nodes: [] as any[] }
     expandFlowPlanParallel(spec)
 
     expect(spec.nodes).toHaveLength(0)
@@ -210,7 +215,7 @@ describe('expandFlowPlanParallel', () => {
   })
 
   it('skips parallel expansion when branches are strings (already expanded)', () => {
-    const spec = {
+    const spec: Spec = {
       nodes: [
         { type: 'parallel', branches: 'A,B', name: 'P' },
       ],

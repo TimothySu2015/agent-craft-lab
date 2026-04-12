@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Suspense, useEffect } from 'react'
 import { useAppConfigStore } from '@/stores/app-config-store'
 import { useSettingsStore } from '@/stores/settings-store'
+import { useSystemTemplatesStore } from '@/stores/system-templates-store'
 import { Toaster } from 'sonner'
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 import { AppShell } from '@/components/layout/AppShell'
@@ -19,9 +20,11 @@ import { DocRefineryPage } from '@/pages/DocRefineryPage'
 
 export default function App() {
   const fetchConfig = useAppConfigStore((s) => s.fetchConfig)
+  const loadSystemTemplates = useSystemTemplatesStore((s) => s.loadFromFile)
   const theme = useSettingsStore((s) => s.theme)
 
   useEffect(() => { fetchConfig() }, [fetchConfig])
+  useEffect(() => { loadSystemTemplates() }, [loadSystemTemplates])
 
   // Apply theme class to <html>
   useEffect(() => {

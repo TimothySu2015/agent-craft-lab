@@ -46,9 +46,9 @@ public class ReactTraceEndToEndTests
         Assert.Equal(2, nodes.GetArrayLength());
 
         var parallel = nodes[0];
-        Assert.Equal("parallel", parallel.GetProperty("nodeType").GetString());
+        Assert.Equal("parallel", parallel.GetProperty("type").GetString());
         Assert.Equal(9, parallel.GetProperty("branches").GetArrayLength());
-        Assert.Equal("labeled", parallel.GetProperty("mergeStrategy").GetString());
+        Assert.Equal("labeled", parallel.GetProperty("merge").GetString());
 
         // 每個 branch 都有 tools
         foreach (var branch in parallel.GetProperty("branches").EnumerateArray())
@@ -58,7 +58,7 @@ public class ReactTraceEndToEndTests
         }
 
         var summarizer = nodes[1];
-        Assert.Equal("agent", summarizer.GetProperty("nodeType").GetString());
+        Assert.Equal("agent", summarizer.GetProperty("type").GetString());
         Assert.Contains("比較 AWS", summarizer.GetProperty("instructions").GetString());
     }
 
@@ -85,11 +85,11 @@ public class ReactTraceEndToEndTests
 
         // 2 parallel + 1 summarizer = 3 nodes
         Assert.Equal(3, nodes.GetArrayLength());
-        Assert.Equal("parallel", nodes[0].GetProperty("nodeType").GetString());
+        Assert.Equal("parallel", nodes[0].GetProperty("type").GetString());
         Assert.Equal(2, nodes[0].GetProperty("branches").GetArrayLength());
-        Assert.Equal("parallel", nodes[1].GetProperty("nodeType").GetString());
+        Assert.Equal("parallel", nodes[1].GetProperty("type").GetString());
         Assert.Equal(2, nodes[1].GetProperty("branches").GetArrayLength());
-        Assert.Equal("agent", nodes[2].GetProperty("nodeType").GetString());
+        Assert.Equal("agent", nodes[2].GetProperty("type").GetString());
     }
 
     [Fact]

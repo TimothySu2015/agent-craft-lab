@@ -28,7 +28,18 @@ Flow 結構化執行模式 — LLM 規劃節點序列 → Engine 執行 → Crys
 
 ## Prompt 優化關鍵規則
 
-FlowPlannerPrompt 12 條規則中最常踩的坑：禁止重複搜尋、Parallel branch name 必須是具體值、Summarizer 不帶工具、多語言用 parallel 不用 iteration、禁止 iteration + search、格式化用 code 節點（零 token）。
+FlowPlannerPrompt 14 條規則中最常踩的坑：禁止重複搜尋、Parallel branch name 必須是具體值、Summarizer 不帶工具、多語言用 parallel 不用 iteration、禁止 iteration + search、格式化用 code 節點（零 token）。
+
+**Rule 13（工具推理）**：每個 agent 評估是否需要即時資料（法規/股價/新聞/市場 → 必帶 search tool）。
+**Rule 14（Synthesizer 強制）**：parallel 後面必須接 Synthesizer agent 彙整結果。
+
+### FlowPlanValidator 確定性兜底
+- 檢查 9：agent instructions 含即時資料關鍵字但 tools 為空 → warning
+- 檢查 10：plan 最後一個 parallel 後面沒有 agent → warning「建議加 Synthesizer」
+- `LikelyNeedsRealtimeData()` — 30 個中英關鍵字啟發式
+
+### Flow Tuning Harness
+48 scenarios（含工具推薦 4 案例）。`dotnet run --project AgentCraftLab.Flow.Tuning -- --test`。
 
 ## 依賴關係
 

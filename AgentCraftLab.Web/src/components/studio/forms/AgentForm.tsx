@@ -11,7 +11,13 @@ import { MiddlewareConfigDialog } from './MiddlewareConfigDialog'
 import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
 import { useVariableSuggestions } from '@/hooks/useVariableSuggestions'
 import type { PromptRefinerResult } from '@/components/shared/PromptRefinerDialog'
-import type { AgentNodeData, NodeData } from '@/types/workflow'
+import type {
+  AgentNodeData,
+  HistoryProvider,
+  MiddlewareBinding,
+  NodeData,
+  OutputFormat,
+} from '@/types/workflow'
 
 interface Props {
   data: AgentNodeData
@@ -21,10 +27,11 @@ interface Props {
 export function AgentForm({ data, onUpdate }: Props) {
   const { t } = useTranslation('studio')
   const suggestions = useVariableSuggestions()
-  const providerModels = getModelsForProvider(data.provider)
+  const provider = data.model?.provider ?? 'openai'
+  const providerModels = getModelsForProvider(provider)
   const credentials = useCredentialStore((s) => s.credentials)
   const hasKey = (id: string) => !!credentials[id]?.apiKey || !!credentials[id]?.saved
-  const currentHasKey = hasKey(data.provider)
+  const currentHasKey = hasKey(provider)
   const [showToolPicker, setShowToolPicker] = useState(false)
   const [showSkillPicker, setShowSkillPicker] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -40,8 +47,8 @@ export function AgentForm({ data, onUpdate }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: text,
-          provider: data.provider,
-          model: data.model,
+          provider: data.model.provider,
+          model: data.model.model,
           apiKey: cred.apiKey,
           endpoint: cred.endpoint,
         }),
@@ -50,15 +57,32 @@ export function AgentForm({ data, onUpdate }: Props) {
     } catch { /* handled by caller */ }
     return null
   }
-  const needsEndpoint = PROVIDERS.find((p) => p.id === data.provider)?.needsEndpoint
-  const activeMw = (data.middleware ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+
+  // Middleware: keep dialog API as comma-joined string + config dict, convert at the boundary
+  const middlewareList = data.middleware ?? []
+  const middlewareString = middlewareList.map((b) => b.key).join(',')
+  const middlewareConfig: Record<string, Record<string, string>> = {}
+  for (const b of middlewareList) middlewareConfig[b.key] = b.options ?? {}
+  const activeMw = middlewareList.map((b) => b.key)
+
+  const updateMiddleware = (mwString: string, cfg: Record<string, Record<string, string>>) => {
+    const keys = mwString.split(',').map((s) => s.trim()).filter(Boolean)
+    const next: MiddlewareBinding[] = keys.map((k) => ({ key: k, options: cfg[k] ?? {} }))
+    onUpdate({ middleware: next })
+  }
 
   return (
     <>
       {/* ─── Provider & Model ─── */}
       <Field label={t('form.provider')}>
-        <select className="field-input" value={data.provider}
-          onChange={(e) => onUpdate({ provider: e.target.value, model: getModelsForProvider(e.target.value)[0] ?? 'gpt-4o-mini' })}>
+        <select className="field-input" value={data.model.provider}
+          onChange={(e) => onUpdate({
+            model: {
+              ...data.model,
+              provider: e.target.value,
+              model: getModelsForProvider(e.target.value)[0] ?? 'gpt-4o-mini',
+            },
+          })}>
           {PROVIDERS.map((p) => (
             <option key={p.id} value={p.id}>{hasKey(p.id) ? '\u25CF' : '\u25CB'} {p.name}</option>
           ))}
@@ -67,23 +91,11 @@ export function AgentForm({ data, onUpdate }: Props) {
       </Field>
 
       <Field label={t('form.model')}>
-        <select className="field-input" value={data.model} onChange={(e) => onUpdate({ model: e.target.value })}>
+        <select className="field-input" value={data.model.model}
+          onChange={(e) => onUpdate({ model: { ...data.model, model: e.target.value } })}>
           {providerModels.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
       </Field>
-
-      {needsEndpoint && (
-        <Field label={t('form.endpoint')}>
-          <input className="field-input" value={data.endpoint} onChange={(e) => onUpdate({ endpoint: e.target.value })} placeholder="https://..." />
-        </Field>
-      )}
-
-      {needsEndpoint && (
-        <Field label={t('form.deploymentName')}>
-          <input className="field-input" value={data.deploymentName ?? ''} onChange={(e) => onUpdate({ deploymentName: e.target.value })} placeholder="gpt-4o" />
-          <p className="text-[8px] text-muted-foreground mt-0.5">Azure deployment name (if different from model)</p>
-        </Field>
-      )}
 
       {/* ─── Instructions ─── */}
       <Field label={t('form.instructions')}>
@@ -101,19 +113,20 @@ export function AgentForm({ data, onUpdate }: Props) {
 
       {/* ─── Output Format ─── */}
       <Field label={t('form.outputFormat')}>
-        <select className="field-input" value={data.outputFormat ?? 'text'} onChange={(e) => onUpdate({ outputFormat: e.target.value })}>
+        <select className="field-input" value={data.output?.kind ?? 'text'}
+          onChange={(e) => onUpdate({ output: { ...data.output, kind: e.target.value as OutputFormat } })}>
           <option value="text">Text (default)</option>
           <option value="json">JSON</option>
-          <option value="json_schema">JSON Schema</option>
+          <option value="jsonSchema">JSON Schema</option>
         </select>
       </Field>
 
-      {data.outputFormat === 'json_schema' && (
+      {data.output?.kind === 'jsonSchema' && (
         <Field label={t('form.jsonSchema')}>
           <ExpandableTextarea
             className="font-mono text-[9px]"
-            value={data.jsonSchema ?? ''}
-            onChange={(v) => onUpdate({ jsonSchema: v })}
+            value={data.output?.schemaJson ?? ''}
+            onChange={(v) => onUpdate({ output: { ...data.output, schemaJson: v } })}
             rows={4}
             placeholder='{"type":"object","properties":{"title":{"type":"string"}}}'
             label="JSON Schema"
@@ -165,37 +178,38 @@ export function AgentForm({ data, onUpdate }: Props) {
       {showAdvanced && (
         <>
           <Field label={t('form.temperature')}>
-            <SliderWithReset value={data.temperature ?? 0.7} min={0} max={2} step={0.1} defaultVal={0.7}
-              onChange={(v) => onUpdate({ temperature: v })} />
+            <SliderWithReset value={data.model.temperature ?? 0.7} min={0} max={2} step={0.1} defaultVal={0.7}
+              onChange={(v) => onUpdate({ model: { ...data.model, temperature: v } })} />
           </Field>
 
           <Field label={t('form.topP')}>
-            <SliderWithReset value={data.topP ?? 1} min={0} max={1} step={0.05} defaultVal={1}
-              onChange={(v) => onUpdate({ topP: v })} />
+            <SliderWithReset value={data.model.topP ?? 1} min={0} max={1} step={0.05} defaultVal={1}
+              onChange={(v) => onUpdate({ model: { ...data.model, topP: v } })} />
           </Field>
 
           <Field label={t('form.maxOutputTokens')}>
             <div className="flex items-center gap-2">
-              <input type="number" className="field-input flex-1" value={data.maxOutputTokens ?? ''} placeholder="(default)"
-                onChange={(e) => onUpdate({ maxOutputTokens: e.target.value ? Number(e.target.value) : undefined })} />
-              <button onClick={() => onUpdate({ maxOutputTokens: undefined })} className="text-muted-foreground hover:text-foreground cursor-pointer" title="Reset">
+              <input type="number" className="field-input flex-1" value={data.model.maxOutputTokens ?? ''} placeholder="(default)"
+                onChange={(e) => onUpdate({ model: { ...data.model, maxOutputTokens: e.target.value ? Number(e.target.value) : undefined } })} />
+              <button onClick={() => onUpdate({ model: { ...data.model, maxOutputTokens: undefined } })} className="text-muted-foreground hover:text-foreground cursor-pointer" title="Reset">
                 <RotateCcw size={12} />
               </button>
             </div>
           </Field>
 
           <Field label={t('form.chatHistory')}>
-            <select className="field-input" value={data.historyProvider ?? 'none'} onChange={(e) => onUpdate({ historyProvider: e.target.value })}>
+            <select className="field-input" value={data.history?.provider ?? 'none'}
+              onChange={(e) => onUpdate({ history: { ...data.history, provider: e.target.value as HistoryProvider } })}>
               <option value="none">None</option>
-              <option value="inmemory">In-Memory (sliding window)</option>
-              <option value="service">Custom Service</option>
+              <option value="inMemory">In-Memory (sliding window)</option>
+              <option value="database">Database</option>
             </select>
           </Field>
 
-          {data.historyProvider === 'inmemory' && (
+          {data.history?.provider === 'inMemory' && (
             <Field label={t('form.maxMessages')}>
-              <input type="number" className="field-input" min={1} max={200} value={data.maxMessages ?? 20}
-                onChange={(e) => onUpdate({ maxMessages: Number(e.target.value) })} />
+              <input type="number" className="field-input" min={1} max={200} value={data.history?.maxMessages ?? 20}
+                onChange={(e) => onUpdate({ history: { ...data.history, maxMessages: Number(e.target.value) } })} />
               <p className="text-[8px] text-muted-foreground mt-0.5">Sliding window size for conversation history</p>
             </Field>
           )}
@@ -217,10 +231,10 @@ export function AgentForm({ data, onUpdate }: Props) {
             )}
             <MiddlewareConfigDialog
               open={showMiddlewareConfig}
-              middleware={data.middleware ?? ''}
-              config={data.middlewareConfig ?? {}}
+              middleware={middlewareString}
+              config={middlewareConfig}
               onClose={() => setShowMiddlewareConfig(false)}
-              onApply={(mw, cfg) => onUpdate({ middleware: mw, middlewareConfig: cfg })}
+              onApply={(mw, cfg) => updateMiddleware(mw, cfg)}
             />
           </Field>
         </>
@@ -246,4 +260,3 @@ function SliderWithReset({ value, min, max, step, defaultVal, onChange }: {
     </div>
   )
 }
-

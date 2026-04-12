@@ -7,8 +7,11 @@ const config = NODE_REGISTRY.human
 
 export function HumanNode({ data, selected }: NodeProps & { data: HumanNodeData }) {
   return (
-    <NodeShell {...config} title={data.name} subtitle={data.inputType} selected={selected}>
+    <NodeShell {...config} title={data.name} subtitle={data.kind} selected={selected}>
       {data.prompt && <p className="truncate">{data.prompt}</p>}
+      {data.kind === 'choice' && data.choices && data.choices.length > 0 && (
+        <p className="truncate text-[8px] opacity-70">{data.choices.join(', ')}</p>
+      )}
     </NodeShell>
   )
 }

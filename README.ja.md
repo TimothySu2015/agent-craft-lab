@@ -10,6 +10,19 @@
 
 ![AgentCraftLab Studio](docs/studio-screenshot.png)
 
+> ### 重大な変更：Schema v2（2026年4月）
+>
+> ワークフロー JSON 形式が**フラット構造**から**ネスト Schema v2**（discriminated union）に移行されました。これは**破壊的変更**です — 旧バージョンで保存されたワークフロー JSON は**互換性がありません**。
+>
+> **主な変更点：**
+> - ノードフィールドがネストオブジェクトに変更（例：`model: { provider, model }` が `provider`/`model` の分散フィールドに代わる）
+> - 条件/ループは `condition: { kind, value }` を使用（`conditionType`/`conditionExpression` に代わる）
+> - 並列ブランチが `BranchConfig[]` に変更（カンマ区切り文字列に代わる）
+> - HTTP リクエストフィールドが `spec: { kind: "inline", ... }` にネスト
+> - 通信形式は `version: "2.0"`、`settings`（`workflowSettings` ではなく）、`port`（`fromOutput`/`toPort` ではなく）を使用
+>
+> **必要な操作：** Studio で既存のワークフローを再作成するか、AI Build で再エクスポートしてください。v1 JSON からの自動マイグレーションは提供されません。
+
 ## なぜ AgentCraftLab なのか？
 
 チームが .NET を使用していて AI Agent 機能を求めている場合、選択肢は限られています。ほとんどのエージェントプラットフォームは Python、Node.js、または Docker 重視のスタックを必要とします。AgentCraftLab は**ネイティブ .NET** で、**外部依存関係ゼロの SQLite** で動作し、.NET が動作するどこにでもデプロイできます。

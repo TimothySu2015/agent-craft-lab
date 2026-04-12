@@ -2,20 +2,16 @@ using System.Text.Json;
 using AgentCraftLab.Autonomous.Flow.Models;
 using AgentCraftLab.Autonomous.Flow.Services;
 using AgentCraftLab.Engine.Models;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Tests.Flow;
 
 /// <summary>
 /// FlowPlanConverter 單元測試 — 驗證 FlowPlan → AI Build JSON 的轉換邏輯。
+/// Phase F：FlowPlan.Nodes 用 Schema.NodeConfig sealed record 建 fixture。
 /// </summary>
 public sealed class FlowPlanConverterTests
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
     // ═══════════════════════════════════════════════
     // Sequential（純 agent chain）
     // ═══════════════════════════════════════════════
@@ -27,9 +23,9 @@ public sealed class FlowPlanConverterTests
         {
             Nodes =
             [
-                new PlannedNode { NodeType = NodeTypes.Agent, Name = "Researcher", Instructions = "Research" },
-                new PlannedNode { NodeType = NodeTypes.Agent, Name = "Writer", Instructions = "Write" },
-                new PlannedNode { NodeType = NodeTypes.Agent, Name = "Editor", Instructions = "Edit" },
+                new Schema.AgentNode { Name = "Researcher", Instructions = "Research" },
+                new Schema.AgentNode { Name = "Writer", Instructions = "Write" },
+                new Schema.AgentNode { Name = "Editor", Instructions = "Edit" },
             ]
         };
 
@@ -57,11 +53,12 @@ public sealed class FlowPlanConverterTests
         {
             Nodes =
             [
-                new PlannedNode
+                new Schema.AgentNode
                 {
-                    NodeType = NodeTypes.Agent, Name = "Expert",
-                    Instructions = "Be thorough", Tools = ["web_search"],
-                    Provider = "openai", Model = "gpt-4o"
+                    Name = "Expert",
+                    Instructions = "Be thorough",
+                    Tools = ["web_search"],
+                    Model = new Schema.ModelConfig { Provider = "openai", Model = "gpt-4o" }
                 },
             ]
         };
@@ -89,18 +86,18 @@ public sealed class FlowPlanConverterTests
         {
             Nodes =
             [
-                new PlannedNode { NodeType = NodeTypes.Agent, Name = "Intake", Instructions = "Summarize" },
-                new PlannedNode
+                new Schema.AgentNode { Name = "Intake", Instructions = "Summarize" },
+                new Schema.ParallelNode
                 {
-                    NodeType = NodeTypes.Parallel, Name = "MultiExpert",
+                    Name = "MultiExpert",
                     Branches =
                     [
-                        new ParallelBranchConfig { Name = "Legal", Goal = "Legal analysis" },
-                        new ParallelBranchConfig { Name = "Technical", Goal = "Tech analysis" },
+                        new Schema.BranchConfig { Name = "Legal", Goal = "Legal analysis" },
+                        new Schema.BranchConfig { Name = "Technical", Goal = "Tech analysis" },
                     ],
-                    MergeStrategy = "labeled"
+                    Merge = Schema.MergeStrategyKind.Labeled
                 },
-                new PlannedNode { NodeType = NodeTypes.Agent, Name = "Synthesizer", Instructions = "Merge" },
+                new Schema.AgentNode { Name = "Synthesizer", Instructions = "Merge" },
             ]
         };
 
@@ -112,7 +109,7 @@ public sealed class FlowPlanConverterTests
         // Intake + Parallel + Legal + Technical + Synthesizer = 5 nodes
         Assert.Equal(5, nodes.GetArrayLength());
 
-        // Parallel node has branches as comma-separated string
+        // Parallel node has branches as comma-separated string in flat output
         Assert.Equal("Legal,Technical", nodes[1].GetProperty("branches").GetString());
 
         // Connections: Intake→Parallel, Parallel→Legal(output_1), Parallel→Technical(output_2), Parallel→Synthesizer(output_3 Done)
@@ -137,14 +134,20 @@ public sealed class FlowPlanConverterTests
         {
             Nodes =
             [
-                new PlannedNode { NodeType = NodeTypes.Agent, Name = "Writer", Instructions = "Write" },
-                new PlannedNode
+                new Schema.AgentNode { Name = "Writer", Instructions = "Write" },
+                new Schema.LoopNode
                 {
-                    NodeType = NodeTypes.Loop, Name = "ReviewLoop",
-                    ConditionType = "contains", ConditionValue = "APPROVED",
-                    MaxIterations = 3, Instructions = "Review the draft", Tools = ["web_search"]
+                    Name = "ReviewLoop",
+                    Condition = new Schema.ConditionConfig { Kind = Schema.ConditionKind.Contains, Value = "APPROVED" },
+                    MaxIterations = 3,
+                    BodyAgent = new Schema.AgentNode
+                    {
+                        Name = "ReviewLoop Body",
+                        Instructions = "Review the draft",
+                        Tools = ["web_search"]
+                    }
                 },
-                new PlannedNode { NodeType = NodeTypes.Agent, Name = "Publisher", Instructions = "Publish" },
+                new Schema.AgentNode { Name = "Publisher", Instructions = "Publish" },
             ]
         };
 
@@ -184,13 +187,19 @@ public sealed class FlowPlanConverterTests
         {
             Nodes =
             [
-                new PlannedNode
+                new Schema.IterationNode
                 {
-                    NodeType = NodeTypes.Iteration, Name = "ForEach",
-                    SplitMode = "json-array", MaxItems = 50,
-                    Instructions = "Process each item", Tools = ["web_search"]
+                    Name = "ForEach",
+                    Split = Schema.SplitModeKind.JsonArray,
+                    MaxItems = 50,
+                    BodyAgent = new Schema.AgentNode
+                    {
+                        Name = "ForEach Body",
+                        Instructions = "Process each item",
+                        Tools = ["web_search"]
+                    }
                 },
-                new PlannedNode { NodeType = NodeTypes.Agent, Name = "Summarizer", Instructions = "Summarize" },
+                new Schema.AgentNode { Name = "Summarizer", Instructions = "Summarize" },
             ]
         };
 
@@ -224,13 +233,13 @@ public sealed class FlowPlanConverterTests
         {
             Nodes =
             [
-                new PlannedNode
+                new Schema.ConditionNode
                 {
-                    NodeType = NodeTypes.Condition, Name = "Check",
-                    ConditionType = "contains", ConditionValue = "YES"
+                    Name = "Check",
+                    Condition = new Schema.ConditionConfig { Kind = Schema.ConditionKind.Contains, Value = "YES" }
                 },
-                new PlannedNode { NodeType = NodeTypes.Agent, Name = "TrueAgent", Instructions = "Handle true" },
-                new PlannedNode { NodeType = NodeTypes.Agent, Name = "FalseAgent", Instructions = "Handle false" },
+                new Schema.AgentNode { Name = "TrueAgent", Instructions = "Handle true" },
+                new Schema.AgentNode { Name = "FalseAgent", Instructions = "Handle false" },
             ]
         };
 
@@ -264,10 +273,11 @@ public sealed class FlowPlanConverterTests
         {
             Nodes =
             [
-                new PlannedNode
+                new Schema.CodeNode
                 {
-                    NodeType = NodeTypes.Code, Name = "Formatter",
-                    TransformType = "template", TransformPattern = "## Report\n{{input}}"
+                    Name = "Formatter",
+                    Kind = Schema.TransformKind.Template,
+                    Expression = "## Report\n{{input}}"
                 },
             ]
         };
@@ -301,7 +311,7 @@ public sealed class FlowPlanConverterTests
     {
         var plan = new FlowPlan
         {
-            Nodes = [new PlannedNode { NodeType = NodeTypes.Agent, Name = "Solo", Instructions = "Do it" }]
+            Nodes = [new Schema.AgentNode { Name = "Solo", Instructions = "Do it" }]
         };
 
         var json = FlowPlanConverter.ConvertToAiBuildJson(plan);
@@ -318,10 +328,14 @@ public sealed class FlowPlanConverterTests
         {
             Nodes =
             [
-                new PlannedNode
+                new Schema.HttpRequestNode
                 {
-                    NodeType = NodeTypes.HttpRequest, Name = "APICall",
-                    HttpApiId = "weather-api", HttpArgsTemplate = "{\"city\": \"{input}\"}"
+                    Name = "APICall",
+                    Spec = new Schema.CatalogHttpRef
+                    {
+                        ApiId = "weather-api",
+                        Args = System.Text.Json.Nodes.JsonNode.Parse("{\"city\": \"{input}\"}")
+                    }
                 },
             ]
         };
@@ -335,17 +349,20 @@ public sealed class FlowPlanConverterTests
     }
 
     [Fact]
-    public void NullFieldsAreOmittedInJson()
+    public void OmittedProviderAndModel_FallBackToDefaults()
     {
+        // Schema.AgentNode 強型別不允許 null Provider/Model，自動填入預設值。
         var plan = new FlowPlan
         {
-            Nodes = [new PlannedNode { NodeType = NodeTypes.Agent, Name = "A", Instructions = "Hi" }]
+            Nodes = [new Schema.AgentNode { Name = "A", Instructions = "Hi" }]
         };
 
         var json = FlowPlanConverter.ConvertToAiBuildJson(plan);
+        var doc = JsonDocument.Parse(json);
+        var node = doc.RootElement.GetProperty("nodes")[0];
 
-        // Provider/Model are null → should not appear in JSON
-        Assert.DoesNotContain("\"provider\"", json);
-        Assert.DoesNotContain("\"model\"", json);
+        // Schema.ModelConfig 預設 provider="openai" / model="gpt-4o-mini"
+        Assert.Equal("openai", node.GetProperty("provider").GetString());
+        Assert.Equal("gpt-4o-mini", node.GetProperty("model").GetString());
     }
 }

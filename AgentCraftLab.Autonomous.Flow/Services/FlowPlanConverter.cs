@@ -2,12 +2,15 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgentCraftLab.Autonomous.Flow.Models;
 using AgentCraftLab.Engine.Models;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Autonomous.Flow.Services;
 
 /// <summary>
-/// 將 FlowPlan（LLM 規劃結果）轉換為 AI Build JSON 格式（前端 handleApply 可直接套用）。
-/// 負責：nodeType→type、fields→data wrapper、生成 connections（sequential + 分支展開）。
+/// 將 <see cref="FlowPlan"/>（LLM 規劃結果，Schema.NodeConfig 清單）轉換為 AI Build JSON
+/// 格式（前端 handleApply 可直接套用）。負責：nodeType 標記、展開 parallel / loop /
+/// iteration / condition 為多個節點 + 連線。
+/// Phase F：輸入從 PlannedNode 改為 Schema.NodeConfig，pattern match on 子型別。
 /// </summary>
 public static class FlowPlanConverter
 {
@@ -24,37 +27,39 @@ public static class FlowPlanConverter
         {
             var pn = plan.Nodes[i];
 
-            if (pn.NodeType == NodeTypes.Parallel && pn.Branches is { Count: > 0 })
+            switch (pn)
             {
-                ExpandParallel(pn, i, plan, nodes, connections);
-            }
-            else if (pn.NodeType == NodeTypes.Loop && pn.Instructions is not null)
-            {
-                ExpandLoop(pn, i, plan, nodes, connections);
-            }
-            else if (pn.NodeType == NodeTypes.Iteration && pn.Instructions is not null)
-            {
-                ExpandIteration(pn, i, plan, nodes, connections);
-            }
-            else if (pn.NodeType == NodeTypes.Condition)
-            {
-                ExpandCondition(pn, i, plan, nodes, connections);
-            }
-            else
-            {
-                var nodeIndex = nodes.Count;
-                nodes.Add(PlannedNodeToCrystallized(pn));
+                case Schema.ParallelNode { Branches: { Count: > 0 } } parallel:
+                    ExpandParallel(parallel, i, plan, nodes, connections);
+                    break;
 
-                // 下一個非展開節點的 connection
-                if (i + 1 < plan.Nodes.Count)
-                {
-                    connections.Add(new CrystallizedConnection
+                case Schema.LoopNode loop:
+                    ExpandLoop(loop, i, plan, nodes, connections);
+                    break;
+
+                case Schema.IterationNode iteration:
+                    ExpandIteration(iteration, i, plan, nodes, connections);
+                    break;
+
+                case Schema.ConditionNode condition:
+                    ExpandCondition(condition, i, plan, nodes, connections);
+                    break;
+
+                default:
+                    var nodeIndex = nodes.Count;
+                    nodes.Add(NodeConfigToCrystallized(pn));
+
+                    // 下一個非展開節點的 connection
+                    if (i + 1 < plan.Nodes.Count)
                     {
-                        From = nodeIndex,
-                        To = nodeIndex + 1,
-                        FromOutput = OutputPorts.Output1
-                    });
-                }
+                        connections.Add(new CrystallizedConnection
+                        {
+                            From = nodeIndex,
+                            To = nodeIndex + 1,
+                            FromOutput = OutputPorts.Output1
+                        });
+                    }
+                    break;
             }
         }
 
@@ -68,23 +73,23 @@ public static class FlowPlanConverter
     }
 
     // ═══════════════════════════════════════════════
-    // PlannedNode → CrystallizedNode 映射（委託 WorkflowCrystallizer.FromConfig）
+    // NodeConfig → CrystallizedNode 映射：委派給 WorkflowCrystallizer.FromNodeConfig
     // ═══════════════════════════════════════════════
 
-    private static CrystallizedNode PlannedNodeToCrystallized(PlannedNode pn)
-        => WorkflowCrystallizer.FromConfig(pn.NodeType, pn.Name, pn.ToConfig());
+    private static CrystallizedNode NodeConfigToCrystallized(Schema.NodeConfig node)
+        => WorkflowCrystallizer.FromNodeConfig(node.Name, node);
 
     // ═══════════════════════════════════════════════
     // Parallel 展開
     // ═══════════════════════════════════════════════
 
-    private static void ExpandParallel(PlannedNode pn, int stepIndex, FlowPlan plan,
+    private static void ExpandParallel(Schema.ParallelNode pn, int stepIndex, FlowPlan plan,
         List<CrystallizedNode> nodes, List<CrystallizedConnection> connections)
     {
         var parallelIndex = nodes.Count;
-        nodes.Add(PlannedNodeToCrystallized(pn));
+        nodes.Add(NodeConfigToCrystallized(pn));
 
-        foreach (var branch in pn.Branches!)
+        foreach (var branch in pn.Branches)
         {
             var branchIndex = nodes.Count;
             nodes.Add(new CrystallizedNode
@@ -92,7 +97,7 @@ public static class FlowPlanConverter
                 Type = NodeTypes.Agent,
                 Name = branch.Name,
                 Instructions = branch.Goal,
-                Tools = branch.Tools ?? []
+                Tools = branch.Tools?.ToList() ?? []
             });
 
             var portIndex = branchIndex - parallelIndex;
@@ -118,11 +123,11 @@ public static class FlowPlanConverter
     // Loop 展開
     // ═══════════════════════════════════════════════
 
-    private static void ExpandLoop(PlannedNode pn, int stepIndex, FlowPlan plan,
+    private static void ExpandLoop(Schema.LoopNode pn, int stepIndex, FlowPlan plan,
         List<CrystallizedNode> nodes, List<CrystallizedConnection> connections)
     {
         var loopIndex = nodes.Count;
-        nodes.Add(PlannedNodeToCrystallized(pn));
+        nodes.Add(NodeConfigToCrystallized(pn));
 
         // Body agent
         var bodyIndex = nodes.Count;
@@ -130,8 +135,8 @@ public static class FlowPlanConverter
         {
             Type = NodeTypes.Agent,
             Name = $"{pn.Name} Body",
-            Instructions = pn.Instructions ?? "",
-            Tools = pn.Tools ?? []
+            Instructions = pn.BodyAgent.Instructions,
+            Tools = pn.BodyAgent.Tools.ToList()
         });
 
         // Loop → Body (output_1)
@@ -160,11 +165,11 @@ public static class FlowPlanConverter
     // Iteration 展開
     // ═══════════════════════════════════════════════
 
-    private static void ExpandIteration(PlannedNode pn, int stepIndex, FlowPlan plan,
+    private static void ExpandIteration(Schema.IterationNode pn, int stepIndex, FlowPlan plan,
         List<CrystallizedNode> nodes, List<CrystallizedConnection> connections)
     {
         var iterIndex = nodes.Count;
-        nodes.Add(PlannedNodeToCrystallized(pn));
+        nodes.Add(NodeConfigToCrystallized(pn));
 
         // Body agent
         var bodyIndex = nodes.Count;
@@ -172,8 +177,8 @@ public static class FlowPlanConverter
         {
             Type = NodeTypes.Agent,
             Name = $"{pn.Name} Body",
-            Instructions = pn.Instructions ?? "",
-            Tools = pn.Tools ?? []
+            Instructions = pn.BodyAgent.Instructions,
+            Tools = pn.BodyAgent.Tools.ToList()
         });
 
         // Iteration → Body (output_1)
@@ -196,14 +201,18 @@ public static class FlowPlanConverter
     // Condition 展開
     // ═══════════════════════════════════════════════
 
-    private static void ExpandCondition(PlannedNode pn, int stepIndex, FlowPlan plan,
+    private static void ExpandCondition(Schema.ConditionNode pn, int stepIndex, FlowPlan plan,
         List<CrystallizedNode> nodes, List<CrystallizedConnection> connections)
     {
         var condIndex = nodes.Count;
-        nodes.Add(PlannedNodeToCrystallized(pn));
+        nodes.Add(NodeConfigToCrystallized(pn));
+
+        // Branch indices 從 Meta 讀取
+        var trueBranchIdx = NodeConfigHelpers.GetBranchIndex(pn, NodeConfigHelpers.MetaTrueBranchIndex);
+        var falseBranchIdx = NodeConfigHelpers.GetBranchIndex(pn, NodeConfigHelpers.MetaFalseBranchIndex);
 
         // True branch (output_1) → 預設下一個節點，或 TrueBranchIndex
-        var trueTarget = pn.TrueBranchIndex ?? (stepIndex + 1 < plan.Nodes.Count ? condIndex + 1 : -1);
+        var trueTarget = trueBranchIdx ?? (stepIndex + 1 < plan.Nodes.Count ? condIndex + 1 : -1);
         if (trueTarget >= 0)
         {
             connections.Add(new CrystallizedConnection
@@ -213,7 +222,7 @@ public static class FlowPlanConverter
         }
 
         // False branch (output_2) → 預設跳兩個，或 FalseBranchIndex
-        var falseTarget = pn.FalseBranchIndex ?? (stepIndex + 2 < plan.Nodes.Count ? condIndex + 2 : -1);
+        var falseTarget = falseBranchIdx ?? (stepIndex + 2 < plan.Nodes.Count ? condIndex + 2 : -1);
         if (falseTarget >= 0)
         {
             connections.Add(new CrystallizedConnection

@@ -10,6 +10,19 @@
 
 ![AgentCraftLab Studio](docs/studio-screenshot.png)
 
+> ### 重大變更：Schema v2（2026 年 4 月）
+>
+> Workflow JSON 格式已從**扁平結構**遷移至**巢狀 Schema v2**（discriminated union）。這是一個**破壞性變更** — 舊版本儲存的 workflow JSON **無法直接使用**。
+>
+> **主要變更：**
+> - 節點欄位改為巢狀物件（例如 `model: { provider, model }` 取代原本散落的 `provider`/`model`）
+> - 條件/迴圈使用 `condition: { kind, value }` 取代 `conditionType`/`conditionExpression`
+> - 並行分支改為 `BranchConfig[]` 取代逗號分隔字串
+> - HTTP 請求欄位巢狀於 `spec: { kind: "inline", ... }`
+> - 傳輸格式使用 `version: "2.0"`、`settings`（非 `workflowSettings`）、`port`（非 `fromOutput`/`toPort`）
+>
+> **必要操作：** 請在 Studio 中重新建立既有的工作流程，或透過 AI Build 重新匯出。不提供 v1 JSON 的自動遷移。
+
 ## 為什麼選擇 AgentCraftLab？
 
 如果你的團隊使用 .NET，又想要 AI Agent 的能力 — 選擇非常有限。大多數 Agent 平台需要 Python、Node.js 或依賴大量 Docker 的技術堆疊。AgentCraftLab 是**原生 .NET**，使用 **SQLite 且零外部依賴**，可部署在任何 .NET 能執行的環境。

@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Services;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
@@ -7,12 +8,10 @@ namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 /// <summary>
 /// Human 節點執行器 — 暫停等待使用者輸入，支援 text/choice/approval 模式。
 /// </summary>
-public sealed class HumanNodeExecutor : INodeExecutor
+public sealed class HumanNodeExecutor : NodeExecutorBase<HumanNode>
 {
-    public string NodeType => NodeTypes.Human;
-
-    public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
-        string nodeId, WorkflowNode node, ImperativeExecutionState state,
+    protected override async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
+        string nodeId, HumanNode node, ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var nodeName = string.IsNullOrWhiteSpace(node.Name) ? $"Human_{node.Id}" : node.Name;
@@ -25,15 +24,15 @@ public sealed class HumanNodeExecutor : INodeExecutor
 
         var prompt = string.IsNullOrWhiteSpace(node.Prompt) ? "Please provide your input:" : node.Prompt;
 
-        // 解析 prompt 中的變數引用
-        if (NodeReferenceResolver.HasVariableReferences(prompt))
+        if (state.VariableResolver.HasReferences(prompt))
         {
-            prompt = NodeReferenceResolver.ResolveVariables(prompt, state.SystemVariables, state.Variables, state.EnvironmentVariables);
+            prompt = state.VariableResolver.Resolve(prompt, state.ToVariableContext());
         }
-        var inputType = string.IsNullOrWhiteSpace(node.InputType) ? "text" : node.InputType;
-        var choices = node.Choices ?? "";
 
-        yield return ExecutionEvent.WaitingForInput(nodeName, prompt, inputType, choices);
+        var inputTypeStr = FormatInputKind(node.Kind);
+        var choicesStr = node.Choices is { Count: > 0 } ? string.Join(",", node.Choices) : "";
+
+        yield return ExecutionEvent.WaitingForInput(nodeName, prompt, inputTypeStr, choicesStr);
 
         string userInput;
         var timedOut = false;
@@ -64,8 +63,8 @@ public sealed class HumanNodeExecutor : INodeExecutor
         yield return ExecutionEvent.UserInputReceived(nodeName, userInput);
     }
 
-    public Task<NodeExecutionResult> BuildResultAsync(
-        string nodeId, WorkflowNode node,
+    protected override Task<NodeExecutionResult> BuildResultAsync(
+        string nodeId, HumanNode node,
         ImperativeExecutionState state, List<ExecutionEvent> collectedEvents,
         CancellationToken cancellationToken = default)
     {
@@ -80,4 +79,11 @@ public sealed class HumanNodeExecutor : INodeExecutor
             OutputPort = outputPort
         });
     }
+
+    private static string FormatInputKind(HumanInputKind kind) => kind switch
+    {
+        HumanInputKind.Choice => "choice",
+        HumanInputKind.Approval => "approval",
+        _ => "text"
+    };
 }

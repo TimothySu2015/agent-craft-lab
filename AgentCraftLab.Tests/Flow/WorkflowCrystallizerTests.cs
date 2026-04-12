@@ -2,6 +2,7 @@ using System.Text.Json;
 using AgentCraftLab.Autonomous.Flow.Models;
 using AgentCraftLab.Autonomous.Flow.Services;
 using AgentCraftLab.Engine.Models;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Tests.Flow;
 
@@ -21,7 +22,13 @@ public class WorkflowCrystallizerTests
         Sequence = seq,
         NodeType = NodeTypes.Agent,
         NodeName = name,
-        Config = new NodeConfig { Instructions = instructions ?? "Do something", Tools = tools }
+        Config = new Schema.AgentNode
+        {
+            Id = name,
+            Name = name,
+            Instructions = instructions ?? "Do something",
+            Tools = tools ?? []
+        }
     };
 
     private static TraceStep CodeStep(int seq, string name) => new()
@@ -29,7 +36,13 @@ public class WorkflowCrystallizerTests
         Sequence = seq,
         NodeType = NodeTypes.Code,
         NodeName = name,
-        Config = new NodeConfig { TransformType = "template", TransformPattern = "{{input}}" }
+        Config = new Schema.CodeNode
+        {
+            Id = name,
+            Name = name,
+            Kind = Schema.TransformKind.Template,
+            Expression = "{{input}}"
+        }
     };
 
     private static TraceStep ParallelStep(int seq, string name, params string[] branchNames) => new()
@@ -37,10 +50,14 @@ public class WorkflowCrystallizerTests
         Sequence = seq,
         NodeType = NodeTypes.Parallel,
         NodeName = name,
-        Config = new NodeConfig
+        Config = new Schema.ParallelNode
         {
-            Branches = branchNames.Select(n => new ParallelBranchConfig { Name = n, Goal = $"Handle {n}" }).ToList(),
-            MergeStrategy = "labeled"
+            Id = name,
+            Name = name,
+            Branches = branchNames
+                .Select(n => new Schema.BranchConfig { Name = n, Goal = $"Handle {n}" })
+                .ToList(),
+            Merge = Schema.MergeStrategyKind.Labeled
         }
     };
 
@@ -49,12 +66,22 @@ public class WorkflowCrystallizerTests
         Sequence = seq,
         NodeType = NodeTypes.Loop,
         NodeName = name,
-        Config = new NodeConfig
+        Config = new Schema.LoopNode
         {
-            ConditionType = "contains",
-            ConditionValue = "done",
+            Id = name,
+            Name = name,
+            Condition = new Schema.ConditionConfig
+            {
+                Kind = Schema.ConditionKind.Contains,
+                Value = "done"
+            },
             MaxIterations = 3,
-            Instructions = "Improve the content"
+            BodyAgent = new Schema.AgentNode
+            {
+                Id = $"{name}__body__",
+                Name = $"{name} Body",
+                Instructions = "Improve the content"
+            }
         }
     };
 
@@ -63,12 +90,19 @@ public class WorkflowCrystallizerTests
         Sequence = seq,
         NodeType = NodeTypes.Iteration,
         NodeName = name,
-        Config = new NodeConfig
+        Config = new Schema.IterationNode
         {
-            SplitMode = "json-array",
+            Id = name,
+            Name = name,
+            Split = Schema.SplitModeKind.JsonArray,
             Delimiter = "\n",
             MaxItems = 10,
-            Instructions = "Process each item"
+            BodyAgent = new Schema.AgentNode
+            {
+                Id = $"{name}__body__",
+                Name = $"{name} Body",
+                Instructions = "Process each item"
+            }
         }
     };
 

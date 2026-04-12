@@ -1,7 +1,7 @@
 import { Field } from '../PropertiesPanel'
 import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
 import { useVariableSuggestions } from '@/hooks/useVariableSuggestions'
-import type { HumanNodeData, NodeData } from '@/types/workflow'
+import type { HumanInputKind, HumanNodeData, NodeData } from '@/types/workflow'
 
 interface Props {
   data: HumanNodeData;
@@ -10,14 +10,15 @@ interface Props {
 
 export function HumanForm({ data, onUpdate }: Props) {
   const suggestions = useVariableSuggestions()
+  const choicesString = (data.choices ?? []).join(', ')
 
   return (
     <>
       <Field label="Input Type">
         <select
           className="field-input"
-          value={data.inputType}
-          onChange={(e) => onUpdate({ inputType: e.target.value })}
+          value={data.kind}
+          onChange={(e) => onUpdate({ kind: e.target.value as HumanInputKind })}
         >
           <option value="text">Text</option>
           <option value="choice">Choice</option>
@@ -36,12 +37,12 @@ export function HumanForm({ data, onUpdate }: Props) {
         />
       </Field>
 
-      {data.inputType === 'choice' && (
+      {data.kind === 'choice' && (
         <Field label="Choices (comma-separated)">
           <input
             className="field-input"
-            value={data.choices}
-            onChange={(e) => onUpdate({ choices: e.target.value })}
+            value={choicesString}
+            onChange={(e) => onUpdate({ choices: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
             placeholder="Option A, Option B, Option C"
           />
         </Field>

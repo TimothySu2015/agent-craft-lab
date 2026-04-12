@@ -116,7 +116,7 @@ function CanvasInner() {
     if (connection.source === connection.target) return false
     if (targetNode.type === 'start') return false
     if (sourceNode.type === 'end') return false
-    const attachOnlyTypes = ['tool', 'rag']
+    const attachOnlyTypes = ['rag']
     if (attachOnlyTypes.includes(targetNode.type ?? '') && sourceNode.type !== 'agent') return false
     if (attachOnlyTypes.includes(sourceNode.type ?? '') && targetNode.type !== 'agent') return false
     return true

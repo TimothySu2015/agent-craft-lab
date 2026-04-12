@@ -7,8 +7,8 @@ const config = NODE_REGISTRY.loop
 
 export function LoopNode({ data, selected }: NodeProps & { data: LoopNodeData }) {
   return (
-    <NodeShell {...config} title={data.name} subtitle={`${data.conditionType} (max ${data.maxIterations})`} selected={selected}>
-      {data.conditionExpression && <p className="truncate">{data.conditionExpression}</p>}
+    <NodeShell {...config} title={data.name} subtitle={`${data.condition?.kind} (max ${data.maxIterations})`} selected={selected}>
+      {data.condition?.value && <p className="truncate">{data.condition.value}</p>}
     </NodeShell>
   )
 }

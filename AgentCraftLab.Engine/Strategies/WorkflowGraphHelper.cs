@@ -1,4 +1,5 @@
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using Microsoft.Agents.AI;
 
 namespace AgentCraftLab.Engine.Strategies;
@@ -15,8 +16,8 @@ public static class WorkflowGraphHelper
     /// - 其他 → sequential
     /// </summary>
     public static string DetectWorkflowType(
-        List<WorkflowNode> allNodes,
-        List<WorkflowConnection> connections,
+        IEnumerable<NodeConfig> allNodes,
+        IEnumerable<Connection> connections,
         Dictionary<string, ChatClientAgent> agents,
         HashSet<string>? executableNodeIds = null)
     {
@@ -44,8 +45,8 @@ public static class WorkflowGraphHelper
     /// <summary>
     /// 將穿過非 agent 節點的連線，解析為 agent-to-agent 的直接連線。
     /// </summary>
-    public static List<WorkflowConnection> ResolveAgentConnections(
-        List<WorkflowConnection> connections,
+    public static List<Connection> ResolveAgentConnections(
+        IReadOnlyList<Connection> connections,
         HashSet<string> agentIds)
     {
         var outgoing = new Dictionary<string, List<string>>();
@@ -56,7 +57,7 @@ public static class WorkflowGraphHelper
             outgoing[conn.From].Add(conn.To);
         }
 
-        var resolved = new List<WorkflowConnection>();
+        var resolved = new List<Connection>();
 
         foreach (var fromId in agentIds)
         {
@@ -74,7 +75,7 @@ public static class WorkflowGraphHelper
 
                 if (agentIds.Contains(current))
                 {
-                    resolved.Add(new WorkflowConnection { From = fromId, To = current });
+                    resolved.Add(new Connection { From = fromId, To = current });
                 }
                 else
                 {
@@ -94,8 +95,8 @@ public static class WorkflowGraphHelper
     /// 按連線順序排列 agents（拓撲排序）。
     /// </summary>
     public static ChatClientAgent[] OrderAgentsByConnections(
-        List<WorkflowNode> agentNodes,
-        List<WorkflowConnection> connections,
+        IReadOnlyList<AgentNode> agentNodes,
+        IReadOnlyList<Connection> connections,
         Dictionary<string, ChatClientAgent> agents)
     {
         var agentIds = new HashSet<string>(agents.Keys);
@@ -138,8 +139,8 @@ public static class WorkflowGraphHelper
     /// 找出 handoff workflow 的 router 和所有 agent 的 handoff 關係圖。
     /// </summary>
     public static (string RouterId, Dictionary<string, List<string>> HandoffMap)? FindRouterAndTargets(
-        List<WorkflowNode> agentNodes,
-        List<WorkflowConnection> connections,
+        IReadOnlyList<AgentNode> agentNodes,
+        IReadOnlyList<Connection> connections,
         Dictionary<string, ChatClientAgent> agents)
     {
         var agentIds = new HashSet<string>(agents.Keys);

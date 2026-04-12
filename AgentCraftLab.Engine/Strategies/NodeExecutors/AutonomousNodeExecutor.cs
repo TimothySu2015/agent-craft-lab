@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Services;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
@@ -8,12 +9,10 @@ namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 /// <summary>
 /// Autonomous 節點執行器 — 委派給 IAutonomousNodeExecutor 執行 ReAct/Flow 迴圈。
 /// </summary>
-public sealed class AutonomousNodeExecutor : INodeExecutor
+public sealed class AutonomousNodeExecutor : NodeExecutorBase<AutonomousNode>
 {
-    public string NodeType => NodeTypes.Autonomous;
-
-    public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
-        string nodeId, WorkflowNode node, ImperativeExecutionState state,
+    protected override async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
+        string nodeId, AutonomousNode node, ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var nodeName = string.IsNullOrWhiteSpace(node.Name) ? $"Autonomous_{node.Id}" : node.Name;
@@ -34,15 +33,15 @@ public sealed class AutonomousNodeExecutor : INodeExecutor
         {
             Goal = goal,
             Credentials = state.Request.Credentials,
-            Provider = node.Provider,
-            Model = node.Model,
-            AvailableTools = node.Tools,
-            AvailableSkills = node.Skills,
-            McpServers = node.McpServers,
-            A2AAgents = node.A2AAgents,
+            Provider = node.Model.Provider,
+            Model = node.Model.Model,
+            AvailableTools = node.Tools.ToList(),
+            AvailableSkills = node.Skills.ToList(),
+            McpServers = node.McpServers.ToList(),
+            A2AAgents = node.A2AAgents.ToList(),
             HttpApis = state.Request.HttpApiDefs ?? [],
             MaxIterations = node.MaxIterations > 0 ? node.MaxIterations : 25,
-            MaxTotalTokens = node.MaxOutputTokens is > 0 ? (long)node.MaxOutputTokens.Value : 200_000L,
+            MaxTotalTokens = node.Model.MaxOutputTokens is > 0 ? (long)node.Model.MaxOutputTokens.Value : 200_000L,
             Attachment = state.Attachment
         };
 

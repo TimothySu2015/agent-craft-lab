@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using Microsoft.Extensions.AI;
 
 namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
@@ -9,12 +10,10 @@ namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 /// Loop 節點執行器 — 重複執行 body 直到條件滿足或達上限。
 /// 自行管理導航（ManagesOwnNavigation = true）。
 /// </summary>
-public sealed class LoopNodeExecutor : INodeExecutor
+public sealed class LoopNodeExecutor : NodeExecutorBase<LoopNode>
 {
-    public string NodeType => NodeTypes.Loop;
-
-    public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
-        string nodeId, WorkflowNode node, ImperativeExecutionState state,
+    protected override async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
+        string nodeId, LoopNode node, ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         // Loop 不直接產生 events — 邏輯在 BuildResultAsync 中處理
@@ -22,15 +21,14 @@ public sealed class LoopNodeExecutor : INodeExecutor
         yield break;
     }
 
-    public async Task<NodeExecutionResult> BuildResultAsync(
-        string nodeId, WorkflowNode node,
+    protected override async Task<NodeExecutionResult> BuildResultAsync(
+        string nodeId, LoopNode node,
         ImperativeExecutionState state, List<ExecutionEvent> collectedEvents,
         CancellationToken cancellationToken = default)
     {
         state.LoopCounters.TryGetValue(nodeId, out var iteration);
 
-        // 評估退出條件
-        var exitMet = await EvaluateConditionAsync(node, state.PreviousResult, state, cancellationToken);
+        var exitMet = await EvaluateConditionAsync(node.Condition, state.PreviousResult, state, cancellationToken);
 
         if (exitMet || iteration >= node.MaxIterations)
         {
@@ -58,7 +56,6 @@ public sealed class LoopNodeExecutor : INodeExecutor
         var bodyResult = await state.ExecuteBodyChain(bodyStartId, nodeId, state.PreviousResult, state, cancellationToken);
         state.PreviousResult = bodyResult;
 
-        // 回到 loop 節點重新評估
         return new NodeExecutionResult
         {
             Output = bodyResult,
@@ -68,17 +65,15 @@ public sealed class LoopNodeExecutor : INodeExecutor
     }
 
     private static async Task<bool> EvaluateConditionAsync(
-        WorkflowNode node, string text, ImperativeExecutionState state, CancellationToken cancellationToken)
+        ConditionConfig condition, string text, ImperativeExecutionState state, CancellationToken cancellationToken)
     {
-        var expr = node.ConditionExpression;
-        if (string.IsNullOrWhiteSpace(expr))
-            expr = "DONE";
+        var expr = string.IsNullOrWhiteSpace(condition.Value) ? "DONE" : condition.Value;
 
-        return node.ConditionType?.ToLowerInvariant() switch
+        return condition.Kind switch
         {
-            "contains" => text.Contains(expr, StringComparison.OrdinalIgnoreCase),
-            "regex" => Regex.IsMatch(text, expr, RegexOptions.IgnoreCase),
-            "llm-judge" => await EvaluateLlmJudgeAsync(expr, text, state, cancellationToken),
+            ConditionKind.Contains => text.Contains(expr, StringComparison.OrdinalIgnoreCase),
+            ConditionKind.Regex => Regex.IsMatch(text, expr, RegexOptions.IgnoreCase),
+            ConditionKind.LlmJudge => await EvaluateLlmJudgeAsync(expr, text, state, cancellationToken),
             _ => text.Contains(expr, StringComparison.OrdinalIgnoreCase)
         };
     }

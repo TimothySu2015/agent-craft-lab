@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Search, Trash2, Bookmark } from 'lucide-react'
 import * as Icons from 'lucide-react'
-import { BUILTIN_TEMPLATES, TEMPLATE_CATEGORIES, type TemplateInfo } from '@/lib/templates'
+import { useBuiltinTemplates, useTemplateCategories, type TemplateInfo } from '@/lib/templates'
 import { useCustomTemplatesStore, type CustomTemplate } from '@/stores/custom-templates-store'
 
 interface Props {
@@ -14,14 +14,17 @@ interface Props {
 
 export function TemplatesDialog({ open, onClose, onSelect, onSelectCustom }: Props) {
   const { t } = useTranslation('studio')
+  const { t: tTemplates } = useTranslation('templates')
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
   const customTemplates = useCustomTemplatesStore((s) => s.templates)
   const removeCustom = useCustomTemplatesStore((s) => s.removeTemplate)
+  const builtinTemplates = useBuiltinTemplates()
+  const templateCategories = useTemplateCategories()
 
   if (!open) return null
 
-  const filtered = BUILTIN_TEMPLATES.filter((tpl) => {
+  const filtered = builtinTemplates.filter((tpl) => {
     if (category !== 'All' && category !== 'Custom' && tpl.category !== category) return false
     if (category === 'Custom') return false
     if (search) {
@@ -41,7 +44,8 @@ export function TemplatesDialog({ open, onClose, onSelect, onSelectCustom }: Pro
     return true
   })
 
-  const allCategories = ['Custom', ...TEMPLATE_CATEGORIES]
+  const customLabel = tTemplates('dialog.custom')
+  const allCategories = [customLabel, ...templateCategories]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -60,7 +64,7 @@ export function TemplatesDialog({ open, onClose, onSelect, onSelectCustom }: Pro
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               className="field-input pl-8 text-xs"
-              placeholder="Search templates..."
+              placeholder={tTemplates('dialog.searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -70,8 +74,8 @@ export function TemplatesDialog({ open, onClose, onSelect, onSelectCustom }: Pro
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
-            <option value="All">All</option>
-            {allCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+            <option value="All">{tTemplates('dialog.all')}</option>
+            {allCategories.map((c) => <option key={c} value={c === customLabel ? 'Custom' : c}>{c}</option>)}
           </select>
         </div>
 
@@ -142,7 +146,7 @@ export function TemplatesDialog({ open, onClose, onSelect, onSelectCustom }: Pro
             })}
           </div>
           {filtered.length === 0 && filteredCustom.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-8">No templates match your search.</p>
+            <p className="text-xs text-muted-foreground text-center py-8">{tTemplates('dialog.noResults')}</p>
           )}
         </div>
       </div>

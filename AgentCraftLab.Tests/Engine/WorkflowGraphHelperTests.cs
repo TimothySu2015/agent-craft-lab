@@ -1,4 +1,5 @@
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Strategies;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
@@ -14,11 +15,24 @@ public class WorkflowGraphHelperTests
         return ids.ToDictionary(id => id, id => new ChatClientAgent(client, $"Agent {id}"));
     }
 
-    private static List<WorkflowNode> CreateNodes(params (string Id, string Type)[] defs) =>
-        defs.Select(d => new WorkflowNode { Id = d.Id, Type = d.Type, Name = d.Id }).ToList();
+    // Schema fixture helpers — 用對應子型別建構 NodeConfig，Id/Name 對齊舊 fixture 語意
+    private static NodeConfig CreateNode(string id, string type) => type switch
+    {
+        "agent" => new AgentNode { Id = id, Name = id },
+        "condition" => new ConditionNode { Id = id, Name = id },
+        "loop" => new LoopNode { Id = id, Name = id },
+        "code" => new CodeNode { Id = id, Name = id },
+        _ => throw new NotSupportedException($"Unknown fixture type: {type}")
+    };
 
-    private static List<WorkflowConnection> CreateConnections(params (string From, string To)[] defs) =>
-        defs.Select(d => new WorkflowConnection { From = d.From, To = d.To }).ToList();
+    private static List<NodeConfig> CreateNodes(params (string Id, string Type)[] defs) =>
+        defs.Select(d => CreateNode(d.Id, d.Type)).ToList();
+
+    private static List<AgentNode> CreateAgentNodes(params string[] ids) =>
+        ids.Select(id => new AgentNode { Id = id, Name = id }).ToList();
+
+    private static List<Connection> CreateConnections(params (string From, string To)[] defs) =>
+        defs.Select(d => new Connection { From = d.From, To = d.To }).ToList();
 
     // ════════════════════════════════════════
     // DetectWorkflowType
@@ -144,7 +158,7 @@ public class WorkflowGraphHelperTests
     [Fact]
     public void FindRouterAndTargets_MultiOutgoing()
     {
-        var nodes = CreateNodes(("r", "agent"), ("t1", "agent"), ("t2", "agent"));
+        var nodes = CreateAgentNodes("r", "t1", "t2");
         var connections = CreateConnections(("r", "t1"), ("r", "t2"));
         var agents = CreateAgents("r", "t1", "t2");
         var result = WorkflowGraphHelper.FindRouterAndTargets(nodes, connections, agents);
@@ -156,7 +170,7 @@ public class WorkflowGraphHelperTests
     [Fact]
     public void FindRouterAndTargets_NoConnections_ReturnsNull()
     {
-        var nodes = CreateNodes(("a1", "agent"));
+        var nodes = CreateAgentNodes("a1");
         var agents = CreateAgents("a1");
         var result = WorkflowGraphHelper.FindRouterAndTargets(nodes, [], agents);
         Assert.Null(result);

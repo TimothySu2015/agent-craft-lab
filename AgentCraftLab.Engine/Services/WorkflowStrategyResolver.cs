@@ -1,5 +1,6 @@
 using AgentCraftLab.Data;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Strategies;
 using AgentCraftLab.Engine.Strategies.NodeExecutors;
 using Microsoft.Extensions.Logging;
@@ -34,9 +35,9 @@ public class WorkflowStrategyResolver
     /// 優先級：A2A/Autonomous → SingleAgent → Human → Attachment → SpecialNodes → ExplicitType → AutoDetect
     /// </summary>
     public (IWorkflowStrategy Strategy, string Reason) Resolve(
-        WorkflowPayload payload,
+        Models.Schema.WorkflowPayload payload,
         AgentExecutionContext agentContext,
-        List<WorkflowConnection> resolvedConnections,
+        IReadOnlyList<Connection> resolvedConnections,
         WorkflowExecutionRequest request,
         bool hasA2AOrAutonomousNodes = false)
     {
@@ -57,7 +58,7 @@ public class WorkflowStrategyResolver
         if (NodeTypeRegistry.HasAnyRequiringImperative(payload.Nodes))
             return (CreateImperative(), "hasImperativeNodes");
 
-        var workflowType = payload.WorkflowSettings.Type;
+        var workflowType = payload.Settings.Strategy;
         if (workflowType == WorkflowTypes.Auto)
             workflowType = WorkflowGraphHelper.DetectWorkflowType(payload.Nodes, resolvedConnections, agentContext.Agents);
 

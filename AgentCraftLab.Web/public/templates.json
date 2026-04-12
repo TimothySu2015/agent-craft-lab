@@ -1,0 +1,1228 @@
+{
+  "version": "2.0",
+  "_note": "System workflow templates (nested Schema shape, mirrors Schema.NodeConfig). User-facing strings live in public/locales/{lng}/templates.json keyed by template id. DO NOT put 'name' / 'shortDescription' / 'sampleMessages' here. NOTE: Template shape matches types in src/types/workflow.ts (camelCase, nested config objects).",
+  "templates": [
+    {
+      "id": "sequential",
+      "icon": "ArrowRight",
+      "category": "basic",
+      "tags": [
+        "sequential",
+        "content",
+        "writing"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Researcher",
+            "instructions": "Research the given topic thoroughly."
+          },
+          {
+            "type": "agent",
+            "name": "Drafter",
+            "instructions": "Write an article based on the research."
+          },
+          {
+            "type": "agent",
+            "name": "Editor",
+            "instructions": "Polish and edit the draft."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "loop",
+      "icon": "RefreshCw",
+      "category": "basic",
+      "tags": [
+        "loop",
+        "review",
+        "quality"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Writer",
+            "instructions": "Write content on the given topic."
+          },
+          {
+            "type": "loop",
+            "name": "ReviewLoop",
+            "condition": {
+              "kind": "contains",
+              "value": "APPROVED"
+            },
+            "maxIterations": 3
+          },
+          {
+            "type": "agent",
+            "name": "Reviewer",
+            "instructions": "Review the draft. Reply APPROVED if good."
+          },
+          {
+            "type": "agent",
+            "name": "Publisher",
+            "instructions": "Format and publish the approved content."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "fromOutput": "output_1"
+          },
+          {
+            "from": 2,
+            "to": 0
+          },
+          {
+            "from": 1,
+            "to": 3,
+            "fromOutput": "output_2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "router",
+      "icon": "Route",
+      "category": "basic",
+      "tags": [
+        "router",
+        "customer-service"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Triage",
+            "instructions": "Classify the query into: billing, technical, or general."
+          },
+          {
+            "type": "router",
+            "name": "Router",
+            "routes": [
+              {
+                "name": "billing",
+                "keywords": [
+                  "billing"
+                ],
+                "isDefault": false
+              },
+              {
+                "name": "technical",
+                "keywords": [
+                  "technical"
+                ],
+                "isDefault": false
+              },
+              {
+                "name": "general",
+                "keywords": [],
+                "isDefault": true
+              }
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "Billing",
+            "instructions": "Handle billing inquiries."
+          },
+          {
+            "type": "agent",
+            "name": "Technical",
+            "instructions": "Handle technical support."
+          },
+          {
+            "type": "agent",
+            "name": "General",
+            "instructions": "Handle general inquiries."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "fromOutput": "output_1"
+          },
+          {
+            "from": 1,
+            "to": 3,
+            "fromOutput": "output_2"
+          },
+          {
+            "from": 1,
+            "to": 4,
+            "fromOutput": "output_3"
+          }
+        ]
+      }
+    },
+    {
+      "id": "code-transform",
+      "icon": "Code",
+      "category": "basic",
+      "tags": [
+        "code",
+        "transform"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Analyzer",
+            "instructions": "Analyze the topic and output findings."
+          },
+          {
+            "type": "code",
+            "name": "Format",
+            "kind": "template",
+            "expression": "## Report\n\n{{input}}"
+          },
+          {
+            "type": "agent",
+            "name": "Reporter",
+            "instructions": "Write a polished report."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "http-webhook",
+      "icon": "Globe2",
+      "category": "basic",
+      "tags": [
+        "http",
+        "api"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Preparer",
+            "instructions": "Extract parameters for the API call."
+          },
+          {
+            "type": "http-request",
+            "name": "APICall"
+          },
+          {
+            "type": "agent",
+            "name": "Reporter",
+            "instructions": "Format the API response."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "parallel-experts",
+      "icon": "Columns3",
+      "category": "basic",
+      "tags": [
+        "parallel",
+        "fan-out"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Intake",
+            "instructions": "Summarize the question."
+          },
+          {
+            "type": "parallel",
+            "name": "MultiExpert",
+            "branches": [
+              {
+                "name": "Legal",
+                "goal": ""
+              },
+              {
+                "name": "Technical",
+                "goal": ""
+              },
+              {
+                "name": "Financial",
+                "goal": ""
+              }
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "Legal",
+            "instructions": "Legal analysis."
+          },
+          {
+            "type": "agent",
+            "name": "Technical",
+            "instructions": "Technical analysis."
+          },
+          {
+            "type": "agent",
+            "name": "Financial",
+            "instructions": "Financial analysis."
+          },
+          {
+            "type": "agent",
+            "name": "Synthesizer",
+            "instructions": "Merge all analyses."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "fromOutput": "output_1"
+          },
+          {
+            "from": 1,
+            "to": 3,
+            "fromOutput": "output_2"
+          },
+          {
+            "from": 1,
+            "to": 4,
+            "fromOutput": "output_3"
+          },
+          {
+            "from": 2,
+            "to": 5
+          },
+          {
+            "from": 3,
+            "to": 5
+          },
+          {
+            "from": 4,
+            "to": 5
+          }
+        ]
+      }
+    },
+    {
+      "id": "iteration-batch",
+      "icon": "Repeat",
+      "category": "basic",
+      "tags": [
+        "iteration",
+        "batch"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Splitter",
+            "instructions": "Convert input into a JSON array."
+          },
+          {
+            "type": "iteration",
+            "name": "ForEach"
+          },
+          {
+            "type": "agent",
+            "name": "ItemProcessor",
+            "instructions": "Analyze this item."
+          },
+          {
+            "type": "agent",
+            "name": "Summarizer",
+            "instructions": "Compile all results."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "fromOutput": "output_1"
+          },
+          {
+            "from": 1,
+            "to": 3,
+            "fromOutput": "output_2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "structured-output",
+      "icon": "FileJson",
+      "category": "basic",
+      "tags": [
+        "json",
+        "schema"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Analyzer",
+            "instructions": "Output JSON: title, summary, keyFindings, recommendation.",
+            "output": {
+              "kind": "jsonSchema"
+            }
+          },
+          {
+            "type": "agent",
+            "name": "Reporter",
+            "instructions": "Convert JSON to readable report."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "translator",
+      "icon": "Languages",
+      "category": "basic",
+      "tags": [
+        "translate",
+        "parallel"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Detector",
+            "instructions": "Detect language and pass text through."
+          },
+          {
+            "type": "parallel",
+            "name": "Translate",
+            "branches": [
+              {
+                "name": "English",
+                "goal": ""
+              },
+              {
+                "name": "Japanese",
+                "goal": ""
+              },
+              {
+                "name": "Korean",
+                "goal": ""
+              }
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "English",
+            "instructions": "Translate to English."
+          },
+          {
+            "type": "agent",
+            "name": "Japanese",
+            "instructions": "Translate to Japanese."
+          },
+          {
+            "type": "agent",
+            "name": "Korean",
+            "instructions": "Translate to Korean."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "fromOutput": "output_1"
+          },
+          {
+            "from": 1,
+            "to": 3,
+            "fromOutput": "output_2"
+          },
+          {
+            "from": 1,
+            "to": 4,
+            "fromOutput": "output_3"
+          }
+        ]
+      }
+    },
+    {
+      "id": "plan-execute",
+      "icon": "ListChecks",
+      "category": "basic",
+      "tags": [
+        "plan",
+        "execute"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Planner",
+            "instructions": "Break goal into 3-6 steps as JSON array."
+          },
+          {
+            "type": "iteration",
+            "name": "StepLoop"
+          },
+          {
+            "type": "agent",
+            "name": "Executor",
+            "instructions": "Execute this step.",
+            "tools": [
+              "web_search"
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "Compiler",
+            "instructions": "Merge all results."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "fromOutput": "output_1"
+          },
+          {
+            "from": 1,
+            "to": 3,
+            "fromOutput": "output_2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "single-tools",
+      "icon": "Bot",
+      "category": "tools-search",
+      "tags": [
+        "single",
+        "tools",
+        "search"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Assistant",
+            "instructions": "Helpful assistant with web search.",
+            "tools": [
+              "web_search"
+            ]
+          }
+        ],
+        "connections": []
+      }
+    },
+    {
+      "id": "csv-log-analyzer",
+      "icon": "BarChart3",
+      "category": "tools-search",
+      "tags": [
+        "csv",
+        "log"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "LogReader",
+            "instructions": "Read CSV files.",
+            "tools": [
+              "csv_log_analyzer",
+              "zip_extractor"
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "LogAnalyst",
+            "instructions": "Analyze and email report.",
+            "tools": [
+              "send_email"
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "deep-research",
+      "icon": "Search",
+      "category": "tools-search",
+      "tags": [
+        "research",
+        "deep"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "QueryPlanner",
+            "instructions": "Create 3-5 search queries as JSON array."
+          },
+          {
+            "type": "iteration",
+            "name": "SearchLoop"
+          },
+          {
+            "type": "agent",
+            "name": "Researcher",
+            "instructions": "Search and summarize.",
+            "tools": [
+              "web_search"
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "Synthesizer",
+            "instructions": "Compile research report."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "fromOutput": "output_1"
+          },
+          {
+            "from": 1,
+            "to": 3,
+            "fromOutput": "output_2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "finance-intel",
+      "icon": "TrendingUp",
+      "category": "tools-search",
+      "tags": [
+        "finance",
+        "news"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "NewsScanner",
+            "instructions": "Generate search queries and scan news.",
+            "tools": [
+              "serper_search"
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "Screener",
+            "instructions": "Filter top article URLs."
+          },
+          {
+            "type": "agent",
+            "name": "ContentExtractor",
+            "instructions": "Extract article text.",
+            "tools": [
+              "tavily_extract"
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "Analyst",
+            "instructions": "Write financial intelligence report."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2
+          },
+          {
+            "from": 2,
+            "to": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "lead-outreach",
+      "icon": "Mail",
+      "category": "tools-search",
+      "tags": [
+        "lead",
+        "email"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "LeadResearcher",
+            "instructions": "Research the company.",
+            "tools": [
+              "web_search"
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "EmailDrafter",
+            "instructions": "Draft outreach email."
+          },
+          {
+            "type": "human",
+            "name": "ReviewDraft",
+            "kind": "approval",
+            "prompt": "Approve to send, reject to re-draft."
+          },
+          {
+            "type": "agent",
+            "name": "EmailSender",
+            "instructions": "Send email.",
+            "tools": [
+              "send_email"
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2
+          },
+          {
+            "from": 2,
+            "to": 3,
+            "fromOutput": "output_1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "rag-pdf",
+      "icon": "Database",
+      "category": "rag-files",
+      "tags": [
+        "rag",
+        "pdf"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "rag",
+            "name": "RAG"
+          },
+          {
+            "type": "agent",
+            "name": "DocExpert",
+            "instructions": "Answer questions based on document context."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "vision",
+      "icon": "Eye",
+      "category": "rag-files",
+      "tags": [
+        "vision",
+        "image"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "VisionAgent",
+            "instructions": "Analyze the uploaded image."
+          }
+        ],
+        "connections": []
+      }
+    },
+    {
+      "id": "handoff",
+      "icon": "Users",
+      "category": "advanced",
+      "tags": [
+        "handoff",
+        "delegation"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Coordinator",
+            "instructions": "Delegate to the appropriate specialist."
+          },
+          {
+            "type": "agent",
+            "name": "Coder",
+            "instructions": "Write code."
+          },
+          {
+            "type": "agent",
+            "name": "Researcher",
+            "instructions": "Research topics."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 0,
+            "to": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "mcp-agent",
+      "icon": "Plug",
+      "category": "advanced",
+      "tags": [
+        "mcp",
+        "external-tools"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "MCPAgent",
+            "instructions": "Use available MCP tools."
+          }
+        ],
+        "connections": []
+      }
+    },
+    {
+      "id": "human-approval",
+      "icon": "UserCheck",
+      "category": "human-in-the-loop",
+      "tags": [
+        "human",
+        "approval"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Drafter",
+            "instructions": "Draft content."
+          },
+          {
+            "type": "human",
+            "name": "Review",
+            "kind": "approval",
+            "prompt": "Approve to publish, reject to revise."
+          },
+          {
+            "type": "agent",
+            "name": "Publisher",
+            "instructions": "Publish approved content."
+          },
+          {
+            "type": "agent",
+            "name": "Reviser",
+            "instructions": "Revise based on feedback."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "fromOutput": "output_1"
+          },
+          {
+            "from": 1,
+            "to": 3,
+            "fromOutput": "output_2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "human-choice",
+      "icon": "GitBranch",
+      "category": "human-in-the-loop",
+      "tags": [
+        "human",
+        "choice"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Analyzer",
+            "instructions": "Analyze the topic."
+          },
+          {
+            "type": "human",
+            "name": "UserChoice",
+            "kind": "choice",
+            "choices": [
+              "Detailed",
+              "Summary"
+            ]
+          },
+          {
+            "type": "condition",
+            "name": "CheckChoice",
+            "condition": {
+              "kind": "contains",
+              "value": "Detailed"
+            }
+          },
+          {
+            "type": "agent",
+            "name": "DetailReport",
+            "instructions": "Write detailed report."
+          },
+          {
+            "type": "agent",
+            "name": "Summary",
+            "instructions": "Write brief summary."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2
+          },
+          {
+            "from": 2,
+            "to": 3,
+            "fromOutput": "output_1"
+          },
+          {
+            "from": 2,
+            "to": 4,
+            "fromOutput": "output_2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "skill-code-review",
+      "icon": "Target",
+      "category": "skills",
+      "tags": [
+        "skill",
+        "code-review"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "CodeAnalyzer",
+            "instructions": "Analyze code for bugs and security.",
+            "skills": [
+              "code_review"
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "ReportWriter",
+            "instructions": "Write review report.",
+            "skills": [
+              "technical_documentation"
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "skill-contract-review",
+      "icon": "Scale",
+      "category": "skills",
+      "tags": [
+        "skill",
+        "legal"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "ContractReviewer",
+            "instructions": "Review contract for risks.",
+            "skills": [
+              "legal_review"
+            ]
+          },
+          {
+            "type": "human",
+            "name": "Approval",
+            "kind": "approval"
+          },
+          {
+            "type": "condition",
+            "name": "Check",
+            "condition": {
+              "kind": "contains",
+              "value": "approve"
+            }
+          },
+          {
+            "type": "agent",
+            "name": "FinalReport",
+            "instructions": "Final report."
+          },
+          {
+            "type": "agent",
+            "name": "NegotiationDraft",
+            "instructions": "Negotiation points."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2
+          },
+          {
+            "from": 2,
+            "to": 3,
+            "fromOutput": "output_1"
+          },
+          {
+            "from": 2,
+            "to": 4,
+            "fromOutput": "output_2"
+          }
+        ]
+      }
+    },
+    {
+      "id": "skill-research-report",
+      "icon": "BarChart3",
+      "category": "skills",
+      "tags": [
+        "skill",
+        "swot"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Researcher",
+            "instructions": "Research topic.",
+            "tools": [
+              "web_search"
+            ]
+          },
+          {
+            "type": "parallel",
+            "name": "SWOT",
+            "branches": [
+              {
+                "name": "Strength",
+                "goal": ""
+              },
+              {
+                "name": "Risk",
+                "goal": ""
+              }
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "StrengthAnalyst",
+            "instructions": "Strengths & opportunities."
+          },
+          {
+            "type": "agent",
+            "name": "RiskAnalyst",
+            "instructions": "Weaknesses & threats."
+          },
+          {
+            "type": "agent",
+            "name": "ReportWriter",
+            "instructions": "Compile SWOT report.",
+            "skills": [
+              "formal_writing"
+            ]
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2,
+            "fromOutput": "output_1"
+          },
+          {
+            "from": 1,
+            "to": 3,
+            "fromOutput": "output_2"
+          },
+          {
+            "from": 2,
+            "to": 4
+          },
+          {
+            "from": 3,
+            "to": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "autonomous-research",
+      "icon": "Brain",
+      "category": "autonomous",
+      "tags": [
+        "autonomous",
+        "react"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "autonomous",
+            "name": "Researcher",
+            "instructions": "Research thoroughly. Search, verify, compile report.",
+            "tools": [
+              "web_search",
+              "url_fetch"
+            ]
+          }
+        ],
+        "connections": []
+      }
+    },
+    {
+      "id": "autonomous-pipeline",
+      "icon": "Brain",
+      "category": "autonomous",
+      "tags": [
+        "autonomous",
+        "pipeline"
+      ],
+      "def": {
+        "nodes": [
+          {
+            "type": "agent",
+            "name": "Planner",
+            "instructions": "Break into research questions."
+          },
+          {
+            "type": "autonomous",
+            "name": "Researcher",
+            "instructions": "Research using web search.",
+            "tools": [
+              "web_search",
+              "url_fetch"
+            ]
+          },
+          {
+            "type": "agent",
+            "name": "Reporter",
+            "instructions": "Write comprehensive report."
+          }
+        ],
+        "connections": [
+          {
+            "from": 0,
+            "to": 1
+          },
+          {
+            "from": 1,
+            "to": 2
+          }
+        ]
+      }
+    }
+  ]
+}

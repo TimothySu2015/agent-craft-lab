@@ -12,7 +12,7 @@ import { WorkflowSettingsDialog } from './WorkflowSettingsDialog'
 import { CodeDialog } from './CodeDialog'
 import { ExportDialog } from './ExportDialog'
 import { ConsolePanel } from './ConsolePanel'
-import { getTemplateWorkflow, type TemplateInfo } from '@/lib/templates'
+import { getTemplateWorkflowSync, type TemplateInfo } from '@/lib/templates'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { useCustomTemplatesStore } from '@/stores/custom-templates-store'
 import { importWorkflow } from '@/lib/workflow-io'
@@ -198,7 +198,7 @@ export function StudioPage() {
         open={showTemplates}
         onClose={() => setShowTemplates(false)}
         onSelect={(template: TemplateInfo) => {
-          const workflow = getTemplateWorkflow(template.id)
+          const workflow = getTemplateWorkflowSync(template.id)
           if (workflow) {
             useWorkflowStore.getState().setWorkflow(workflow.nodes, workflow.edges)
             setCurrentId(null)

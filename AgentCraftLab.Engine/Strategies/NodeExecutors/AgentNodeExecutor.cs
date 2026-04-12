@@ -1,7 +1,9 @@
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
 using AgentCraftLab.Engine.Extensions;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Services;
 using Microsoft.Extensions.AI;
 
@@ -9,17 +11,14 @@ namespace AgentCraftLab.Engine.Strategies.NodeExecutors;
 
 /// <summary>
 /// Agent 節點執行器 — LLM 推理 + 工具呼叫 + Chat History + Hook + 附件。
-/// 從 ImperativeWorkflowStrategy.ExecuteAgentNodeAsync + RunAgentNodeAsync 1:1 提取。
 /// </summary>
-public sealed class AgentNodeExecutor : INodeExecutor
+public sealed class AgentNodeExecutor : NodeExecutorBase<AgentNode>
 {
-    public string NodeType => NodeTypes.Agent;
-
-    public async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
-        string nodeId, WorkflowNode node, ImperativeExecutionState state,
+    protected override async IAsyncEnumerable<ExecutionEvent> ExecuteAsync(
+        string nodeId, AgentNode node, ImperativeExecutionState state,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var agentName = node.Name ?? nodeId;
+        var agentName = string.IsNullOrEmpty(node.Name) ? nodeId : node.Name;
         var input = state.PreviousResult;
 
         // ── Hook ③: PreAgent ──
@@ -50,9 +49,9 @@ public sealed class AgentNodeExecutor : INodeExecutor
         var result = await RunAgentNodeAsync(nodeId, node, state, input, cancellationToken);
 
         yield return ExecutionEvent.TextChunk(agentName, result);
-        // 串流模式無精確 Usage，依字元組成估算 tokens
-        var estimatedInputTokens = ModelPricing.EstimateTokens(node.Instructions ?? "") + ModelPricing.EstimateTokens(input);
-        yield return ExecutionEvent.AgentCompleted(agentName, result, estimatedInputTokens, ModelPricing.EstimateTokens(result), node.Model);
+        var estimatedInputTokens = ModelPricing.EstimateTokens(node.Instructions) + ModelPricing.EstimateTokens(input);
+        yield return ExecutionEvent.AgentCompleted(
+            agentName, result, estimatedInputTokens, ModelPricing.EstimateTokens(result), node.Model.Model);
 
         // RAG 引用來源
         var nodeCtxBuilder = state.AgentContext.ContextBuilder;
@@ -79,9 +78,10 @@ public sealed class AgentNodeExecutor : INodeExecutor
     }
 
     private static async Task<string> RunAgentNodeAsync(
-        string nodeId, WorkflowNode node, ImperativeExecutionState state,
+        string nodeId, AgentNode node, ImperativeExecutionState state,
         string input, CancellationToken cancellationToken)
     {
+        var agentName = string.IsNullOrEmpty(node.Name) ? nodeId : node.Name;
         var fullText = new StringBuilder();
 
         // 取出附件（僅第一個 Agent 使用，用完即清）
@@ -89,42 +89,30 @@ public sealed class AgentNodeExecutor : INodeExecutor
         if (attachment is not null)
             state.Attachment = null;
 
-        var chatOptions = ImperativeWorkflowStrategy.BuildResponseFormatOptions(node);
+        var chatOptions = BuildResponseFormatOptions(node.Output);
         var contextPrefix = ContextPassingHelper.BuildContextPrefix(state, nodeId);
 
-        // 解析 instructions 中的變數引用：{{sys:}}/{{var:}}/{{env:}} + {{node:}}
+        // 解析 instructions 中的所有引用
         var rawInstructions = state.AgentContext.NodeInstructions?.GetValueOrDefault(nodeId)
-            ?? AgentContextBuilder.BuildInstructions(node.Instructions, node.OutputFormat);
+            ?? AgentContextBuilder.BuildInstructions(node.Instructions, FormatOutputFormat(node.Output.Kind));
 
-        // 1. 解析 {{sys:}}/{{var:}}/{{env:}} 變數
-        if (NodeReferenceResolver.HasVariableReferences(rawInstructions))
-        {
-            rawInstructions = NodeReferenceResolver.ResolveVariables(rawInstructions, state.SystemVariables, state.Variables, state.EnvironmentVariables);
-        }
-
-        // 2. 解析 {{node:step_name}} 跨節點引用（超過門檻時壓縮）
         string? resolvedInstructions = null;
-        if (NodeReferenceResolver.HasReferences(rawInstructions) && state.NodeResults.Count > 0)
+        if (state.VariableResolver.HasReferences(rawInstructions))
         {
+            var ctx = state.ToVariableContext();
             resolvedInstructions = state.ReferenceCompactor is not null
-                ? await NodeReferenceResolver.ResolveAsync(
-                    rawInstructions, state.NodeResults, state.NodeMap,
-                    state.ReferenceCompactor, node.Name ?? nodeId, cancellationToken)
-                : NodeReferenceResolver.Resolve(rawInstructions, state.NodeResults, state.NodeMap);
+                ? await state.VariableResolver.ResolveAsync(
+                    rawInstructions, ctx, state.ReferenceCompactor, agentName, cancellationToken)
+                : state.VariableResolver.Resolve(rawInstructions, ctx);
         }
 
-        // 取得 provider（用於 Anthropic cache_control 標記）
-        var provider = state.NodeMap.TryGetValue(nodeId, out var nodeInfo)
-            ? AgentContextBuilder.NormalizeProvider(nodeInfo.Provider)
-            : null;
+        var provider = AgentContextBuilder.NormalizeProvider(node.Model.Provider);
 
         if (state.ChatHistories.TryGetValue(nodeId, out var history))
         {
             if (!state.ChatClients.TryGetValue(nodeId, out var chatClient))
                 return input;
 
-            // F5: history 模式 — 用已解析的 instructions 替換 system messages
-            // Prompt Cache: 將 instructions 拆為 static/dynamic 兩條 system message
             var effectiveInstructions = resolvedInstructions ?? rawInstructions;
             var systemMessages = BuildSystemMessages(effectiveInstructions, contextPrefix, provider);
             ReplaceSystemMessages(history, systemMessages);
@@ -132,7 +120,7 @@ public sealed class AgentNodeExecutor : INodeExecutor
             var userMsg = AgentContextBuilder.BuildUserMessage(input, attachment);
             history.Add(userMsg);
 
-            var maxMessages = state.NodeMap.TryGetValue(nodeId, out var n) ? n.MaxMessages : 20;
+            var maxMessages = node.History.MaxMessages > 0 ? node.History.MaxMessages : 20;
             state.HistoryStrategy.TrimHistory(history, maxMessages);
 
             await foreach (var update in chatClient.GetStreamingResponseAsync(history, chatOptions, cancellationToken))
@@ -148,8 +136,7 @@ public sealed class AgentNodeExecutor : INodeExecutor
         {
             var baseInstructions = resolvedInstructions
                 ?? state.AgentContext.NodeInstructions?.GetValueOrDefault(nodeId)
-                ?? AgentContextBuilder.BuildInstructions(node.Instructions, node.OutputFormat);
-            // Prompt Cache: 拆為 static/dynamic，contextPrefix 放入 dynamic 不汙染 cache
+                ?? AgentContextBuilder.BuildInstructions(node.Instructions, FormatOutputFormat(node.Output.Kind));
             var messages = BuildSystemMessages(baseInstructions, contextPrefix, provider);
             messages.Add(AgentContextBuilder.BuildUserMessage(input, attachment));
             await foreach (var update in chatClientForAttachment.GetStreamingResponseAsync(messages, chatOptions, cancellationToken))
@@ -163,8 +150,7 @@ public sealed class AgentNodeExecutor : INodeExecutor
         {
             var baseInstructions = resolvedInstructions
                 ?? state.AgentContext.NodeInstructions?.GetValueOrDefault(nodeId)
-                ?? AgentContextBuilder.BuildInstructions(node.Instructions, node.OutputFormat);
-            // Prompt Cache: 拆為 static/dynamic，contextPrefix 放入 dynamic 不汙染 cache
+                ?? AgentContextBuilder.BuildInstructions(node.Instructions, FormatOutputFormat(node.Output.Kind));
             var messages = BuildSystemMessages(baseInstructions, contextPrefix, provider);
             messages.Add(new ChatMessage(ChatRole.User, input));
             await foreach (var update in chatClientDirect.GetStreamingResponseAsync(messages, chatOptions, cancellationToken))
@@ -195,13 +181,11 @@ public sealed class AgentNodeExecutor : INodeExecutor
 
     /// <summary>
     /// 將 instructions 拆為 static/dynamic 兩條 system message，啟用 Anthropic prompt prefix caching。
-    /// contextPrefix（動態內容）附加到 DynamicPart，不汙染 StaticPart 的 cache 命中率。
     /// </summary>
     internal static List<ChatMessage> BuildSystemMessages(string instructions, string? contextPrefix, string? provider)
     {
         var cacheable = AgentContextBuilder.SplitAtDynamicBoundary(instructions);
 
-        // contextPrefix 是動態內容（每次執行不同），附加到 DynamicPart
         if (!string.IsNullOrEmpty(contextPrefix))
         {
             var dynamicPart = string.IsNullOrWhiteSpace(cacheable.DynamicPart)
@@ -213,13 +197,8 @@ public sealed class AgentNodeExecutor : INodeExecutor
         return cacheable.ToChatMessages(provider);
     }
 
-    /// <summary>
-    /// 替換 history 開頭的所有 System role messages 為新的 system messages。
-    /// 支援 1 條或 2 條 system message（CacheableSystemPrompt 拆分後可能產生 2 條）。
-    /// </summary>
     internal static void ReplaceSystemMessages(List<ChatMessage> history, List<ChatMessage> newSystemMessages)
     {
-        // 移除開頭所有 System messages
         var removeCount = 0;
         while (removeCount < history.Count && history[removeCount].Role == ChatRole.System)
         {
@@ -229,4 +208,37 @@ public sealed class AgentNodeExecutor : INodeExecutor
         history.RemoveRange(0, removeCount);
         history.InsertRange(0, newSystemMessages);
     }
+
+    /// <summary>
+    /// 根據 <see cref="OutputConfig"/> 建構 ChatOptions。
+    /// </summary>
+    internal static ChatOptions? BuildResponseFormatOptions(OutputConfig output)
+    {
+        ChatResponseFormat? responseFormat = null;
+        if (output.Kind == OutputFormat.Json)
+        {
+            responseFormat = ChatResponseFormat.Json;
+        }
+        else if (output.Kind == OutputFormat.JsonSchema && !string.IsNullOrWhiteSpace(output.SchemaJson))
+        {
+            try
+            {
+                var schemaElement = JsonDocument.Parse(output.SchemaJson).RootElement;
+                responseFormat = ChatResponseFormat.ForJsonSchema(
+                    schemaElement,
+                    schemaName: "OutputSchema",
+                    schemaDescription: "Agent output schema defined by user");
+            }
+            catch { /* invalid schema, fall back to text */ }
+        }
+
+        return responseFormat is not null ? new ChatOptions { ResponseFormat = responseFormat } : null;
+    }
+
+    private static string FormatOutputFormat(OutputFormat kind) => kind switch
+    {
+        OutputFormat.Json => "json",
+        OutputFormat.JsonSchema => "json_schema",
+        _ => "text"
+    };
 }

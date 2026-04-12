@@ -20,7 +20,7 @@ export function AutonomousForm({ data, onUpdate }: Props) {
   const suggestions = useVariableSuggestions()
   const credentials = useCredentialStore((s) => s.credentials)
   const hasKey = (id: string) => !!credentials[id]?.apiKey || !!credentials[id]?.saved
-  const currentHasKey = hasKey(data.provider)
+  const currentHasKey = hasKey(data.model.provider)
   const [showToolPicker, setShowToolPicker] = useState(false)
   const [showSkillPicker, setShowSkillPicker] = useState(false)
   const [newMcp, setNewMcp] = useState('')
@@ -29,8 +29,14 @@ export function AutonomousForm({ data, onUpdate }: Props) {
   return (
     <>
       <Field label={t('form.provider')}>
-        <select className="field-input" value={data.provider}
-          onChange={(e) => onUpdate({ provider: e.target.value, model: getModelsForProvider(e.target.value)[0] ?? 'gpt-4o-mini' })}>
+        <select className="field-input" value={data.model.provider}
+          onChange={(e) => onUpdate({
+            model: {
+              ...data.model,
+              provider: e.target.value,
+              model: getModelsForProvider(e.target.value)[0] ?? 'gpt-4o-mini',
+            },
+          })}>
           {PROVIDERS.map((p) => (
             <option key={p.id} value={p.id}>{hasKey(p.id) ? '\u25CF' : '\u25CB'} {p.name}</option>
           ))}
@@ -39,8 +45,9 @@ export function AutonomousForm({ data, onUpdate }: Props) {
       </Field>
 
       <Field label={t('form.model')}>
-        <select className="field-input" value={data.model} onChange={(e) => onUpdate({ model: e.target.value })}>
-          {getModelsForProvider(data.provider).map((m) => <option key={m} value={m}>{m}</option>)}
+        <select className="field-input" value={data.model.model}
+          onChange={(e) => onUpdate({ model: { ...data.model, model: e.target.value } })}>
+          {getModelsForProvider(data.model.provider).map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
       </Field>
 
@@ -62,8 +69,8 @@ export function AutonomousForm({ data, onUpdate }: Props) {
       </Field>
 
       <Field label={t('form.maxOutputTokens')}>
-        <input type="number" className="field-input" value={data.maxOutputTokens ?? 200000} placeholder="200000"
-          onChange={(e) => onUpdate({ maxOutputTokens: Number(e.target.value) })} />
+        <input type="number" className="field-input" value={data.model.maxOutputTokens ?? 200000} placeholder="200000"
+          onChange={(e) => onUpdate({ model: { ...data.model, maxOutputTokens: Number(e.target.value) } })} />
         <p className="text-[8px] text-muted-foreground mt-0.5">Token budget for the entire ReAct session</p>
       </Field>
 

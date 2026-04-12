@@ -100,8 +100,8 @@
 
 | 欄位 | 說明 | 預設值 |
 |------|------|--------|
-| `conditionType` | 條件判斷方式 | 空 |
-| `conditionExpression` | 條件表達式（套用在前一節點的輸出上） | 空 |
+| `condition.kind` | 條件判斷方式 | 空 |
+| `condition.value` | 條件表達式（套用在前一節點的輸出上） | 空 |
 
 **適用場景：** 依據前一個 Agent 的輸出決定後續流程。例如：情感分析結果為正面走路徑 A、負面走路徑 B。
 
@@ -153,7 +153,7 @@
 
 | 欄位 | 說明 | 預設值 |
 |------|------|--------|
-| `splitMode` | 拆分方式：`json-array`（JSON 陣列）/ `delimiter`（分隔符號） | json-array |
+| `split` | 拆分方式：`json-array`（JSON 陣列）/ `delimiter`（分隔符號） | json-array |
 | `iterationDelimiter` | 分隔符號（僅 delimiter 模式） | 換行符 |
 | `maxItems` | 最大處理項目數 | 50 |
 
@@ -168,7 +168,7 @@
 | 欄位 | 說明 | 預設值 |
 |------|------|--------|
 | `branches` | 分支名稱（逗號分隔） | Branch1,Branch2 |
-| `mergeStrategy` | 結果合併策略：`labeled`（加標籤）/ `join`（串接）/ `json`（JSON 物件） | labeled |
+| `merge` | 結果合併策略：`labeled`（加標籤）/ `join`（串接）/ `json`（JSON 物件） | labeled |
 
 **適用場景：** 需要同時處理多個獨立子任務。例如：同時翻譯成多種語言、同時從多個角度分析同一份資料。
 
@@ -184,7 +184,7 @@
 
 | 欄位 | 說明 |
 |------|------|
-| `transformType` | 轉換模式（見下方九種模式） |
+| `kind` | 轉換模式（見下方九種模式） |
 | `template` | 模板字串（template / script 模式使用） |
 | `pattern` | 正則表達式（regex-extract / regex-replace / json-path 使用） |
 | `replacement` | 替換字串（regex-replace 使用） |

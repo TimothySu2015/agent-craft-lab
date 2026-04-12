@@ -57,7 +57,20 @@ const { exportDeployPackage } = await import('../export-package')
 function agentNode(id: string, provider = 'openai', model = 'gpt-4o'): Node<NodeData> {
   return {
     id, type: 'agent', position: { x: 0, y: 0 },
-    data: { type: 'agent', name: 'TestAgent', provider, model } as any,
+    data: {
+      type: 'agent',
+      name: 'TestAgent',
+      instructions: '',
+      model: { provider, model },
+      tools: [],
+      mcpServers: [],
+      a2AAgents: [],
+      httpApis: [],
+      skills: [],
+      output: { kind: 'text' },
+      history: { provider: 'none', maxMessages: 20 },
+      middleware: [],
+    },
   }
 }
 
@@ -184,7 +197,20 @@ describe('exportDeployPackage', () => {
 
     it('defaults to openai when no provider found', async () => {
       const nodes: Node<NodeData>[] = [
-        { id: 'c1', type: 'code', position: { x: 0, y: 0 }, data: { type: 'code', name: 'T' } as any },
+        {
+          id: 'c1',
+          type: 'code',
+          position: { x: 0, y: 0 },
+          data: {
+            type: 'code',
+            name: 'T',
+            kind: 'trim',
+            expression: '',
+            delimiter: ',',
+            splitIndex: 0,
+            maxLength: 0,
+          },
+        },
       ]
       await exportDeployPackage('NoAgent', nodes, [])
 

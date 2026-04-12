@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using AgentCraftLab.Engine.Diagnostics;
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Strategies.NodeExecutors;
 using Microsoft.Extensions.AI;
 
@@ -18,9 +19,9 @@ public class SingleAgentStrategy : IWorkflowStrategy
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var node = context.AgentNodes[0];
-        var agentName = node.Name ?? node.Id;
+        var agentName = string.IsNullOrEmpty(node.Name) ? node.Id : node.Name;
         using var nodeActivity = EngineActivitySource.StartNodeExecution(
-            node.Type, agentName, node.Id, context.SessionId);
+            NodeTypes.Agent, agentName, node.Id, context.SessionId);
         var agentChatClient = context.AgentContext.ChatClients[node.Id];
         var userMessage = context.Request.UserMessage;
 
@@ -47,10 +48,16 @@ public class SingleAgentStrategy : IWorkflowStrategy
         var skillNames = context.AgentContext.NodeSkillNames?.GetValueOrDefault(node.Id);
         yield return ExecutionEvent.AgentStarted(agentName, skillNames);
 
+        var outputFormatString = node.Output.Kind switch
+        {
+            OutputFormat.Json => "json",
+            OutputFormat.JsonSchema => "json_schema",
+            _ => "text"
+        };
         var instructions = context.AgentContext.NodeInstructions?.GetValueOrDefault(node.Id)
-            ?? AgentContextBuilder.BuildInstructions(node.Instructions, node.OutputFormat);
+            ?? AgentContextBuilder.BuildInstructions(node.Instructions, outputFormatString);
         // Prompt Cache: 拆為 static/dynamic，啟用 Anthropic prefix caching
-        var provider = AgentContextBuilder.NormalizeProvider(node.Provider);
+        var provider = AgentContextBuilder.NormalizeProvider(node.Model.Provider);
         var messages = AgentNodeExecutor.BuildSystemMessages(instructions, null, provider);
 
         foreach (var h in context.Request.History)
@@ -68,15 +75,15 @@ public class SingleAgentStrategy : IWorkflowStrategy
         long inputTokens = 0, outputTokens = 0;
 
         ChatResponseFormat? responseFormat = null;
-        if (node.OutputFormat == "json")
+        if (node.Output.Kind == OutputFormat.Json)
         {
             responseFormat = ChatResponseFormat.Json;
         }
-        else if (node.OutputFormat == "json_schema" && !string.IsNullOrWhiteSpace(node.OutputSchema))
+        else if (node.Output.Kind == OutputFormat.JsonSchema && !string.IsNullOrWhiteSpace(node.Output.SchemaJson))
         {
             try
             {
-                var schemaElement = JsonDocument.Parse(node.OutputSchema).RootElement;
+                var schemaElement = JsonDocument.Parse(node.Output.SchemaJson).RootElement;
                 responseFormat = ChatResponseFormat.ForJsonSchema(
                     schemaElement,
                     schemaName: "OutputSchema",
@@ -139,7 +146,7 @@ public class SingleAgentStrategy : IWorkflowStrategy
             outputTokens = ModelPricing.EstimateTokens(finalText);
         }
 
-        yield return ExecutionEvent.AgentCompleted(agentName, finalText, inputTokens, outputTokens, node.Model);
+        yield return ExecutionEvent.AgentCompleted(agentName, finalText, inputTokens, outputTokens, node.Model.Model);
 
         // RAG 引用來源
         var ctxBuilder = context.AgentContext.ContextBuilder;

@@ -1,4 +1,5 @@
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Services;
 using AgentCraftLab.Engine.Strategies;
 using AgentCraftLab.Engine.Strategies.NodeExecutors;
@@ -11,7 +12,7 @@ public class ContextPassingHelperTests
         string contextPassing,
         string originalMessage,
         Dictionary<string, string>? nodeResults = null,
-        Dictionary<string, WorkflowNode>? nodeMap = null)
+        Dictionary<string, NodeConfig>? nodeMap = null)
     {
         return new ImperativeExecutionState
         {
@@ -75,10 +76,10 @@ public class ContextPassingHelperTests
     [Fact]
     public void Accumulate_ShowsPreviousResults()
     {
-        var nodeMap = new Dictionary<string, WorkflowNode>
+        var nodeMap = new Dictionary<string, NodeConfig>
         {
-            ["n1"] = new() { Id = "n1", Name = "Researcher", Type = NodeTypes.Agent },
-            ["n2"] = new() { Id = "n2", Name = "Writer", Type = NodeTypes.Agent },
+            ["n1"] = new AgentNode { Id = "n1", Name = "Researcher" },
+            ["n2"] = new AgentNode { Id = "n2", Name = "Writer" },
         };
         var nodeResults = new Dictionary<string, string>
         {
@@ -98,10 +99,10 @@ public class ContextPassingHelperTests
     [Fact]
     public void Accumulate_ExcludesCurrentNode()
     {
-        var nodeMap = new Dictionary<string, WorkflowNode>
+        var nodeMap = new Dictionary<string, NodeConfig>
         {
-            ["n1"] = new() { Id = "n1", Name = "Researcher", Type = NodeTypes.Agent },
-            ["n2"] = new() { Id = "n2", Name = "Writer", Type = NodeTypes.Agent },
+            ["n1"] = new AgentNode { Id = "n1", Name = "Researcher" },
+            ["n2"] = new AgentNode { Id = "n2", Name = "Writer" },
         };
         var nodeResults = new Dictionary<string, string>
         {
@@ -126,9 +127,9 @@ public class ContextPassingHelperTests
         {
             ["n1"] = longOutput,
         };
-        var nodeMap = new Dictionary<string, WorkflowNode>
+        var nodeMap = new Dictionary<string, NodeConfig>
         {
-            ["n1"] = new() { Id = "n1", Name = "LongAgent", Type = NodeTypes.Agent },
+            ["n1"] = new AgentNode { Id = "n1", Name = "LongAgent" },
         };
         var state = CreateState(ContextPassingModes.Accumulate, "Original", nodeResults, nodeMap);
         var result = ContextPassingHelper.BuildContextPrefix(state, "n2");
@@ -142,14 +143,14 @@ public class ContextPassingHelperTests
     public void Accumulate_RespectsMaxTotalChars()
     {
         var nodeResults = new Dictionary<string, string>();
-        var nodeMap = new Dictionary<string, WorkflowNode>();
+        var nodeMap = new Dictionary<string, NodeConfig>();
 
         // Create many nodes with 400-char outputs — only a few should fit within 2000 total
         for (var i = 0; i < 20; i++)
         {
             var id = $"n{i}";
             nodeResults[id] = new string((char)('a' + (i % 26)), 400);
-            nodeMap[id] = new WorkflowNode { Id = id, Name = $"Agent{i}", Type = NodeTypes.Agent };
+            nodeMap[id] = new AgentNode { Id = id, Name = $"Agent{i}" };
         }
 
         var state = CreateState(ContextPassingModes.Accumulate, "Original", nodeResults, nodeMap);

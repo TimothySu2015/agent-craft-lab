@@ -47,29 +47,50 @@ import type { AgentNodeData, CodeNodeData, ConditionNodeData, HumanNodeData, A2A
 // ─── Test Data ───
 
 const agentData: AgentNodeData = {
-  type: 'agent', name: 'TestAgent', instructions: 'Be helpful', model: 'gpt-4o',
-  provider: 'openai', endpoint: '', deploymentName: '', historyProvider: 'none',
-  maxMessages: 20, middleware: '', tools: ['web_search'], skills: [],
+  type: 'agent',
+  name: 'TestAgent',
+  instructions: 'Be helpful',
+  model: { provider: 'openai', model: 'gpt-4o' },
+  tools: ['web_search'],
+  mcpServers: [],
+  a2AAgents: [],
+  httpApis: [],
+  skills: [],
+  output: { kind: 'text' },
+  history: { provider: 'none', maxMessages: 20 },
+  middleware: [],
 }
 
 const codeData: CodeNodeData = {
-  type: 'code', name: 'Transform', transformType: 'template', pattern: '',
-  replacement: '', template: '{{input}}', maxLength: 0, delimiter: '\\n', splitIndex: 0,
+  type: 'code',
+  name: 'Transform',
+  kind: 'template',
+  expression: '{{input}}',
+  delimiter: '\n',
+  splitIndex: 0,
+  maxLength: 0,
 }
 
 const conditionData: ConditionNodeData = {
-  type: 'condition', name: 'Check', conditionType: 'contains',
-  conditionExpression: 'success', maxIterations: 5,
+  type: 'condition',
+  name: 'Check',
+  condition: { kind: 'contains', value: 'success' },
 }
 
 const humanData: HumanNodeData = {
-  type: 'human', name: 'Review', prompt: 'Please approve',
-  inputType: 'text', choices: '', timeoutSeconds: 0,
+  type: 'human',
+  name: 'Review',
+  prompt: 'Please approve',
+  kind: 'text',
+  timeoutSeconds: 0,
 }
 
 const a2aData: A2ANodeData = {
-  type: 'a2a-agent', name: 'Remote', instructions: 'Handle task',
-  a2AUrl: 'http://localhost:5001', a2AFormat: 'auto',
+  type: 'a2a-agent',
+  name: 'Remote',
+  instructions: 'Handle task',
+  url: 'http://localhost:5001',
+  format: 'auto',
 }
 
 // ═══════════════════════════════════════
@@ -104,7 +125,9 @@ describe('AgentForm', () => {
     const select = screen.getAllByRole('combobox')[0]
     fireEvent.change(select, { target: { value: 'anthropic' } })
     expect(onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'anthropic' }),
+      expect.objectContaining({
+        model: expect.objectContaining({ provider: 'anthropic' }),
+      }),
     )
   })
 
@@ -124,25 +147,27 @@ describe('AgentForm', () => {
 // ═══════════════════════════════════════
 
 describe('CodeForm', () => {
-  it('renders transformType selector with all options', () => {
+  it('renders kind selector with all options', () => {
     render(<CodeForm data={codeData} onUpdate={vi.fn()} />)
     const select = screen.getByRole('combobox') as HTMLSelectElement
     const options = Array.from(select.options).map((o) => o.value)
     expect(options).toContain('template')
-    expect(options).toContain('regex-extract')
+    expect(options).toContain('regex')
     expect(options).toContain('script')
   })
 
-  it('shows template textarea for template type', () => {
+  it('shows expression textarea for template type', () => {
     render(<CodeForm data={codeData} onUpdate={vi.fn()} />)
     expect(screen.getByTestId('expandable-textarea')).toBeInTheDocument()
   })
 
-  it('calls onUpdate when transformType changes', () => {
+  it('calls onUpdate when kind changes', () => {
     const onUpdate = vi.fn()
     render(<CodeForm data={codeData} onUpdate={onUpdate} />)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'trim' } })
-    expect(onUpdate).toHaveBeenCalledWith({ transformType: 'trim' })
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'trim' }),
+    )
   })
 })
 
@@ -151,13 +176,13 @@ describe('CodeForm', () => {
 // ═══════════════════════════════════════
 
 describe('ConditionForm', () => {
-  it('renders condition type selector', () => {
+  it('renders condition kind selector', () => {
     render(<ConditionForm data={conditionData} onUpdate={vi.fn()} />)
     const select = screen.getByRole('combobox') as HTMLSelectElement
     const options = Array.from(select.options).map((o) => o.value)
     expect(options).toContain('contains')
     expect(options).toContain('regex')
-    expect(options).toContain('llm-judge')
+    expect(options).toContain('llmJudge')
   })
 
   it('renders expression textarea', () => {
@@ -170,13 +195,11 @@ describe('ConditionForm', () => {
     const onUpdate = vi.fn()
     render(<ConditionForm data={conditionData} onUpdate={onUpdate} />)
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'failure' } })
-    expect(onUpdate).toHaveBeenCalledWith({ conditionExpression: 'failure' })
-  })
-
-  it('renders max iterations input', () => {
-    render(<ConditionForm data={conditionData} onUpdate={vi.fn()} />)
-    const input = screen.getByRole('spinbutton') as HTMLInputElement
-    expect(input.value).toBe('5')
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        condition: expect.objectContaining({ value: 'failure' }),
+      }),
+    )
   })
 })
 
@@ -200,8 +223,8 @@ describe('HumanForm', () => {
     expect(textarea.value).toBe('Please approve')
   })
 
-  it('shows choices field when inputType is choice', () => {
-    const choiceData = { ...humanData, inputType: 'choice' }
+  it('shows choices field when kind is choice', () => {
+    const choiceData: HumanNodeData = { ...humanData, kind: 'choice' }
     render(<HumanForm data={choiceData} onUpdate={vi.fn()} />)
     expect(screen.getByTestId('field-Choices (comma-separated)')).toBeInTheDocument()
   })
@@ -249,6 +272,6 @@ describe('A2AForm', () => {
     render(<A2AForm data={a2aData} onUpdate={onUpdate} />)
     const input = screen.getByDisplayValue('http://localhost:5001')
     fireEvent.change(input, { target: { value: 'http://localhost:9999' } })
-    expect(onUpdate).toHaveBeenCalledWith({ a2AUrl: 'http://localhost:9999' })
+    expect(onUpdate).toHaveBeenCalledWith({ url: 'http://localhost:9999' })
   })
 })

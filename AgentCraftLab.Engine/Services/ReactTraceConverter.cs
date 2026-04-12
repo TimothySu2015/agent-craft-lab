@@ -112,7 +112,7 @@ public static class ReactTraceConverter
 
                 var agentNode = new Dictionary<string, object>
                 {
-                    ["nodeType"] = "agent",
+                    ["type"] = "agent",
                     ["name"] = name,
                     ["instructions"] = instructions
                 };
@@ -134,7 +134,7 @@ public static class ReactTraceConverter
 
                 nodes.Add(new Dictionary<string, object>
                 {
-                    ["nodeType"] = "agent",
+                    ["type"] = "agent",
                     ["name"] = $"Search",
                     ["instructions"] = query.Length > 0 ? $"Search for: {query}" : "Execute tool call",
                     ["tools"] = new List<string> { normalizedTool }
@@ -157,7 +157,7 @@ public static class ReactTraceConverter
         // 追加 Summarizer
         nodes.Add(new Dictionary<string, object>
         {
-            ["nodeType"] = "agent",
+            ["type"] = "agent",
             ["name"] = "Summarizer",
             ["instructions"] = $"根據上游收集的資料，回答使用者的問題：{originalGoal}"
         });
@@ -264,10 +264,10 @@ public static class ReactTraceConverter
 
         return new Dictionary<string, object>
         {
-            ["nodeType"] = "parallel",
+            ["type"] = "parallel",
             ["name"] = "Parallel Research",
             ["branches"] = branches,
-            ["mergeStrategy"] = "labeled"
+            ["merge"] = "labeled"
         };
     }
 

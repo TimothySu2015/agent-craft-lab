@@ -5,15 +5,18 @@ using AgentCraftLab.Autonomous.Flow.Models;
 using AgentCraftLab.Engine.Extensions;
 using AgentCraftLab.Engine.Models;
 using AgentCraftLab.Engine.Services;
+using AgentCraftLab.Engine.Services.Variables;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Autonomous.Flow.Services;
 
 /// <summary>
-/// 節點執行器 — 依 NodeType 委派給對應的執行邏輯。
+/// 節點執行器 — 依 NodeConfig 子型別委派給對應執行邏輯。
 /// 複用 Engine 已有的工具（TransformHelper、ToolRegistryService 等），
 /// 但不依賴 ImperativeWorkflowStrategy（避免耦合）。
+/// Phase C2 Step 2：改用 <see cref="Schema.NodeConfig"/> pattern matching 取代字串 switch。
 /// </summary>
 public sealed class FlowNodeRunner
 {
@@ -21,6 +24,7 @@ public sealed class FlowNodeRunner
 
     private readonly FlowAgentFactory _agentFactory;
     private readonly HttpApiToolService _httpApiTool;
+    private readonly IVariableResolver _variableResolver;
     private readonly ILogger<FlowNodeRunner> _logger;
 
     /// <summary>
@@ -45,10 +49,12 @@ public sealed class FlowNodeRunner
     public FlowNodeRunner(
         FlowAgentFactory agentFactory,
         HttpApiToolService httpApiTool,
+        IVariableResolver variableResolver,
         ILogger<FlowNodeRunner> logger)
     {
         _agentFactory = agentFactory;
         _httpApiTool = httpApiTool;
+        _variableResolver = variableResolver;
         _logger = logger;
     }
 
@@ -56,49 +62,50 @@ public sealed class FlowNodeRunner
     /// 執行單一節點，串流回傳 ExecutionEvent。
     /// </summary>
     public async IAsyncEnumerable<ExecutionEvent> ExecuteNodeAsync(
-        PlannedNode node,
+        Schema.NodeConfig node,
         string input,
         GoalExecutionRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        switch (node.NodeType)
+        switch (node)
         {
-            case NodeTypes.Agent:
-                await foreach (var evt in ExecuteAgentNodeAsync(node, input, request, cancellationToken))
+            case Schema.AgentNode agentNode:
+                await foreach (var evt in ExecuteAgentNodeAsync(agentNode, input, request, cancellationToken))
                     yield return evt;
                 break;
 
-            case NodeTypes.Code:
-                yield return ExecuteCodeNode(node, input);
+            case Schema.CodeNode codeNode:
+                yield return ExecuteCodeNode(codeNode, input);
                 break;
 
-            case NodeTypes.Condition:
-                yield return ExecuteConditionNode(node, input);
+            case Schema.ConditionNode conditionNode:
+                yield return ExecuteConditionNode(conditionNode, input);
                 break;
 
-            case NodeTypes.Iteration:
-                await foreach (var evt in ExecuteIterationNodeAsync(node, input, request, cancellationToken))
+            case Schema.IterationNode iterationNode:
+                await foreach (var evt in ExecuteIterationNodeAsync(iterationNode, input, request, cancellationToken))
                     yield return evt;
                 break;
 
-            case NodeTypes.Parallel:
-                await foreach (var evt in ExecuteParallelNodeAsync(node, input, request, cancellationToken))
+            case Schema.ParallelNode parallelNode:
+                await foreach (var evt in ExecuteParallelNodeAsync(parallelNode, input, request, cancellationToken))
                     yield return evt;
                 break;
 
-            case NodeTypes.Loop:
-                await foreach (var evt in ExecuteLoopNodeAsync(node, input, request, cancellationToken))
+            case Schema.LoopNode loopNode:
+                await foreach (var evt in ExecuteLoopNodeAsync(loopNode, input, request, cancellationToken))
                     yield return evt;
                 break;
 
-            case NodeTypes.HttpRequest:
-                await foreach (var evt in ExecuteHttpRequestNodeAsync(node, input, request))
+            case Schema.HttpRequestNode httpNode:
+                await foreach (var evt in ExecuteHttpRequestNodeAsync(httpNode, input, request))
                     yield return evt;
                 break;
 
             default:
-                _logger.LogWarning("Node type '{NodeType}' not yet implemented in FlowExecutor", node.NodeType);
-                yield return ExecutionEvent.NodeCompleted(node.NodeType, node.Name, input);
+                var nodeTypeString = NodeConfigHelpers.GetNodeTypeString(node);
+                _logger.LogWarning("Node type '{NodeType}' not yet implemented in FlowExecutor", nodeTypeString);
+                yield return ExecutionEvent.NodeCompleted(nodeTypeString, node.Name, input);
                 break;
         }
     }
@@ -108,22 +115,22 @@ public sealed class FlowNodeRunner
     // ════════════════════════════════════════
 
     private async IAsyncEnumerable<ExecutionEvent> ExecuteAgentNodeAsync(
-        PlannedNode node,
+        Schema.AgentNode node,
         string input,
         GoalExecutionRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var agentName = node.Name;
-        var startEvt = ExecutionEvent.AgentStarted(agentName, text: node.Instructions ?? "");
+        var startEvt = ExecutionEvent.AgentStarted(agentName, text: node.Instructions);
         startEvt.Metadata = new Dictionary<string, string>
         {
-            [MetadataKeys.Instructions] = node.Instructions ?? "",
-            ["tools"] = string.Join(", ", node.Tools ?? [])
+            [MetadataKeys.Instructions] = node.Instructions,
+            ["tools"] = string.Join(", ", node.Tools)
         };
         yield return startEvt;
 
-        var effectiveTools = node.Tools is { Count: > 0 }
-            ? node.Tools
+        var effectiveTools = node.Tools.Count > 0
+            ? node.Tools.ToList()
             : request.AvailableTools;
 
         var (client, resolvedTools, error) = _agentFactory.CreateAgentClient(request, effectiveTools);
@@ -136,7 +143,7 @@ public sealed class FlowNodeRunner
 
         // F5: 解析 instructions 中的 {{node:step_name}} 跨節點引用（超過門檻時壓縮）
         var resolvedInstructions = await ResolveNodeReferencesAsync(
-            node.Instructions, node.Name ?? "", cancellationToken);
+            node.Instructions, node.Name, cancellationToken);
         var messages = BuildAgentMessages(resolvedInstructions, effectiveTools, input, request.Provider, WorkingMemory);
 
         // F6: 注入 flow_memory_write meta-tool（讓 Agent 可主動存入發現供下游使用）
@@ -151,13 +158,14 @@ public sealed class FlowNodeRunner
         }
 
         var hasTools = resolvedTools is { Count: > 0 };
-        var hasResponseFormat = node.OutputFormat is "json" or "json_schema";
+        var outputKind = node.Output.Kind;
+        var hasResponseFormat = outputKind is Schema.OutputFormat.Json or Schema.OutputFormat.JsonSchema;
 
         if (hasTools || hasResponseFormat)
         {
             // 有工具或強制格式 — 用 GetResponseAsync（需要 ChatOptions）
             var events = await RunAgentWithToolsAsync(client, messages, resolvedTools ?? [],
-                agentName, node.OutputFormat, node.OutputSchema, cancellationToken);
+                agentName, outputKind, node.Output.SchemaJson, cancellationToken);
             foreach (var evt in events)
             {
                 yield return evt;
@@ -188,18 +196,17 @@ public sealed class FlowNodeRunner
 
     private async Task<List<ExecutionEvent>> RunAgentWithToolsAsync(
         IChatClient client, List<ChatMessage> messages, IList<AITool> tools,
-        string agentName, string? outputFormat, string? outputSchema,
+        string agentName, Schema.OutputFormat outputKind, string? outputSchema,
         CancellationToken cancellationToken)
     {
         var events = new List<ExecutionEvent>();
         var chatOptions = new ChatOptions { Tools = tools.Cast<AITool>().ToList() };
 
-        // 強制輸出格式（複用 Engine 的 ResponseFormat 邏輯）
-        if (outputFormat == "json")
+        if (outputKind == Schema.OutputFormat.Json)
         {
             chatOptions.ResponseFormat = ChatResponseFormat.Json;
         }
-        else if (outputFormat == "json_schema" && !string.IsNullOrWhiteSpace(outputSchema))
+        else if (outputKind == Schema.OutputFormat.JsonSchema && !string.IsNullOrWhiteSpace(outputSchema))
         {
             try
             {
@@ -238,7 +245,6 @@ public sealed class FlowNodeRunner
 
             var completed = ExecutionEvent.AgentCompleted(agentName, response.Text ?? "");
 
-            // Token 計數：從 response.Usage 提取，fallback 字元數 / 4 估算
             long totalTokens;
             if (response.Usage is not null)
             {
@@ -270,19 +276,23 @@ public sealed class FlowNodeRunner
     // ════════════════════════════════════════
 
     private async IAsyncEnumerable<ExecutionEvent> ExecuteIterationNodeAsync(
-        PlannedNode node,
+        Schema.IterationNode node,
         string input,
         GoalExecutionRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var nodeName = node.Name;
-        var items = SplitInput(input, node.SplitMode ?? "delimiter", node.Delimiter ?? "\n");
-        var maxItems = node.MaxItems ?? 10;
+        var items = SplitInput(input, node.Split, node.Delimiter);
+        var maxItems = node.MaxItems > 0 ? node.MaxItems : 10;
         if (items.Count > maxItems) items = items[..maxItems];
 
         yield return ExecutionEvent.NodeExecuting(NodeTypes.Iteration, $"{nodeName} ({items.Count} items)");
 
-        var maxConcurrency = node.MaxConcurrency is > 1 ? node.MaxConcurrency.Value : 1;
+        var maxConcurrency = node.MaxConcurrency > 1 ? node.MaxConcurrency : 1;
+        var bodyInstructions = string.IsNullOrWhiteSpace(node.BodyAgent.Instructions)
+            ? "Process the following item and provide a result."
+            : node.BodyAgent.Instructions;
+        var bodyTools = node.BodyAgent.Tools;
 
         if (maxConcurrency <= 1)
         {
@@ -294,13 +304,7 @@ public sealed class FlowNodeRunner
                 var item = items[i].Trim();
                 if (string.IsNullOrWhiteSpace(item)) continue;
 
-                var itemAgent = new PlannedNode
-                {
-                    NodeType = NodeTypes.Agent,
-                    Name = $"{nodeName}[{i + 1}]",
-                    Instructions = node.Instructions ?? "Process the following item and provide a result.",
-                    Tools = node.Tools
-                };
+                var itemAgent = BuildInnerAgent($"{nodeName}[{i + 1}]", bodyInstructions, bodyTools);
 
                 var itemResult = new StringBuilder();
                 await foreach (var evt in ExecuteAgentNodeAsync(itemAgent, item, request, cancellationToken))
@@ -328,13 +332,7 @@ public sealed class FlowNodeRunner
             await throttle.WaitAsync(cancellationToken);
             try
             {
-                var itemAgent = new PlannedNode
-                {
-                    NodeType = NodeTypes.Agent,
-                    Name = $"{nodeName}[{i + 1}]",
-                    Instructions = node.Instructions ?? "Process the following item and provide a result.",
-                    Tools = node.Tools
-                };
+                var itemAgent = BuildInnerAgent($"{nodeName}[{i + 1}]", bodyInstructions, bodyTools);
 
                 var events = new List<ExecutionEvent>();
                 var itemResult = new StringBuilder();
@@ -355,7 +353,6 @@ public sealed class FlowNodeRunner
 
         var allResults = await Task.WhenAll(parallelTasks);
 
-        // Replay buffered events（按原始順序）
         foreach (var (events, _) in allResults)
         {
             foreach (var evt in events)
@@ -366,9 +363,9 @@ public sealed class FlowNodeRunner
         yield return ExecutionEvent.NodeCompleted(NodeTypes.Iteration, nodeName, parallelMerged);
     }
 
-    private static List<string> SplitInput(string input, string splitMode, string delimiter)
+    private static List<string> SplitInput(string input, Schema.SplitModeKind splitMode, string delimiter)
     {
-        if (splitMode == "json-array")
+        if (splitMode == Schema.SplitModeKind.JsonArray)
         {
             try
             {
@@ -389,7 +386,7 @@ public sealed class FlowNodeRunner
     // ════════════════════════════════════════
 
     private async IAsyncEnumerable<ExecutionEvent> ExecuteParallelNodeAsync(
-        PlannedNode node,
+        Schema.ParallelNode node,
         string input,
         GoalExecutionRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -397,7 +394,7 @@ public sealed class FlowNodeRunner
         var nodeName = node.Name;
         var branches = node.Branches;
 
-        if (branches is not { Count: > 0 })
+        if (branches.Count == 0)
         {
             _logger.LogWarning("Parallel node '{Name}' has no branches, passing through", nodeName);
             yield return ExecutionEvent.NodeCompleted(NodeTypes.Parallel, nodeName, input);
@@ -410,14 +407,10 @@ public sealed class FlowNodeRunner
         using var throttle = new SemaphoreSlim(MaxParallelBranches);
         var branchTasks = branches.Select(branch =>
         {
-            // {{node:}} 在 ExecuteAgentNodeAsync 中解析
-            var branchAgent = new PlannedNode
-            {
-                NodeType = NodeTypes.Agent,
-                Name = $"{nodeName}/{branch.Name}",
-                Instructions = branch.Goal,
-                Tools = branch.Tools
-            };
+            var branchAgent = BuildInnerAgent(
+                $"{nodeName}/{branch.Name}",
+                branch.Goal,
+                branch.Tools ?? []);
             // 只傳 branch name 作為 input，不傳完整的使用者輸入
             // 避免 LLM 看到所有項目後搜尋全部（gpt-4o-mini 不遵守隔離指令）
             var branchInput = branch.Name;
@@ -426,7 +419,6 @@ public sealed class FlowNodeRunner
 
         var branchResults = await Task.WhenAll(branchTasks);
 
-        // 發出每個分支的事件
         foreach (var (events, _) in branchResults)
         {
             foreach (var evt in events)
@@ -435,15 +427,13 @@ public sealed class FlowNodeRunner
             }
         }
 
-        // 合併結果
-        var mergeStrategy = node.MergeStrategy ?? "labeled";
-        var mergedOutput = MergeResults(branches, branchResults, mergeStrategy);
+        var mergedOutput = MergeResults(branches, branchResults, node.Merge);
 
         yield return ExecutionEvent.NodeCompleted(NodeTypes.Parallel, nodeName, mergedOutput);
     }
 
     private async Task<(List<ExecutionEvent> Events, string Result)> RunBranchThrottledAsync(
-        SemaphoreSlim throttle, PlannedNode branchAgent, string input,
+        SemaphoreSlim throttle, Schema.AgentNode branchAgent, string input,
         GoalExecutionRequest request, CancellationToken cancellationToken)
     {
         await throttle.WaitAsync(cancellationToken);
@@ -458,7 +448,7 @@ public sealed class FlowNodeRunner
     }
 
     private async Task<(List<ExecutionEvent> Events, string Result)> RunBranchAsync(
-        PlannedNode branchAgent, string input, GoalExecutionRequest request,
+        Schema.AgentNode branchAgent, string input, GoalExecutionRequest request,
         CancellationToken cancellationToken)
     {
         var events = new List<ExecutionEvent>();
@@ -475,19 +465,19 @@ public sealed class FlowNodeRunner
     }
 
     private static string MergeResults(
-        List<ParallelBranchConfig> branches,
+        IReadOnlyList<Schema.BranchConfig> branches,
         (List<ExecutionEvent> Events, string Result)[] results,
-        string mergeStrategy)
+        Schema.MergeStrategyKind mergeStrategy)
     {
         return mergeStrategy switch
         {
-            "json" => JsonSerializer.Serialize(
+            Schema.MergeStrategyKind.Json => JsonSerializer.Serialize(
                 branches.Zip(results, (b, r) => new { b.Name, r.Result })
                     .ToDictionary(x => x.Name, x => x.Result)),
 
-            "join" => string.Join("\n\n", results.Select(r => r.Result)),
+            Schema.MergeStrategyKind.Join => string.Join("\n\n", results.Select(r => r.Result)),
 
-            _ => string.Join("\n\n", // "labeled" (default)
+            _ => string.Join("\n\n", // Labeled (default)
                 branches.Zip(results, (b, r) => $"[{b.Name}]\n{r.Result}"))
         };
     }
@@ -497,23 +487,28 @@ public sealed class FlowNodeRunner
     // ════════════════════════════════════════
 
     private async IAsyncEnumerable<ExecutionEvent> ExecuteLoopNodeAsync(
-        PlannedNode node,
+        Schema.LoopNode node,
         string input,
         GoalExecutionRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var nodeName = node.Name;
-        var maxIterations = node.MaxIterations ?? 5;
-        var conditionType = node.ConditionType ?? "contains";
-        var conditionValue = node.ConditionValue ?? "";
+        var maxIterations = node.MaxIterations > 0 ? node.MaxIterations : 5;
+        var conditionKind = node.Condition.Kind;
+        var conditionValue = node.Condition.Value;
         var currentInput = input;
+
+        var bodyInstructions = string.IsNullOrWhiteSpace(node.BodyAgent.Instructions)
+            ? "Improve and refine the following content based on the context."
+            : node.BodyAgent.Instructions;
+        var bodyTools = node.BodyAgent.Tools;
 
         for (var i = 0; i < maxIterations; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             // 檢查退出條件（用上一輪的結果判斷）
-            if (EvaluateCondition(currentInput, conditionType, conditionValue))
+            if (EvaluateCondition(currentInput, conditionKind, conditionValue))
             {
                 yield return ExecutionEvent.NodeCompleted(NodeTypes.Loop,
                     $"{nodeName} (exit at iteration {i + 1})", currentInput);
@@ -522,14 +517,7 @@ public sealed class FlowNodeRunner
 
             yield return ExecutionEvent.NodeExecuting(NodeTypes.Loop, $"{nodeName} (iteration {i + 1}/{maxIterations})");
 
-            // {{node:}} 在 ExecuteAgentNodeAsync 中解析
-            var bodyAgent = new PlannedNode
-            {
-                NodeType = NodeTypes.Agent,
-                Name = $"{nodeName}[{i + 1}]",
-                Instructions = node.Instructions ?? "Improve and refine the following content based on the context.",
-                Tools = node.Tools
-            };
+            var bodyAgent = BuildInnerAgent($"{nodeName}[{i + 1}]", bodyInstructions, bodyTools);
 
             var bodyResult = new StringBuilder();
             await foreach (var evt in ExecuteAgentNodeAsync(bodyAgent, currentInput, request, cancellationToken))
@@ -542,7 +530,7 @@ public sealed class FlowNodeRunner
             var newResult = bodyResult.ToString();
 
             // 如果新結果觸發退出條件，保留上一輪的實質內容（新結果可能只是確認訊息）
-            if (EvaluateCondition(newResult, conditionType, conditionValue))
+            if (EvaluateCondition(newResult, conditionKind, conditionValue))
             {
                 yield return ExecutionEvent.NodeCompleted(NodeTypes.Loop,
                     $"{nodeName} (exit at iteration {i + 2})", currentInput);
@@ -557,12 +545,12 @@ public sealed class FlowNodeRunner
             $"{nodeName} (max {maxIterations} reached)", currentInput);
     }
 
-    private static bool EvaluateCondition(string input, string conditionType, string conditionValue)
+    private static bool EvaluateCondition(string input, Schema.ConditionKind kind, string value)
     {
-        return conditionType switch
+        return kind switch
         {
-            "contains" => input.Contains(conditionValue, StringComparison.OrdinalIgnoreCase),
-            "regex" => TryRegexMatch(input, conditionValue),
+            Schema.ConditionKind.Contains => input.Contains(value, StringComparison.OrdinalIgnoreCase),
+            Schema.ConditionKind.Regex => TryRegexMatch(input, value),
             _ => false
         };
     }
@@ -587,13 +575,21 @@ public sealed class FlowNodeRunner
     // ════════════════════════════════════════
 
     private async IAsyncEnumerable<ExecutionEvent> ExecuteHttpRequestNodeAsync(
-        PlannedNode node,
+        Schema.HttpRequestNode node,
         string input,
         GoalExecutionRequest request)
     {
         var nodeName = string.IsNullOrWhiteSpace(node.Name) ? "HTTP Request" : node.Name;
+        var spec = node.Spec;
+        var refLabel = spec switch
+        {
+            Schema.CatalogHttpRef catalog => catalog.ApiId,
+            Schema.InlineHttpRequest inline => inline.Url,
+            _ => ""
+        };
+
         yield return ExecutionEvent.AgentStarted(nodeName);
-        yield return ExecutionEvent.ToolCall(nodeName, "HTTP", node.HttpApiId ?? node.HttpUrl ?? "");
+        yield return ExecutionEvent.ToolCall(nodeName, "HTTP", refLabel);
 
         string result;
 
@@ -605,7 +601,11 @@ public sealed class FlowNodeRunner
         else
         {
             var escapedInput = JsonSerializer.Serialize(input).Trim('"');
-            var argsJson = (node.HttpArgsTemplate ?? "{}").Replace("{input}", escapedInput);
+            // Catalog 模式用 args template 把 {input} 替換；inline 模式沒有 args，走 body template
+            var argsTemplate = spec is Schema.CatalogHttpRef catalogRef
+                ? (catalogRef.Args?.ToJsonString() ?? "{}")
+                : "{}";
+            var argsJson = argsTemplate.Replace("{input}", escapedInput);
 
             try
             {
@@ -622,66 +622,106 @@ public sealed class FlowNodeRunner
         yield return ExecutionEvent.AgentCompleted(nodeName, result);
     }
 
-    private static HttpApiDefinition? ResolveHttpApiDefinition(PlannedNode node, GoalExecutionRequest request)
+    private static HttpApiDefinition? ResolveHttpApiDefinition(Schema.HttpRequestNode node, GoalExecutionRequest request)
     {
-        // Catalog 模式
-        if (!string.IsNullOrWhiteSpace(node.HttpApiId) &&
-            request.HttpApis.TryGetValue(node.HttpApiId, out var catalogDef))
+        switch (node.Spec)
         {
-            return catalogDef;
-        }
+            case Schema.CatalogHttpRef catalogRef:
+                if (!string.IsNullOrWhiteSpace(catalogRef.ApiId)
+                    && request.HttpApis.TryGetValue(catalogRef.ApiId, out var catalogDef))
+                {
+                    return catalogDef;
+                }
+                return null;
 
-        // Inline 模式
-        if (!string.IsNullOrWhiteSpace(node.HttpUrl))
-        {
-            return new HttpApiDefinition
-            {
-                Id = node.Name ?? "inline",
-                Name = node.Name ?? "inline-http",
-                Url = node.HttpUrl,
-                Method = string.IsNullOrWhiteSpace(node.HttpMethod) ? "GET" : node.HttpMethod,
-                Headers = node.HttpHeaders ?? "",
-                BodyTemplate = node.HttpBodyTemplate ?? "",
-                ContentType = string.IsNullOrWhiteSpace(node.HttpContentType) ? "application/json" : node.HttpContentType,
-                TimeoutSeconds = node.HttpTimeoutSeconds ?? 15,
-                ResponseMaxLength = node.HttpResponseMaxLength ?? 2000,
-                AuthMode = string.IsNullOrWhiteSpace(node.HttpAuthMode) ? "none" : node.HttpAuthMode,
-                AuthCredential = node.HttpAuthCredential ?? "",
-                AuthKeyName = node.HttpAuthKeyName ?? "",
-                RetryCount = node.HttpRetryCount ?? 0,
-                RetryDelayMs = node.HttpRetryDelayMs ?? 1000,
-                ResponseFormat = string.IsNullOrWhiteSpace(node.HttpResponseFormat) ? "text" : node.HttpResponseFormat,
-                ResponseJsonPath = node.HttpResponseJsonPath ?? "",
-            };
-        }
+            case Schema.InlineHttpRequest inline when !string.IsNullOrWhiteSpace(inline.Url):
+                return new HttpApiDefinition
+                {
+                    Id = node.Name,
+                    Name = string.IsNullOrWhiteSpace(node.Name) ? "inline-http" : node.Name,
+                    Url = inline.Url,
+                    Method = inline.Method.ToString().ToUpperInvariant(),
+                    Headers = string.Join("\n", inline.Headers.Select(h => $"{h.Name}: {h.Value}")),
+                    BodyTemplate = inline.Body?.Content?.ToJsonString() ?? "",
+                    ContentType = inline.ContentType,
+                    TimeoutSeconds = inline.TimeoutSeconds,
+                    ResponseMaxLength = inline.ResponseMaxLength,
+                    AuthMode = inline.Auth switch
+                    {
+                        Schema.BearerAuth => "bearer",
+                        Schema.BasicAuth => "basic",
+                        Schema.ApiKeyHeaderAuth => "apikey-header",
+                        Schema.ApiKeyQueryAuth => "apikey-query",
+                        _ => "none"
+                    },
+                    AuthCredential = inline.Auth switch
+                    {
+                        Schema.BearerAuth bearer => bearer.Token,
+                        Schema.BasicAuth basic => basic.UserPass,
+                        Schema.ApiKeyHeaderAuth apiH => apiH.Value,
+                        Schema.ApiKeyQueryAuth apiQ => apiQ.Value,
+                        _ => ""
+                    },
+                    AuthKeyName = inline.Auth switch
+                    {
+                        Schema.ApiKeyHeaderAuth apiH => apiH.KeyName,
+                        Schema.ApiKeyQueryAuth apiQ => apiQ.KeyName,
+                        _ => ""
+                    },
+                    RetryCount = inline.Retry.Count,
+                    RetryDelayMs = inline.Retry.DelayMs,
+                    ResponseFormat = inline.Response switch
+                    {
+                        Schema.JsonParser => "json",
+                        Schema.JsonPathParser => "jsonpath",
+                        _ => "text"
+                    },
+                    ResponseJsonPath = inline.Response is Schema.JsonPathParser jp ? jp.Path : "",
+                };
 
-        return null;
+            default:
+                return null;
+        }
     }
 
     // ════════════════════════════════════════
     // Code 節點
     // ════════════════════════════════════════
 
-    private static ExecutionEvent ExecuteCodeNode(PlannedNode node, string input)
+    private static ExecutionEvent ExecuteCodeNode(Schema.CodeNode node, string input)
     {
+        // Schema.TransformKind enum → TransformHelper 期望的舊字串常數
+        var transformType = FormatTransformType(node.Kind, node.Replacement);
         var output = TransformHelper.ApplyTransform(
-            node.TransformType ?? "template",
+            transformType,
             input,
-            node.TransformPattern ?? "{{input}}",
-            node.TransformReplacement);
+            node.Expression,
+            node.Replacement);
 
         return ExecutionEvent.NodeCompleted(NodeTypes.Code, node.Name, output);
     }
+
+    private static string FormatTransformType(Schema.TransformKind kind, string? replacement) => kind switch
+    {
+        Schema.TransformKind.Template => "template",
+        Schema.TransformKind.Regex => string.IsNullOrEmpty(replacement) ? "regex-extract" : "regex-replace",
+        Schema.TransformKind.JsonPath => "json-path",
+        Schema.TransformKind.Trim => "trim",
+        Schema.TransformKind.Truncate => "trim",
+        Schema.TransformKind.Split => "split-take",
+        Schema.TransformKind.Upper => "upper",
+        Schema.TransformKind.Lower => "lower",
+        Schema.TransformKind.Script => "script",
+        _ => "template"
+    };
 
     // ════════════════════════════════════════
     // Condition 節點
     // ════════════════════════════════════════
 
-    private static ExecutionEvent ExecuteConditionNode(PlannedNode node, string input)
+    private static ExecutionEvent ExecuteConditionNode(Schema.ConditionNode node, string input)
     {
-        var conditionType = node.ConditionType ?? "contains";
-        var conditionValue = node.ConditionValue ?? "";
-        var met = EvaluateCondition(input, conditionType, conditionValue);
+        var met = EvaluateCondition(input, node.Condition.Kind, node.Condition.Value);
 
         var outputPort = met ? OutputPorts.Output1 : OutputPorts.Output2;
         return new ExecutionEvent
@@ -704,11 +744,27 @@ public sealed class FlowNodeRunner
     // ════════════════════════════════════════
 
     /// <summary>
-    /// 解析文字中的 {{node:step_name}} 引用，替換為對應節點的輸出。
-    /// 委派給 Engine 共用的 NodeReferenceResolver。
+    /// 建構內部 Agent 節點（iteration / parallel / loop body 共用）。
     /// </summary>
-    internal string ResolveNodeReferences(string? text) =>
-        NodeReferenceResolver.Resolve(text, NodeOutputs);
+    private static Schema.AgentNode BuildInnerAgent(string name, string instructions, IReadOnlyList<string> tools) => new()
+    {
+        Id = name,
+        Name = name,
+        Instructions = instructions,
+        Tools = tools
+    };
+
+    /// <summary>
+    /// 解析文字中的 {{node:step_name}} 引用，替換為對應節點的輸出。
+    /// 透過 <see cref="AgentCraftLab.Engine.Services.Variables.IVariableResolver"/> 統一入口，
+    /// Flow 和畫布 Workflow 共用同一個 resolver。
+    /// </summary>
+    internal string ResolveNodeReferences(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return text ?? "";
+        var context = BuildVariableContext();
+        return _variableResolver.Resolve(text, context);
+    }
 
     /// <summary>
     /// 非同步解析 {{node:}} 引用，超過門檻時用 compactor 壓縮後注入。
@@ -717,11 +773,22 @@ public sealed class FlowNodeRunner
     internal async Task<string> ResolveNodeReferencesAsync(
         string? text, string compressContext, CancellationToken ct = default)
     {
+        if (string.IsNullOrEmpty(text)) return text ?? "";
         if (ReferenceCompactor is null)
             return ResolveNodeReferences(text);
 
-        return await NodeReferenceResolver.ResolveAsync(
-            text, NodeOutputs, ReferenceCompactor, compressContext, ct);
+        var context = BuildVariableContext();
+        return await _variableResolver.ResolveAsync(
+            text, context, ReferenceCompactor, compressContext, ct);
+    }
+
+    private AgentCraftLab.Engine.Services.Variables.VariableContext BuildVariableContext()
+    {
+        return new AgentCraftLab.Engine.Services.Variables.VariableContext
+        {
+            NodeOutputs = NodeOutputs
+                ?? (IReadOnlyDictionary<string, string>)new Dictionary<string, string>()
+        };
     }
 
     /// <summary>

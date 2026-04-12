@@ -126,7 +126,7 @@ public static class WorkflowStreamHelper
             Input = input,
             AgentName = agentName,
             AgentId = agentId,
-            WorkflowName = context.Payload.WorkflowSettings.Type,
+            WorkflowName = context.Payload.Settings.Strategy,
             UserId = context.UserId
         };
         var result = await context.HookRunner.ExecuteAsync(context.Hooks.PreAgent, hookCtx, ct);
@@ -156,7 +156,7 @@ public static class WorkflowStreamHelper
             Output = output,
             AgentName = agentName,
             AgentId = agentId,
-            WorkflowName = context.Payload.WorkflowSettings.Type,
+            WorkflowName = context.Payload.Settings.Strategy,
             UserId = context.UserId
         };
         var result = await context.HookRunner.ExecuteAsync(context.Hooks.PostAgent, hookCtx, ct);

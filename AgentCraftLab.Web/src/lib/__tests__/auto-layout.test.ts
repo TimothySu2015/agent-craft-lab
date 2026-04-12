@@ -1,10 +1,27 @@
 import { describe, it, expect } from 'vitest'
 import { autoLayout } from '../auto-layout'
 import type { Node, Edge } from '@xyflow/react'
-import type { NodeData } from '@/types/workflow'
+import type { NodeData, AgentNodeData } from '@/types/workflow'
+
+function makeAgentData(id: string): AgentNodeData {
+  return {
+    type: 'agent',
+    name: id,
+    instructions: '',
+    model: { provider: 'openai', model: 'gpt-4o' },
+    tools: [],
+    mcpServers: [],
+    a2AAgents: [],
+    httpApis: [],
+    skills: [],
+    output: { kind: 'text' },
+    history: { provider: 'none', maxMessages: 20 },
+    middleware: [],
+  }
+}
 
 function node(id: string, x = 0, y = 0): Node<NodeData> {
-  return { id, type: 'agent', position: { x, y }, data: { type: 'agent', name: id } as NodeData }
+  return { id, type: 'agent', position: { x, y }, data: makeAgentData(id) }
 }
 
 function edge(source: string, target: string): Edge {
@@ -51,7 +68,7 @@ describe('autoLayout', () => {
 
   it('preserves node data and type', async () => {
     const original = node('x')
-    original.data = { type: 'agent', name: 'TestAgent' } as NodeData
+    original.data = makeAgentData('TestAgent')
     const result = await autoLayout([original], [])
 
     expect(result[0].id).toBe('x')

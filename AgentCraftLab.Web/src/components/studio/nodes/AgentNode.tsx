@@ -7,7 +7,7 @@ const config = NODE_REGISTRY.agent
 
 export function AgentNode({ data, selected }: NodeProps & { data: AgentNodeData }) {
   return (
-    <NodeShell {...config} title={data.name} subtitle={data.provider && data.model ? `${data.provider} / ${data.model}` : undefined} selected={selected}>
+    <NodeShell {...config} title={data.name} subtitle={data.model?.provider && data.model?.model ? `${data.model.provider} / ${data.model.model}` : undefined} selected={selected}>
       {data.instructions && <p className="truncate">{data.instructions}</p>}
       {data.tools?.length > 0 && (
         <div className="flex flex-wrap gap-0.5 mt-0.5">

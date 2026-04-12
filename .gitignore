@@ -28,6 +28,9 @@ desktop.ini
 
 ## Secrets
 appsettings.*.json
+
+## Flow Tuning harness output（每次執行的 scenario JSON / markdown 報告）
+AgentCraftLab.Flow.Tuning/Data/
 !appsettings.json
 !appsettings.Development.json
 

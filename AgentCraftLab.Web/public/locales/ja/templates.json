@@ -1,0 +1,149 @@
+{
+  "dialog": {
+    "searchPlaceholder": "テンプレートを検索...",
+    "noResults": "該当するテンプレートがありません。",
+    "all": "すべて",
+    "custom": "カスタム"
+  },
+  "categories": {
+    "basic": "基本",
+    "tools-search": "ツールと検索",
+    "rag-files": "RAG とファイル",
+    "advanced": "高度",
+    "human-in-the-loop": "人間協調",
+    "skills": "スキル",
+    "autonomous": "自律エージェント"
+  },
+  "items": {
+    "sequential": {
+      "name": "リサーチ&ライティング",
+      "shortDescription": "3 つのエージェントが連携:調査、ドラフト、編集。",
+      "sampleMessages": ["2026 年の AI エージェントフレームワークに関するブログ記事を執筆"]
+    },
+    "loop": {
+      "name": "執筆・レビューループ",
+      "shortDescription": "執筆、レビュー、承認まで反復。",
+      "sampleMessages": ["製品発表のお知らせを作成"]
+    },
+    "router": {
+      "name": "カスタマーサービスルーター",
+      "shortDescription": "顧客の問い合わせを担当者に振り分け。",
+      "sampleMessages": ["サブスクリプションが二重に請求されました"]
+    },
+    "code-transform": {
+      "name": "Code 変換パイプライン",
+      "shortDescription": "エージェントの出力を Code ノードで処理。",
+      "sampleMessages": ["リモートワークのメリットとデメリットを分析"]
+    },
+    "http-webhook": {
+      "name": "HTTP API パイプライン",
+      "shortDescription": "エージェント + HTTP 呼び出し + エージェント。",
+      "sampleMessages": ["東京の今日の天気を取得"]
+    },
+    "parallel-experts": {
+      "name": "並列マルチエキスパート",
+      "shortDescription": "複数の専門家が並列に分析し統合。",
+      "sampleMessages": ["AI SaaS 子会社設立の実現可能性を評価"]
+    },
+    "iteration-batch": {
+      "name": "反復バッチ処理",
+      "shortDescription": "リストを分割して 1 件ずつ処理。",
+      "sampleMessages": ["比較:React、Vue、Angular、Svelte"]
+    },
+    "structured-output": {
+      "name": "構造化出力",
+      "shortDescription": "JSON Schema 出力 + レポート。",
+      "sampleMessages": ["半導体業界の競争優位性を分析"]
+    },
+    "translator": {
+      "name": "並列翻訳",
+      "shortDescription": "同時に 3 言語に翻訳。",
+      "sampleMessages": ["AI は私たちの働き方を変えつつある"]
+    },
+    "plan-execute": {
+      "name": "計画と実行",
+      "shortDescription": "目標をステップに分解し、順次実行。",
+      "sampleMessages": ["計画:台湾に支社を設立する評価"]
+    },
+    "single-tools": {
+      "name": "単一エージェント + ツール",
+      "shortDescription": "Web 検索機能付きのエージェント 1 つ。",
+      "sampleMessages": [".NET 10 の最新動向は?"]
+    },
+    "csv-log-analyzer": {
+      "name": "CSV ログアナライザー",
+      "shortDescription": "CSV ログを分析してメール送信。",
+      "sampleMessages": ["CSV ログを分析してメールでレポートを送って"]
+    },
+    "deep-research": {
+      "name": "ディープリサーチ",
+      "shortDescription": "複数クエリによる深い調査と統合。",
+      "sampleMessages": ["生成 AI の応用トレンドを深掘り"]
+    },
+    "finance-intel": {
+      "name": "金融インテリジェンス",
+      "shortDescription": "金融ニュースのスキャンと分析。",
+      "sampleMessages": ["TSMC CoWoS キャパシティ分析"]
+    },
+    "lead-outreach": {
+      "name": "リードアウトリーチ",
+      "shortDescription": "調査、ドラフト、承認、メール送信。",
+      "sampleMessages": ["Gogoro について調査しパートナーシップ提案メールを草案"]
+    },
+    "rag-pdf": {
+      "name": "PDF Q&A (RAG)",
+      "shortDescription": "PDF をアップロードし、ベクトル検索で質問。",
+      "sampleMessages": ["主な発見事項をまとめてください"]
+    },
+    "vision": {
+      "name": "画像分析",
+      "shortDescription": "画像をアップロードして分析。",
+      "sampleMessages": ["見えるものを説明してください"]
+    },
+    "handoff": {
+      "name": "マルチエージェントハンドオフ",
+      "shortDescription": "コーディネーターが専門家に委譲。",
+      "sampleMessages": ["Python でフィボナッチ関数を書いて"]
+    },
+    "mcp-agent": {
+      "name": "MCP ツール統合",
+      "shortDescription": "MCP Server に接続されたエージェント。",
+      "sampleMessages": ["echo ツールを使用"]
+    },
+    "human-approval": {
+      "name": "人間承認ゲート",
+      "shortDescription": "ドラフト、承認または却下。",
+      "sampleMessages": ["製品発表のお知らせを作成"]
+    },
+    "human-choice": {
+      "name": "人間選択分岐",
+      "shortDescription": "ユーザーが出力形式を選択。",
+      "sampleMessages": ["AI 業界の動向を分析"]
+    },
+    "skill-code-review": {
+      "name": "コードレビュー",
+      "shortDescription": "スキル付きコードレビュー。",
+      "sampleMessages": ["このコードのセキュリティ問題をレビュー"]
+    },
+    "skill-contract-review": {
+      "name": "契約書レビュー",
+      "shortDescription": "法務レビュー + 人間承認。",
+      "sampleMessages": ["契約条項のリスクをレビュー"]
+    },
+    "skill-research-report": {
+      "name": "SWOT レポート",
+      "shortDescription": "並列 SWOT 分析とレポート。",
+      "sampleMessages": ["半導体業界での SWOT ポジショニング分析"]
+    },
+    "autonomous-research": {
+      "name": "自律リサーチ",
+      "shortDescription": "AI が自律的に調査しレポート作成。",
+      "sampleMessages": ["GPT-4o と Claude Opus 4 を比較"]
+    },
+    "autonomous-pipeline": {
+      "name": "計画 → 調査 → レポート",
+      "shortDescription": "計画 + 自律リサーチ + レポート。",
+      "sampleMessages": ["Claude 4 の技術ブレークスルーを分析"]
+    }
+  }
+}

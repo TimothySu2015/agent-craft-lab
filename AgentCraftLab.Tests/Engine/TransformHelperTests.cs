@@ -1,3 +1,4 @@
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Services;
 
 namespace AgentCraftLab.Tests.Engine;
@@ -254,5 +255,72 @@ public class TransformHelperTests
         Assert.Contains("DHC", result);
         Assert.Contains("Oil", result);
         Assert.DoesNotContain("{{this.", result);
+    }
+
+    // ════════════════════════════════════════
+    // TransformKind enum overload
+    // ════════════════════════════════════════
+
+    [Fact]
+    public void EnumOverload_Template_ReturnsTemplateResult()
+    {
+        var result = TransformHelper.ApplyTransform(TransformKind.Template, "hello", "Result: {{input}}");
+        Assert.Equal("Result: hello", result);
+    }
+
+    [Fact]
+    public void EnumOverload_Regex_ReturnsReplacedResult()
+    {
+        var result = TransformHelper.ApplyTransform(TransformKind.Regex, "foo bar", "foo", replacement: "baz");
+        Assert.Equal("baz bar", result);
+    }
+
+    [Fact]
+    public void EnumOverload_JsonPath_ExtractsValue()
+    {
+        var result = TransformHelper.ApplyTransform(TransformKind.JsonPath, "{\"name\":\"John\"}", "name");
+        Assert.Equal("John", result);
+    }
+
+    [Fact]
+    public void EnumOverload_Trim_TruncatesLongInput()
+    {
+        var result = TransformHelper.ApplyTransform(TransformKind.Trim, "abcdefgh", maxLength: 3);
+        Assert.Equal("abc", result);
+    }
+
+    [Fact]
+    public void EnumOverload_Truncate_SameBehaviorAsTrim()
+    {
+        var result = TransformHelper.ApplyTransform(TransformKind.Truncate, "abcdefgh", maxLength: 5);
+        Assert.Equal("abcde", result);
+    }
+
+    [Fact]
+    public void EnumOverload_Split_TakesNthSegment()
+    {
+        var result = TransformHelper.ApplyTransform(TransformKind.Split, "a\nb\nc", delimiter: "\n", splitIndex: 1);
+        Assert.Equal("b", result);
+    }
+
+    [Fact]
+    public void EnumOverload_Upper_UpperCases()
+    {
+        var result = TransformHelper.ApplyTransform(TransformKind.Upper, "hello");
+        Assert.Equal("HELLO", result);
+    }
+
+    [Fact]
+    public void EnumOverload_Lower_LowerCases()
+    {
+        var result = TransformHelper.ApplyTransform(TransformKind.Lower, "HELLO");
+        Assert.Equal("hello", result);
+    }
+
+    [Fact]
+    public void EnumOverload_UnknownKind_ThrowsArgumentOutOfRange()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            TransformHelper.ApplyTransform((TransformKind)999, "x"));
     }
 }

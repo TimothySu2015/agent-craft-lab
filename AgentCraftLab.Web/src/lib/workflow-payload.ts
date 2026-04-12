@@ -1,84 +1,73 @@
 /**
- * 將 React Flow 的 nodes/edges 轉換為 Engine 的 WorkflowPayload JSON 格式。
+ * 將 React Flow 的 nodes/edges 序列化為後端 Engine 的 Schema v2 wire format。
+ *
+ * F3 之後：前端 NodeData 已改 nested Schema shape，本檔只做最小包裝
+ * （加 version / settings / resources），節點 `data` 直接 pass-through。
  */
 import type { Node, Edge } from '@xyflow/react'
 import '@/types/debug' // Window.__craftlab_debug type augmentation
 import type { NodeData } from '@/types/workflow'
 import type { WorkflowSettings } from '@/stores/workflow-store'
 
+/** Wire format 頂層結構 — 對應後端 Schema.WorkflowPayload */
+interface SchemaPayload {
+  version: '2.0'
+  settings: Record<string, unknown>
+  nodes: Array<NodeData & { id: string }>
+  connections: Array<{ from: string; to: string; port: string }>
+  variables?: unknown[]
+  hooks?: Record<string, unknown>
+  resources?: Record<string, unknown>
+}
+
 export function toWorkflowPayloadJson(
   nodes: Node<NodeData>[],
   edges: Edge[],
   settings?: WorkflowSettings,
 ): string {
+  // 1. 節點：排除 start/end/群組容器，保留 id + nested NodeData
+  //    type 必須排在 JSON 物件最前面 — .NET System.Text.Json 的 JsonPolymorphic
+  //    discriminator 需要在物件開頭才能正確辨識子型別。
   const payloadNodes = nodes
     .filter((n) => n.type !== 'start' && n.type !== 'end' && !n.type?.endsWith('-group'))
     .map((n) => {
-      const d = n.data as NodeData
-      const node: Record<string, unknown> = { id: n.id, ...d }
-      // Engine 期望 branches 為 comma-separated 字串，FlowPlan fallback 可能是陣列
-      if (Array.isArray(node.branches)) {
-        node.branches = (node.branches as any[]).map((b: any) => typeof b === 'string' ? b : b.name).join(',')
-      }
-      // RAG 節點：扁平欄位組裝為 Engine 期望的嵌套 ragConfig 物件
-      if (node.type === 'rag') {
-        node.ragConfig = {
-          dataSource: node.ragDataSource ?? 'upload',
-          chunkSize: node.ragChunkSize ?? 512,
-          chunkOverlap: node.ragChunkOverlap ?? 50,
-          topK: node.ragTopK ?? 5,
-          embeddingModel: node.ragEmbeddingModel ?? 'text-embedding-3-small',
-          searchMode: node.ragSearchMode ?? 'hybrid',
-          minScore: node.ragMinScore ?? 0.005,
-          queryExpansion: node.ragQueryExpansion ?? true,
-          fileNameFilter: node.ragFileNameFilter || undefined,
-          contextCompression: node.ragContextCompression ?? false,
-          tokenBudget: node.ragTokenBudget ?? 1500,
-        }
-        node.knowledgeBaseIds = node.knowledgeBaseIds ?? []
-        // 清理前端扁平欄位（Engine 不認這些）
-        delete node.ragDataSource
-        delete node.ragChunkSize
-        delete node.ragChunkOverlap
-        delete node.ragTopK
-        delete node.ragEmbeddingModel
-        delete node.ragSearchQuality
-        delete node.ragSearchMode
-        delete node.ragQueryExpansion
-        delete node.ragFileNameFilter
-        delete node.ragContextCompression
-        delete node.ragTokenBudget
-        delete node.ragMinScore
-      }
-      // 移除 nodeType（FlowPlan 格式殘留，Engine 不認）
-      delete node.nodeType
-      return node
+      const { type, ...rest } = n.data as NodeData
+      return { type, id: n.id, ...rest }
     })
 
-  // 過濾 connections：保留 start→node（供 FindStartNode 用），移除 node→end
-  const nodeIds = new Set(payloadNodes.map((n) => (n as any).id))
+  // 2. 連線：保留 start→node（FindStartNode 用），過濾 node→end
+  //    後端 Schema.Connection 用單一 `port` 欄位（= 舊 fromOutput），不再有 toPort
+  const nodeIds = new Set(payloadNodes.map((n) => n.id))
   const connections = edges
-    .filter((e) => nodeIds.has(e.target))  // target 必須在 payload nodes 裡（排除 →end）
+    .filter((e) => nodeIds.has(e.target))
     .map((e) => ({
-      from: e.source,                      // source 允許 start-1（phantom start）
+      from: e.source,
       to: e.target,
-      fromOutput: e.sourceHandle ?? 'output_1',
-      toPort: e.targetHandle ?? 'input_1',
+      port: e.sourceHandle ?? 'output_1',
     }))
 
-  const payload = {
-    workflowSettings: {
-      type: settings?.type ?? 'auto',
-      maxTurns: settings?.maxTurns ?? 10,
-      ...(settings?.terminationStrategy && settings.terminationStrategy !== 'none' && { terminationStrategy: settings.terminationStrategy }),
-      ...(settings?.terminationKeyword && { terminationKeyword: settings.terminationKeyword }),
-      ...(settings?.aggregatorStrategy && settings.aggregatorStrategy !== 'default' && { aggregatorStrategy: settings.aggregatorStrategy }),
-      ...(settings?.hooks && Object.keys(settings.hooks).length > 0 && { hooks: settings.hooks }),
-      ...(settings?.contextPassing && settings.contextPassing !== 'previous-only' && { contextPassing: settings.contextPassing }),
-    },
+  // 3. Settings 對應 Schema.WorkflowSettings — `strategy` 取代舊 `type`
+  const schemaSettings: Record<string, unknown> = {
+    strategy: settings?.type ?? 'auto',
+    maxTurns: settings?.maxTurns ?? 10,
+  }
+  if (settings?.contextPassing && settings.contextPassing !== 'previous-only') {
+    schemaSettings.contextPassing = settings.contextPassing
+  }
+
+  const payload: SchemaPayload = {
+    version: '2.0',
+    settings: schemaSettings,
     nodes: payloadNodes,
     connections,
-    ...(settings?.variables && settings.variables.length > 0 && { variables: settings.variables }),
+  }
+
+  // 4. Variables / Hooks — 後端 Schema 已有對應結構，直接帶
+  if (settings?.variables && settings.variables.length > 0) {
+    payload.variables = settings.variables
+  }
+  if (settings?.hooks && Object.keys(settings.hooks).length > 0) {
+    payload.hooks = settings.hooks
   }
 
   const json = JSON.stringify(payload)

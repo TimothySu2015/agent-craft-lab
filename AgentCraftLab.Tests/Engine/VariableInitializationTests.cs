@@ -1,5 +1,7 @@
 using AgentCraftLab.Engine.Models;
+using AgentCraftLab.Engine.Models.Schema;
 using AgentCraftLab.Engine.Strategies;
+using SchemaPayload = AgentCraftLab.Engine.Models.Schema.WorkflowPayload;
 
 namespace AgentCraftLab.Tests.Engine;
 
@@ -8,12 +10,12 @@ public class VariableInitializationTests
     [Fact]
     public void InitializeVariables_CollectsDefaults()
     {
-        var payload = new WorkflowPayload
+        var payload = new SchemaPayload
         {
             Variables =
             [
-                new WorkflowVariable { Name = "counter", DefaultValue = "0" },
-                new WorkflowVariable { Name = "name", DefaultValue = "default" },
+                new VariableDef { Name = "counter", DefaultValue = "0" },
+                new VariableDef { Name = "name", DefaultValue = "default" },
             ]
         };
         var request = new WorkflowExecutionRequest();
@@ -27,9 +29,9 @@ public class VariableInitializationTests
     [Fact]
     public void InitializeVariables_RuntimeOverridesDefaults()
     {
-        var payload = new WorkflowPayload
+        var payload = new SchemaPayload
         {
-            Variables = [new WorkflowVariable { Name = "counter", DefaultValue = "0" }]
+            Variables = [new VariableDef { Name = "counter", DefaultValue = "0" }]
         };
         var request = new WorkflowExecutionRequest
         {
@@ -44,7 +46,7 @@ public class VariableInitializationTests
     [Fact]
     public void InitializeVariables_RuntimeAddsNewKeys()
     {
-        var payload = new WorkflowPayload();
+        var payload = new SchemaPayload();
         var request = new WorkflowExecutionRequest
         {
             RuntimeVariables = new() { ["extra"] = "value" }
@@ -58,9 +60,9 @@ public class VariableInitializationTests
     [Fact]
     public void InitializeVariables_NullRuntime_DefaultsOnly()
     {
-        var payload = new WorkflowPayload
+        var payload = new SchemaPayload
         {
-            Variables = [new WorkflowVariable { Name = "x", DefaultValue = "1" }]
+            Variables = [new VariableDef { Name = "x", DefaultValue = "1" }]
         };
         var request = new WorkflowExecutionRequest { RuntimeVariables = null };
 
@@ -74,7 +76,7 @@ public class VariableInitializationTests
     public void InitializeVariables_EmptyPayloadAndNullRuntime_EmptyDict()
     {
         var vars = ImperativeWorkflowStrategy.InitializeVariables(
-            new WorkflowPayload(), new WorkflowExecutionRequest());
+            new SchemaPayload(), new WorkflowExecutionRequest());
 
         Assert.Empty(vars);
     }
@@ -82,9 +84,9 @@ public class VariableInitializationTests
     [Fact]
     public void InitializeVariables_CaseInsensitive()
     {
-        var payload = new WorkflowPayload
+        var payload = new SchemaPayload
         {
-            Variables = [new WorkflowVariable { Name = "Counter", DefaultValue = "0" }]
+            Variables = [new VariableDef { Name = "Counter", DefaultValue = "0" }]
         };
         var request = new WorkflowExecutionRequest();
 

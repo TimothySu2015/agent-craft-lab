@@ -1,25 +1,36 @@
 import { describe, it, expect } from 'vitest'
 import { generateCSharpCode } from '../codegen'
 import type { Node, Edge } from '@xyflow/react'
-import type { NodeData, AgentNodeData } from '@/types/workflow'
+import type { NodeData, AgentNodeData, ConditionNodeData } from '@/types/workflow'
 
 // ── Helpers ──
 
-function agentNode(
-  id: string,
-  name: string,
-  overrides: Partial<AgentNodeData> = {},
-): Node<NodeData> {
-  return {
-    id,
+interface AgentOverrides {
+  provider?: string
+  model?: string
+  instructions?: string
+  tools?: string[]
+}
+
+function agentNode(id: string, name: string, overrides: AgentOverrides = {}): Node<NodeData> {
+  const data: AgentNodeData = {
     type: 'agent',
-    position: { x: 0, y: 0 },
-    data: {
-      type: 'agent', name, instructions: 'You are helpful.', model: 'gpt-4o', provider: 'openai',
-      endpoint: '', deploymentName: '', historyProvider: 'none', maxMessages: 20,
-      middleware: '', tools: [], skills: [], ...overrides,
+    name,
+    instructions: overrides.instructions ?? 'You are helpful.',
+    model: {
+      provider: overrides.provider ?? 'openai',
+      model: overrides.model ?? 'gpt-4o',
     },
+    tools: overrides.tools ?? [],
+    mcpServers: [],
+    a2AAgents: [],
+    httpApis: [],
+    skills: [],
+    output: { kind: 'text' },
+    history: { provider: 'none', maxMessages: 20 },
+    middleware: [],
   }
+  return { id, type: 'agent', position: { x: 0, y: 0 }, data }
 }
 
 function startNode(): Node<NodeData> {
@@ -120,17 +131,19 @@ describe('generateCSharpCode', () => {
   })
 
   it('generates imperative pattern when logic nodes exist', () => {
-    const nodes = [
+    const conditionData: ConditionNodeData = {
+      type: 'condition',
+      name: 'Check',
+      condition: { kind: 'contains', value: 'done' },
+    }
+    const nodes: Node<NodeData>[] = [
       startNode(),
       agentNode('a1', 'Agent1'),
-      {
-        id: 'c1', type: 'condition', position: { x: 0, y: 0 },
-        data: { type: 'condition' as const, name: 'Check', conditionType: 'contains', conditionExpression: 'done', maxIterations: 5 },
-      },
+      { id: 'c1', type: 'condition', position: { x: 0, y: 0 }, data: conditionData },
       endNode(),
     ]
     const edges = [edge('start-1', 'a1'), edge('a1', 'c1'), edge('c1', 'end-1')]
-    const code = generateCSharpCode(nodes as Node<NodeData>[], edges)
+    const code = generateCSharpCode(nodes, edges)
 
     expect(code).toContain('Imperative Mode')
     expect(code).toContain('WorkflowExecutionService')

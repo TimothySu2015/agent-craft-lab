@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { Send, Square, Sparkles } from 'lucide-react'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { useCredentialStore } from '@/stores/credential-store'
+import { NODE_REGISTRY } from '@/components/studio/nodes/registry'
 import { useDefaultCredential } from '@/hooks/useDefaultCredential'
 import { toWorkflowPayloadJson } from '@/lib/workflow-payload'
 import { expandFlowPlanParallel } from '@/lib/expand-parallel'
@@ -257,28 +258,40 @@ export function AiBuildPanel() {
       }
 
       // Convert AI spec to React Flow nodes + edges
+      // AI Build prompt 已教 LLM 輸出 Schema v2 nested shape（無 data wrapper）。
+      // 欄位直接在 node 物件上：{ type, name, instructions, model: {...}, ... }
       const nodes = spec.nodes.map((n: any, i: number) => {
         const nodeType = n.type || n.nodeType || 'agent'
         const nodeName = n.name || `Node-${i + 1}`
-        const { type: _t, name: _n, id: _id, ...flatFields } = n
-        const extraData = n.data ? n.data : flatFields
+        const { type: _t, name: _n, id: _id, ...fields } = n
+        // 兼容：若 LLM 仍輸出 data wrapper，取 data 內容；否則直接用 flat fields
+        const extraData: any = n.data ? n.data : fields
 
-        // Agent/Autonomous 節點缺 provider/model 時，自動帶入 credential store 的設定
-        if ((nodeType === 'agent' || nodeType === 'autonomous') && !extraData.provider) {
-          const creds = useCredentialStore.getState().credentials
-          const configured = Object.entries(creds).find(([, v]) => v.apiKey)
-          if (configured) {
-            const [provider, entry] = configured
-            extraData.provider = provider
-            extraData.model = extraData.model || entry.model || 'gpt-4o'
+        // Agent/Autonomous 缺 model config 時，自動帶入 credential store 的設定
+        if (nodeType === 'agent' || nodeType === 'autonomous') {
+          const hasModel = typeof extraData.model === 'object' && extraData.model?.provider
+          if (!hasModel) {
+            const creds = useCredentialStore.getState().credentials
+            const configured = Object.entries(creds).find(([, v]) => v.apiKey)
+            if (configured) {
+              const [provider, entry] = configured
+              extraData.model = {
+                ...(extraData.model ?? {}),
+                provider,
+                model: extraData.model?.model || entry.model || 'gpt-4o',
+              }
+            }
           }
         }
 
+        // 合併 NODE_REGISTRY 預設值，確保 nested config（model/output/history 等）有完整結構
+        const config = NODE_REGISTRY[nodeType as keyof typeof NODE_REGISTRY]
+        const defaults = config?.defaultData(nodeName) ?? { type: nodeType, name: nodeName }
         return {
           id: n.id || `${nodeType}-${i + 1}`,
           type: nodeType,
           position: { x: 300 + i * 250, y: 200 },
-          data: { type: nodeType, name: nodeName, ...extraData },
+          data: { ...defaults, ...extraData, type: nodeType, name: nodeName },
         }
       })
 
@@ -314,7 +327,10 @@ export function AiBuildPanel() {
       let hasTerminal = false
       for (const n of nodes) {
         if (n.type === 'parallel') {
-          const branchCount = ((n.data as any).branches || '').split(',').filter(Boolean).length
+          const rawBranches = (n.data as any).branches
+          const branchCount = Array.isArray(rawBranches)
+            ? rawBranches.length
+            : (typeof rawBranches === 'string' ? rawBranches.split(',').filter(Boolean).length : 0)
           const donePort = `output_${branchCount + 1}`
           if (!connectedSources.has(`${n.id}:${donePort}`)) {
             edges.push({ id: `e-${n.id}-done-end`, source: n.id, target: 'end-1', sourceHandle: donePort })
@@ -324,7 +340,7 @@ export function AiBuildPanel() {
       }
       if (!hasTerminal) {
         const sourcesWithAnyEdge = new Set(edges.map((e: any) => e.source))
-        const terminals = nodes.filter((n) => !sourcesWithAnyEdge.has(n.id) && n.type !== 'start' && n.type !== 'end')
+        const terminals = nodes.filter((n: { id: string; type: string }) => !sourcesWithAnyEdge.has(n.id) && n.type !== 'start' && n.type !== 'end')
         if (terminals.length > 0) {
           for (const t of terminals) {
             edges.push({ id: `e-${t.id}-end`, source: t.id, target: 'end-1' })

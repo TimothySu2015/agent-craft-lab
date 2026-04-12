@@ -1,0 +1,149 @@
+{
+  "dialog": {
+    "searchPlaceholder": "搜尋範本...",
+    "noResults": "沒有符合搜尋條件的範本。",
+    "all": "全部",
+    "custom": "自訂"
+  },
+  "categories": {
+    "basic": "基礎",
+    "tools-search": "工具與搜尋",
+    "rag-files": "RAG 與檔案",
+    "advanced": "進階",
+    "human-in-the-loop": "人機協作",
+    "skills": "技能",
+    "autonomous": "自主代理"
+  },
+  "items": {
+    "sequential": {
+      "name": "研究與撰寫",
+      "shortDescription": "三個 Agent 協作:研究、初稿、編輯。",
+      "sampleMessages": ["撰寫一篇關於 2026 年 AI Agent 框架的部落格文章"]
+    },
+    "loop": {
+      "name": "撰寫─審核循環",
+      "shortDescription": "撰寫、審核、反覆修改直到通過。",
+      "sampleMessages": ["草擬一份產品發表公告"]
+    },
+    "router": {
+      "name": "客服路由器",
+      "shortDescription": "將客戶問題路由到專業人員。",
+      "sampleMessages": ["我的訂閱被重複收費了"]
+    },
+    "code-transform": {
+      "name": "Code 轉換管線",
+      "shortDescription": "Agent 輸出後交由 Code 節點處理。",
+      "sampleMessages": ["分析遠端工作的優缺點"]
+    },
+    "http-webhook": {
+      "name": "HTTP API 管線",
+      "shortDescription": "Agent + HTTP 呼叫 + Agent。",
+      "sampleMessages": ["查詢台北市今天的天氣"]
+    },
+    "parallel-experts": {
+      "name": "平行多專家",
+      "shortDescription": "多位專家平行分析後彙整。",
+      "sampleMessages": ["評估設立 AI SaaS 子公司的可行性"]
+    },
+    "iteration-batch": {
+      "name": "批次迭代",
+      "shortDescription": "拆分清單並逐項處理。",
+      "sampleMessages": ["比較:React、Vue、Angular、Svelte"]
+    },
+    "structured-output": {
+      "name": "結構化輸出",
+      "shortDescription": "JSON Schema 輸出 + 報告。",
+      "sampleMessages": ["分析半導體產業的競爭優勢"]
+    },
+    "translator": {
+      "name": "平行翻譯",
+      "shortDescription": "同時翻譯成 3 種語言。",
+      "sampleMessages": ["人工智慧正在改變我們的工作方式"]
+    },
+    "plan-execute": {
+      "name": "規劃與執行",
+      "shortDescription": "將目標拆解為步驟,逐步執行。",
+      "sampleMessages": ["規劃:評估在日本設立分公司"]
+    },
+    "single-tools": {
+      "name": "單一 Agent + 工具",
+      "shortDescription": "一個具備網路搜尋能力的 Agent。",
+      "sampleMessages": [".NET 10 的最新發展是什麼?"]
+    },
+    "csv-log-analyzer": {
+      "name": "CSV 日誌分析器",
+      "shortDescription": "分析 CSV 日誌並寄送報告。",
+      "sampleMessages": ["分析 CSV 日誌並寄報告給我"]
+    },
+    "deep-research": {
+      "name": "深度研究",
+      "shortDescription": "多查詢研究與彙整。",
+      "sampleMessages": ["深入研究生成式 AI 應用趨勢"]
+    },
+    "finance-intel": {
+      "name": "金融情報",
+      "shortDescription": "金融新聞掃描與分析。",
+      "sampleMessages": ["台積電 CoWoS 產能分析"]
+    },
+    "lead-outreach": {
+      "name": "潛在客戶開發",
+      "shortDescription": "研究、草擬、核准、寄送郵件。",
+      "sampleMessages": ["研究 Gogoro 並草擬合作提案信"]
+    },
+    "rag-pdf": {
+      "name": "PDF 問答 (RAG)",
+      "shortDescription": "上傳 PDF,透過向量搜尋提問。",
+      "sampleMessages": ["總結關鍵發現"]
+    },
+    "vision": {
+      "name": "影像分析",
+      "shortDescription": "上傳圖片進行分析。",
+      "sampleMessages": ["描述你看到的內容"]
+    },
+    "handoff": {
+      "name": "多 Agent 交接",
+      "shortDescription": "協調者將任務委派給專家。",
+      "sampleMessages": ["用 Python 寫一個費氏數列函式"]
+    },
+    "mcp-agent": {
+      "name": "MCP 工具整合",
+      "shortDescription": "Agent 連接 MCP Server。",
+      "sampleMessages": ["使用 echo 工具"]
+    },
+    "human-approval": {
+      "name": "人工核准",
+      "shortDescription": "草稿、核准或退回。",
+      "sampleMessages": ["草擬一份產品發表公告"]
+    },
+    "human-choice": {
+      "name": "人工選擇分支",
+      "shortDescription": "使用者選擇輸出格式。",
+      "sampleMessages": ["分析 AI 產業趨勢"]
+    },
+    "skill-code-review": {
+      "name": "程式碼審查",
+      "shortDescription": "結合技能庫的程式碼審查。",
+      "sampleMessages": ["審查這段程式碼的安全性問題"]
+    },
+    "skill-contract-review": {
+      "name": "合約審查",
+      "shortDescription": "法律審查 + 人工核准。",
+      "sampleMessages": ["請審查合約條款的風險"]
+    },
+    "skill-research-report": {
+      "name": "SWOT 報告",
+      "shortDescription": "平行 SWOT 分析與報告。",
+      "sampleMessages": ["分析半導體產業的 SWOT 定位"]
+    },
+    "autonomous-research": {
+      "name": "自主研究",
+      "shortDescription": "AI 自主研究並撰寫報告。",
+      "sampleMessages": ["比較 GPT-4o 與 Claude Opus 4"]
+    },
+    "autonomous-pipeline": {
+      "name": "規劃 → 研究 → 報告",
+      "shortDescription": "規劃 + 自主研究 + 報告。",
+      "sampleMessages": ["分析 Claude 4 的技術突破"]
+    }
+  }
+}

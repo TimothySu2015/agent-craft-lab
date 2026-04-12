@@ -4,6 +4,7 @@ using AgentCraftLab.Data;
 using AgentCraftLab.Engine.Models;
 using AgentCraftLab.Engine.Strategies;
 using Microsoft.Extensions.Logging;
+using Schema = AgentCraftLab.Engine.Models.Schema;
 
 namespace AgentCraftLab.Engine.Services;
 
@@ -20,11 +21,6 @@ public class WorkflowExecutionService
     private readonly IUserContext _userContext;
     private readonly ICheckpointStore _checkpointStore;
     private readonly ILogger<WorkflowExecutionService> _logger;
-
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
 
     public WorkflowExecutionService(
         WorkflowPreprocessor preprocessor,
@@ -46,17 +42,16 @@ public class WorkflowExecutionService
         WorkflowExecutionRequest request,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // 1. 解析並驗證 workflow JSON
-        var payload = ParseAndValidatePayload(request.WorkflowJson, out var parseError);
-        if (payload is null)
+        // 1. 解析並驗證 workflow JSON（Schema v2 only — flat 格式已於 F2b 刪除）
+        var (schemaPayload, schemaHooks, workflowName, parseError) = ParseAndValidatePayload(request.WorkflowJson);
+        if (schemaPayload is null)
         {
             yield return ExecutionEvent.Error(parseError!);
             yield break;
         }
 
-        var hooks = payload.WorkflowSettings.Hooks;
+        var hooks = schemaHooks;
         var userId = await _userContext.GetUserIdAsync();
-        var workflowName = payload.WorkflowSettings.Type;
 
         // ── Hook ①: OnInput ──
         if (hooks.OnInput is not null)
@@ -76,7 +71,7 @@ public class WorkflowExecutionService
 
         // 2. 前處理（節點分類 + RAG + AgentContext 建構）
         WorkflowPreprocessor.PreprocessResult? prepResult = null;
-        await foreach (var (evt, result) in _preprocessor.PrepareAsync(payload, request, cancellationToken))
+        await foreach (var (evt, result) in _preprocessor.PrepareAsync(schemaPayload, request, cancellationToken))
         {
             if (result is not null)
             {
@@ -99,11 +94,11 @@ public class WorkflowExecutionService
 
         // 3. 選擇執行策略
         var (strategy, strategyReason) = _strategyResolver.Resolve(
-            payload, agentContext, prepResult.ResolvedConnections, request, prepResult.HasA2AOrAutonomousNodes);
+            schemaPayload, agentContext, prepResult.ResolvedConnections, request, prepResult.HasA2AOrAutonomousNodes);
         yield return ExecutionEvent.StrategySelected(strategy.GetType().Name, strategyReason);
 
         var strategyContext = new WorkflowStrategyContext(
-            payload, prepResult.AllAgentNodes, prepResult.ResolvedConnections, agentContext, request,
+            schemaPayload, prepResult.AllAgentNodes, prepResult.ResolvedConnections, agentContext, request,
             hooks.PreAgent is not null || hooks.PostAgent is not null ? _hookRunner : null,
             hooks, userId, request.SessionId);
 
@@ -212,8 +207,8 @@ public class WorkflowExecutionService
         }
 
         // 2. 解析當前畫布定義（可能已被使用者修改）
-        var payload = ParseAndValidatePayload(request.WorkflowJson, out var parseError);
-        if (payload is null)
+        var (schemaPayload, schemaHooks, _, parseError) = ParseAndValidatePayload(request.WorkflowJson);
+        if (schemaPayload is null)
         {
             yield return ExecutionEvent.Error(parseError!);
             yield break;
@@ -221,7 +216,7 @@ public class WorkflowExecutionService
 
         // 3. 前處理（用當前畫布定義重建 AgentContext）
         WorkflowPreprocessor.PreprocessResult? prepResult = null;
-        await foreach (var (evt, result) in _preprocessor.PrepareAsync(payload, request, cancellationToken))
+        await foreach (var (evt, result) in _preprocessor.PrepareAsync(schemaPayload, request, cancellationToken))
         {
             if (result is not null)
                 prepResult = result;
@@ -240,11 +235,11 @@ public class WorkflowExecutionService
 
         var agentContext = prepResult.Context;
         var userId = await _userContext.GetUserIdAsync();
-        var hooks = payload.WorkflowSettings.Hooks;
+        var hooks = schemaHooks;
 
-        // 4. 建立 Imperative strategy 並呼叫 ResumeFromNodeAsync
+        // 4. 建立 Imperative strategy
         var (strategy, _) = _strategyResolver.Resolve(
-            payload, agentContext, prepResult.ResolvedConnections, request, prepResult.HasA2AOrAutonomousNodes);
+            schemaPayload, agentContext, prepResult.ResolvedConnections, request, prepResult.HasA2AOrAutonomousNodes);
 
         if (strategy is not ImperativeWorkflowStrategy imperativeStrategy)
         {
@@ -254,7 +249,7 @@ public class WorkflowExecutionService
         }
 
         var strategyContext = new WorkflowStrategyContext(
-            payload, prepResult.AllAgentNodes, prepResult.ResolvedConnections, agentContext, request,
+            schemaPayload, prepResult.AllAgentNodes, prepResult.ResolvedConnections, agentContext, request,
             hooks.PreAgent is not null || hooks.PostAgent is not null ? _hookRunner : null,
             hooks, userId, request.SessionId);
 
@@ -274,35 +269,44 @@ public class WorkflowExecutionService
         yield return ExecutionEvent.WorkflowCompleted();
     }
 
-    internal static WorkflowPayload? ParseAndValidatePayload(string workflowJson, out string? error)
+    /// <summary>
+    /// 解析 workflow JSON — 只接受新 Schema v2.0 nested discriminator union 格式。
+    /// Flat 舊格式已於 F2b 棄用；前端於 F3 切換至 Schema v2。
+    /// </summary>
+    internal static (Schema.WorkflowPayload? Payload, Schema.WorkflowHooks Hooks, string WorkflowName, string? Error)
+        ParseAndValidatePayload(string workflowJson)
     {
-        WorkflowPayload? payload;
+        if (string.IsNullOrWhiteSpace(workflowJson))
+        {
+            return (null, new Schema.WorkflowHooks(), "", "Invalid workflow JSON: empty payload");
+        }
+
+        Schema.WorkflowPayload? schemaPayload;
         try
         {
-            payload = JsonSerializer.Deserialize<WorkflowPayload>(workflowJson, JsonOptions);
+            schemaPayload = JsonSerializer.Deserialize<Schema.WorkflowPayload>(
+                workflowJson, Schema.SchemaJsonOptions.Default);
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             var preview = workflowJson.Length > 500 ? workflowJson[..500] + "..." : workflowJson;
-            error = $"Invalid workflow JSON: {ex.Message}\nJSON preview: {preview}";
-            return null;
+            return (null, new Schema.WorkflowHooks(), "",
+                $"Invalid workflow JSON: {ex.Message}\nJSON preview: {preview}");
         }
 
-        if (payload is null)
+        if (schemaPayload is null)
         {
             var preview = workflowJson.Length > 500 ? workflowJson[..500] + "..." : workflowJson;
-            error = $"Invalid workflow JSON: deserialization returned null.\nJSON preview: {preview}";
-            return null;
+            return (null, new Schema.WorkflowHooks(), "",
+                $"Invalid workflow JSON: deserialization returned null.\nJSON preview: {preview}");
         }
 
-        if (payload.Nodes.Count == 0)
+        if (schemaPayload.Nodes.Count == 0)
         {
-            error = "Workflow has no nodes.";
-            return null;
+            return (null, new Schema.WorkflowHooks(), "", "Workflow has no nodes.");
         }
 
-        error = null;
-        return payload;
+        return (schemaPayload, schemaPayload.Hooks, schemaPayload.Settings.Strategy, null);
     }
 
     internal static HookContext CreateHookContext(

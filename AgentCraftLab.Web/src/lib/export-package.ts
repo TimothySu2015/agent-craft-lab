@@ -18,9 +18,15 @@ export async function exportDeployPackage(
   const settings = useWorkflowStore.getState().workflowSettings
   const workflowJson = toWorkflowPayloadJson(nodes, edges, settings)
   const creds = useCredentialStore.getState().credentials
+  // F3: model lives at data.model.provider for both Agent and Autonomous nodes
   const providers = [...new Set(
     nodes.filter((n) => n.type === 'agent' || n.type === 'autonomous')
-      .map((n) => (n.data as any).provider).filter(Boolean)
+      .map((n) => {
+        const d = n.data as NodeData
+        if (d.type === 'agent' || d.type === 'autonomous') return d.model?.provider
+        return undefined
+      })
+      .filter((p): p is string => Boolean(p))
   )]
   if (providers.length === 0) providers.push('openai')
 

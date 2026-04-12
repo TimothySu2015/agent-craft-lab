@@ -79,9 +79,9 @@ describe('NODE_REGISTRY', () => {
 
   it('rag defaultData has embedding config', () => {
     const data = NODE_REGISTRY.rag.defaultData('R') as any
-    expect(data.ragChunkSize).toBe(512)
-    expect(data.ragTopK).toBe(5)
-    expect(data.ragEmbeddingModel).toBeTruthy()
+    expect(data.rag.chunkSize).toBe(512)
+    expect(data.rag.topK).toBe(5)
+    expect(data.rag.embeddingModel).toBeTruthy()
   })
 })
 

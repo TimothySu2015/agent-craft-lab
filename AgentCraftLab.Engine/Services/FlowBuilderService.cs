@@ -31,10 +31,13 @@ public sealed class FlowBuilderService
         _toolIds = tools.Select(t => t.Id).ToArray();
 
         // 從 Registry 動態組建 System Prompt（Singleton 建構時執行一次）
+        // NODE_SPECS 先注入 — 它本身含 PROVIDERS/TOOLS/SKILLS 巢狀 placeholder，
+        // 下面幾個 Replace 會把展開後的 markdown 內的 placeholder 再替換一次。
         var providersSection = BuildProvidersSection();
         var toolsSection = BuildToolsSection(tools);
         var skillsSection = BuildSkillsSection(skillRegistry.GetAvailableSkills());
         _systemPrompt = PromptTemplate
+            .Replace("{NODE_SPECS}", NodeSpecRegistry.BuildMarkdownSection())
             .Replace("{PROVIDERS_SECTION}", providersSection)
             .Replace("{TOOLS_SECTION}", toolsSection)
             .Replace("{SKILLS_SECTION}", skillsSection);
@@ -183,204 +186,22 @@ public sealed class FlowBuilderService
 
 ## 節點類型規格
 
-### agent — LLM Agent 節點
-最核心的節點，由 LLM 驅動，可掛載工具。
-```json
-{
-  "type": "agent",
-  "name": "名稱（英文，如 Researcher）",
-  "data": {
-    "instructions": "Agent 的系統指令（繁體中文）",
-    "model": "gpt-4o",
-    "provider": "openai",
-    "tools": [],
-    "skills": [],
-    "middleware": ""
-  }
-}
-```
-- `provider` 與 `model` 可用組合（自動從 Providers.Catalog 產生）：
-{PROVIDERS_SECTION}
-- `tools`: 內建工具 ID 列表（ID 使用底線 `_`，不是連字號 `-`），可選（自動從 ToolRegistryService 產生）：
-{TOOLS_SECTION}
-- `middleware`: 逗號分隔，可選 guardrails,pii,ratelimit,retry,logging
-- `skills`: Skill ID 列表，為 Agent 注入領域知識/方法論/人設，可選（自動從 SkillRegistryService 產生）：
-{SKILLS_SECTION}
+{NODE_SPECS}
 
-### condition — 條件分支節點
-根據前一個節點的輸出做判斷，有 2 個輸出口（output_1=True, output_2=False）。
-```json
-{
-  "type": "condition",
-  "name": "CheckApproval",
-  "data": {
-    "conditionType": "contains",
-    "conditionExpression": "APPROVED"
-  }
-}
-```
-- `conditionType`: contains, regex, json-path
+## 輸出 JSON 格式（Schema v2）
 
-### loop — 迴圈節點
-反覆執行直到條件滿足，有 2 個輸出口（output_1=Body 繼續, output_2=Exit 跳出）。
-```json
-{
-  "type": "loop",
-  "name": "ReviewLoop",
-  "data": {
-    "conditionType": "contains",
-    "conditionExpression": "APPROVED",
-    "maxIterations": 3
-  }
-}
-```
-
-### router — 路由節點
-將輸入分派到多個分支，有 3 個輸出口（output_1, output_2, output_3）。
-```json
-{
-  "type": "router",
-  "name": "Router",
-  "data": {
-    "conditionExpression": "Classify the input into: billing, technical, or general",
-    "routes": "billing,technical,general"
-  }
-}
-```
-
-### human — 人工介入節點
-暫停流程等待使用者輸入。有 2 個輸出口（output_1=approve, output_2=reject，僅 approval 模式）。
-```json
-{
-  "type": "human",
-  "name": "HumanReview",
-  "data": {
-    "prompt": "請審閱以上內容是否正確？",
-    "inputType": "approval",
-    "timeoutSeconds": 0
-  }
-}
-```
-- `inputType`: text（自由文字）, choice（選擇）, approval（核准/拒絕）
-- `choices`: 僅 choice 模式，逗號分隔選項，如 "選項A,選項B,選項C"
-
-### code — 程式碼轉換節點
-確定性資料轉換，不需 LLM。
-```json
-{
-  "type": "code",
-  "name": "Transform",
-  "data": {
-    "transformType": "template",
-    "template": "摘要：{{input}}"
-  }
-}
-```
-- `transformType`: template, regex-extract, regex-replace, json-path, trim, split, upper, lower
-- template 模式用 `{{input}}` 佔位符
-
-### parallel — 並行節點
-多個分支同時執行（fan-out / fan-in）。分支數量動態設定，最後一個 output port 是 Done。
-```json
-{
-  "type": "parallel",
-  "name": "MultiExpert",
-  "data": {
-    "branches": "Legal,Technical,Financial",
-    "mergeStrategy": "labeled"
-  }
-}
-```
-- `branches`: 逗號分隔的分支名稱（2-8 個）
-- `mergeStrategy`: labeled（帶標題合併）、join（逐行合併）、json（JSON 物件）
-- output_1..N 分別連到各分支的節點鏈，output_(N+1) 是 Done port
-- 所有分支同時執行（Task.WhenAll），完成後合併結果從 Done port 輸出
-
-### iteration — 迭代節點
-對輸入陣列中的每個元素依序執行子流程（foreach）。有 2 個輸出口（output_1=Body 每個元素, output_2=Done 完成後）。
-```json
-{
-  "type": "iteration",
-  "name": "ProcessItems",
-  "data": {
-    "splitMode": "json-array",
-    "maxItems": 50
-  }
-}
-```
-- `splitMode`: json-array（預設，自動解析 JSON 陣列）或 delimiter（用分隔符切割）
-- `iterationDelimiter`: 僅 delimiter 模式，預設 `\n`
-- `maxItems`: 防護上限，預設 50
-- output_1 連接的節點鏈會對**每個元素**執行一次
-- 所有結果彙整後從 output_2 輸出
-
-### a2a-agent — 遠端 A2A Agent 節點
-呼叫遠端 Agent-to-Agent 協定的 Agent，不需本地 LLM。
-```json
-{
-  "type": "a2a-agent",
-  "name": "RemoteAgent",
-  "data": {
-    "a2aUrl": "http://remote-server/a2a",
-    "a2aFormat": "auto"
-  }
-}
-```
-- `a2aUrl`: 遠端 A2A Agent 的 URL
-- `a2aFormat`: auto（自動偵測）、google（Google A2A 格式）、microsoft（Microsoft A2A 格式）
-- 有 A2A Agent 節點時強制 Imperative 策略
-- 超時 300 秒
-
-### http-request — HTTP 請求節點
-不經 LLM，直接呼叫 HTTP API。零 token 成本，確定性執行。
-```json
-{
-  "type": "http-request",
-  "name": "PostToAPI",
-  "data": {
-    "httpUrl": "https://api.example.com/v1/data",
-    "httpMethod": "POST",
-    "httpContentType": "application/json",
-    "httpHeaders": "Authorization: Bearer xxx",
-    "httpBodyTemplate": "{\"content\": \"{input}\"}",
-    "httpArgsTemplate": "{}"
-  }
-}
-```
-- `httpUrl`: API 端點 URL（支援 `{param}` 佔位符）
-- `httpMethod`: GET / POST / PUT / PATCH / DELETE
-- `httpContentType`: application/json / text/plain / text/csv / text/xml / application/x-www-form-urlencoded / multipart/form-data
-- `httpHeaders`: Key: Value 格式，多個用 `\n` 分隔（如 `"Authorization: Bearer xxx\\nContent-Type: application/json"`）。**必須用 `\\n` 跳脫字元，禁止在 JSON string 中放真正的換行**
-- `httpBodyTemplate`: 請求 body 模板，`{input}` 替換為前一節點輸出
-- `httpArgsTemplate`: JSON 參數模板
-- 可選：`httpAuthMode`（none/bearer/basic/apikey-header/apikey-query）、`httpResponseFormat`（text/json/jsonpath）、`httpRetryCount`（0-5）、`httpTimeoutSeconds`（預設 15）
-
-### rag — RAG 節點
-連接到 Agent 後啟用向量檢索增強。不獨立執行，需連線到 Agent。
-```json
-{
-  "type": "rag",
-  "name": "KnowledgeBase",
-  "data": {}
-}
-```
-
-## 輸出 JSON 格式
+節點欄位直接放在 node 物件上（不要用 `"data": {...}` 包裹）。
 
 ```json
 {
   "nodes": [
-    { "type": "agent", "name": "Researcher", "data": { "instructions": "..." } },
-    { "type": "agent", "name": "Writer", "data": { "instructions": "..." } }
+    { "type": "agent", "name": "Researcher", "instructions": "...", "tools": ["web_search"] },
+    { "type": "agent", "name": "Writer", "instructions": "..." }
   ],
   "connections": [
     { "from": 0, "to": 1 },
     { "from": 1, "to": 2, "fromOutput": "output_2" }
-  ],
-  "workflowSettings": {
-    "type": "auto",
-    "maxTurns": 10
-  }
+  ]
 }
 ```
 
@@ -393,12 +214,7 @@ public sealed class FlowBuilderService
   - human (approval): output_1=Approve, output_2=Reject
 - Start 和 End 節點由系統自動產生，不需要在 nodes 中包含
 - 系統會自動將 Start 連到第一個節點、最後一個節點連到 End
-
-### workflowSettings.type 選擇
-- `auto` — 自動偵測（推薦，大多數情況使用此值）
-- `sequential` — 強制依序執行
-- `concurrent` — 所有 agent 同時執行
-- `handoff` — Router agent 委派
+- 不需要輸出 `workflowSettings` — 系統會自動設定
 
 ## 範例
 
@@ -407,15 +223,14 @@ public sealed class FlowBuilderService
 ```json
 {
   "nodes": [
-    { "type": "agent", "name": "Researcher", "data": { "instructions": "你是一位研究員。針對使用者的主題產出重點摘要。請使用繁體中文回答。" } },
-    { "type": "agent", "name": "Drafter", "data": { "instructions": "你是一位撰稿人。根據研究摘要撰寫結構完整的文章草稿。請使用繁體中文回答。" } },
-    { "type": "agent", "name": "Editor", "data": { "instructions": "你是一位編輯。潤飾文字，確保內容清晰、文法正確，輸出最終版本。請使用繁體中文回答。" } }
+    { "type": "agent", "name": "Researcher", "instructions": "你是一位研究員。針對使用者的主題產出重點摘要。請使用繁體中文回答。" },
+    { "type": "agent", "name": "Drafter", "instructions": "你是一位撰稿人。根據研究摘要撰寫結構完整的文章草稿。請使用繁體中文回答。" },
+    { "type": "agent", "name": "Editor", "instructions": "你是一位編輯。潤飾文字，確保內容清晰、文法正確，輸出最終版本。請使用繁體中文回答。" }
   ],
   "connections": [
     { "from": 0, "to": 1 },
     { "from": 1, "to": 2 }
-  ],
-  "workflowSettings": { "type": "auto", "maxTurns": 10 }
+  ]
 }
 ```
 
@@ -424,17 +239,16 @@ public sealed class FlowBuilderService
 ```json
 {
   "nodes": [
-    { "type": "agent", "name": "Writer", "data": { "instructions": "你是一位撰稿人。根據主題撰寫內容。請使用繁體中文回答。" } },
-    { "type": "loop", "name": "ReviewLoop", "data": { "conditionType": "contains", "conditionExpression": "APPROVED", "maxIterations": 3 } },
-    { "type": "agent", "name": "Reviewer", "data": { "instructions": "你是一位審稿人。審閱草稿，通過請回覆 APPROVED，否則提出修改建議。請使用繁體中文回答。" } },
-    { "type": "agent", "name": "Publisher", "data": { "instructions": "你是一位發佈者。將已核准的內容排版並發佈。請使用繁體中文回答。" } }
+    { "type": "agent", "name": "Writer", "instructions": "你是一位撰稿人。根據主題撰寫內容。請使用繁體中文回答。" },
+    { "type": "loop", "name": "ReviewLoop", "condition": { "kind": "contains", "value": "APPROVED" }, "maxIterations": 3 },
+    { "type": "agent", "name": "Reviewer", "instructions": "你是一位審稿人。審閱草稿，通過請回覆 APPROVED，否則提出修改建議。請使用繁體中文回答。" },
+    { "type": "agent", "name": "Publisher", "instructions": "你是一位發佈者。將已核准的內容排版並發佈。請使用繁體中文回答。" }
   ],
   "connections": [
     { "from": 0, "to": 1 },
     { "from": 1, "to": 2, "fromOutput": "output_1" },
     { "from": 1, "to": 3, "fromOutput": "output_2" }
-  ],
-  "workflowSettings": { "type": "auto", "maxTurns": 10 }
+  ]
 }
 ```
 
@@ -443,19 +257,18 @@ public sealed class FlowBuilderService
 ```json
 {
   "nodes": [
-    { "type": "agent", "name": "Triage", "data": { "instructions": "你是一位分流客服。理解客戶需求並分派給適當專員。請使用繁體中文回答。" } },
-    { "type": "router", "name": "Router", "data": { "conditionExpression": "Classify the input into: billing, technical, or general", "routes": "billing,technical,general" } },
-    { "type": "agent", "name": "Billing", "data": { "instructions": "你負責處理帳務相關的問題。請使用繁體中文回答。" } },
-    { "type": "agent", "name": "Technical", "data": { "instructions": "你負責處理技術支援相關的問題。請使用繁體中文回答。" } },
-    { "type": "agent", "name": "General", "data": { "instructions": "你負責處理一般性的諮詢問題。請使用繁體中文回答。" } }
+    { "type": "agent", "name": "Triage", "instructions": "你是一位分流客服。理解客戶需求並分派給適當專員。請使用繁體中文回答。" },
+    { "type": "router", "name": "Router", "routes": [{ "name": "billing", "keywords": ["帳務", "收費"], "isDefault": false }, { "name": "technical", "keywords": ["技術", "bug"], "isDefault": false }, { "name": "general", "keywords": [], "isDefault": true }] },
+    { "type": "agent", "name": "Billing", "instructions": "你負責處理帳務相關的問題。請使用繁體中文回答。" },
+    { "type": "agent", "name": "Technical", "instructions": "你負責處理技術支援相關的問題。請使用繁體中文回答。" },
+    { "type": "agent", "name": "General", "instructions": "你負責處理一般性的諮詢問題。請使用繁體中文回答。" }
   ],
   "connections": [
     { "from": 0, "to": 1 },
     { "from": 1, "to": 2, "fromOutput": "output_1" },
     { "from": 1, "to": 3, "fromOutput": "output_2" },
     { "from": 1, "to": 4, "fromOutput": "output_3" }
-  ],
-  "workflowSettings": { "type": "auto", "maxTurns": 10 }
+  ]
 }
 ```
 
@@ -468,7 +281,38 @@ public sealed class FlowBuilderService
 5. **連線邏輯正確**：from/to index 不能超出 nodes 陣列範圍
 6. **設計簡潔**：不要過度設計，用最少的節點完成需求
 7. **漸進修改**：如果使用者提供了目前畫布狀態（execution payload 格式），在其基礎上修改。注意：畫布 payload 中的 connections 使用 node id（如 "3", "4"），但你的輸出必須使用 nodes 陣列的 **index**（從 0 開始）。你需要理解現有 workflow 的結構，產出修改後的**完整** nodes 與 connections。
-8. **每次回覆都必須包含完整 JSON**：無論是新建還是修改，回覆末尾都必須有一個 ```json 區塊，包含完整的 `{ "nodes": [...], "connections": [...], "workflowSettings": {...} }`。絕對不能只描述修改而不輸出 JSON。
+8. **每次回覆都必須包含完整 JSON**：無論是新建還是修改，回覆末尾都必須有一個 ```json 區塊，包含完整的 `{ "nodes": [...], "connections": [...] }`。絕對不能只描述修改而不輸出 JSON。
 9. **一個 JSON 區塊**：回覆中只包含一個 ```json 區塊，放在回覆最末尾
+
+## 設計原則
+
+### 工具自動推薦
+為每個 Agent 評估：這個任務是否需要即時/最新資料？
+- **需要**（法規/財報/股價/新聞/市場/趨勢/競品/即時數據分析）→ 必須配置搜尋工具（如 `web_search` 或 `azure_web_search`）。沒有工具的 agent 只能用過時的訓練資料，會給使用者錯誤資訊。
+- **不需要**（純推理/寫作/翻譯/格式化/創作）→ 不配工具。
+
+### Parallel 必須有 Synthesizer
+使用 parallel 節點後，必須在最後接一個 Synthesizer Agent 彙整所有分支結果。Synthesizer 不需要搜尋工具（只處理已有資料）。
+
+### Parallel 範例（含工具 + Synthesizer）
+使用者：「建立法律、技術、財務三專家平行分析」
+```json
+{
+  "nodes": [
+    { "type": "parallel", "name": "ExpertAnalysis",
+      "branches": [
+        { "name": "法律", "goal": "你是法律專家，分析輸入內容的法律風險與合規建議。請使用繁體中文回答。", "tools": ["web_search"] },
+        { "name": "技術", "goal": "你是技術專家，分析輸入內容的技術可行性與挑戰。請使用繁體中文回答。", "tools": ["web_search"] },
+        { "name": "財務", "goal": "你是財務專家，分析輸入內容的財務風險與成本效益。請使用繁體中文回答。", "tools": ["web_search"] }
+      ],
+      "merge": "labeled"
+    },
+    { "type": "agent", "name": "Synthesizer", "instructions": "你是一位資深分析師。綜合法律、技術、財務三方專家的分析結果，產出一份完整的評估報告，包含各面向重點摘要、風險矩陣和行動建議。請使用繁體中文回答。" }
+  ],
+  "connections": [
+    { "from": 0, "to": 1 }
+  ]
+}
+```
 """;
 }

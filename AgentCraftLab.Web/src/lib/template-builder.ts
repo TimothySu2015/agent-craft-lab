@@ -9,7 +9,8 @@ import type { NodeData, NodeType } from '@/types/workflow'
 export interface TemplateNodeDef {
   type: NodeType;
   name: string;
-  data?: Partial<NodeData>;
+  /** Schema v2: 欄位直接在 node 物件上（無 data wrapper） */
+  [key: string]: unknown;
 }
 
 export interface TemplateConnection {
@@ -59,7 +60,9 @@ export function buildTemplate(def: TemplateDef): TemplateWorkflow {
     nodeIds.push(id)
 
     const defaultData = config.defaultData(nd.name)
-    const mergedData = { ...defaultData, ...nd.data, name: nd.name } as NodeData
+    // Schema v2: 欄位直接在 node 物件上（type/name 已在 defaultData 中）
+    const { type: _t, name: _n, ...fields } = nd
+    const mergedData = { ...defaultData, ...fields, name: nd.name } as NodeData
 
     // 簡單水平排列，多分支的往下偏移
     const x = xStart + xGap * (i + 1)
