@@ -76,7 +76,8 @@ function parseSegments(text: string): Segment[] {
         const skipTo = actualStart + 1
         if (before.trim()) {
           // 已經 push 過 before
-          segments[segments.length - 1].content += remaining[actualStart]
+          const lastSeg = segments[segments.length - 1]
+          if (lastSeg.type === 'text') lastSeg.content += remaining[actualStart]
         } else {
           segments.push({ type: 'text', content: remaining.slice(0, skipTo) })
         }

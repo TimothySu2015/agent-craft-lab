@@ -11,7 +11,7 @@ vi.mock('react-i18next', () => ({
 }))
 
 // Mock workflow store — use controllable state
-let mockSettings = { type: 'auto' as const, maxTurns: 10, hooks: {} as Record<string, any> }
+let mockSettings: Record<string, any> = { type: 'auto', maxTurns: 10, hooks: {} }
 const mockUpdateSettings = vi.fn((partial: any) => {
   mockSettings = { ...mockSettings, ...partial }
 })
@@ -25,7 +25,7 @@ vi.mock('@/stores/workflow-store', () => ({
 
 describe('WorkflowSettingsDialog', () => {
   beforeEach(() => {
-    mockSettings = { type: 'auto', maxTurns: 10, hooks: {} }
+    mockSettings = { type: 'auto', maxTurns: 10, hooks: {} } as Record<string, any>
     mockUpdateSettings.mockClear()
   })
 

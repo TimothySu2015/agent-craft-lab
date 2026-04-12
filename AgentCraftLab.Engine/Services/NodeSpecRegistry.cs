@@ -54,6 +54,7 @@ public static class NodeSpecRegistry
                 }
                 """,
             Notes: """
+                - `model` 必須是巢狀物件 `{ "provider": "...", "model": "..." }`，**禁止**寫成字串 `"model": "gpt-4o"`
                 - `model.provider` 與 `model.model` 可用組合（自動從 Providers.Catalog 產生）：
                 {PROVIDERS_SECTION}
                 - `tools`: 內建工具 ID 列表（ID 使用底線 `_`，不是連字號 `-`），可選（自動從 ToolRegistryService 產生）：

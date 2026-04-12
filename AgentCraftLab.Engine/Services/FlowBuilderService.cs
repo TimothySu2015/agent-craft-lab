@@ -191,12 +191,13 @@ public sealed class FlowBuilderService
 ## 輸出 JSON 格式（Schema v2）
 
 節點欄位直接放在 node 物件上（不要用 `"data": {...}` 包裹）。
+**重要**：`model` 必須是巢狀物件 `{ "provider": "...", "model": "..." }`，不可以是字串。
 
 ```json
 {
   "nodes": [
-    { "type": "agent", "name": "Researcher", "instructions": "...", "tools": ["web_search"] },
-    { "type": "agent", "name": "Writer", "instructions": "..." }
+    { "type": "agent", "name": "Researcher", "instructions": "...", "model": { "provider": "openai", "model": "gpt-4o" }, "tools": ["web_search"] },
+    { "type": "agent", "name": "Writer", "instructions": "...", "model": { "provider": "openai", "model": "gpt-4o" } }
   ],
   "connections": [
     { "from": 0, "to": 1 },

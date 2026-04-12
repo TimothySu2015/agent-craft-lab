@@ -61,7 +61,8 @@ public static class TransformHelper
     }
 
     /// <summary>
-    /// 強型別入口 — 接受 <see cref="TransformKind"/> enum + <see cref="ScriptLanguage"/>。
+    /// 強型別入口（唯一公開 API）— 接受 <see cref="TransformKind"/> enum + <see cref="ScriptLanguage"/>。
+    /// Regex 模式：有 replacement → replace，無 replacement → extract。
     /// </summary>
     public static string ApplyTransform(
         TransformKind kind, string input, string? expression = null,
@@ -71,7 +72,7 @@ public static class TransformHelper
         var typeString = kind switch
         {
             TransformKind.Template => "template",
-            TransformKind.Regex => "regex-replace",
+            TransformKind.Regex => string.IsNullOrEmpty(replacement) ? "regex-extract" : "regex-replace",
             TransformKind.JsonPath => "json-path",
             TransformKind.Trim or TransformKind.Truncate => "trim",
             TransformKind.Split => "split-take",
@@ -82,17 +83,18 @@ public static class TransformHelper
         };
         var langString = language switch
         {
+            null => null,
             ScriptLanguage.JavaScript => "javascript",
             ScriptLanguage.CSharp => "csharp",
-            _ => null
+            _ => throw new ArgumentOutOfRangeException(nameof(language), language, "Unknown ScriptLanguage")
         };
-        return ApplyTransform(typeString, input, expression, expression, replacement, maxLength, delimiter, splitIndex, langString);
+        return ApplyTransformCore(typeString, input, expression, expression, replacement, maxLength, delimiter, splitIndex, langString);
     }
 
     /// <summary>
-    /// 舊字串入口（向下相容）：9 種模式 — template/regex-extract/regex-replace/json-path/trim/split-take/upper/lower/script。
+    /// 核心轉換邏輯（private）：9 種模式。由 enum overload 委派呼叫。
     /// </summary>
-    public static string ApplyTransform(
+    private static string ApplyTransformCore(
         string transformType, string input, string? template = null, string? pattern = null,
         string? replacement = null, int maxLength = 0, string? delimiter = null, int splitIndex = 0,
         string? scriptLanguage = null)

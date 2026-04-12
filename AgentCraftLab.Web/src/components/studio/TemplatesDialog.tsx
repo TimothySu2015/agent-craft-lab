@@ -123,7 +123,7 @@ export function TemplatesDialog({ open, onClose, onSelect, onSelectCustom }: Pro
           {/* Built-in templates */}
           <div className="grid grid-cols-2 gap-3">
             {filtered.map((tpl) => {
-              const IconComp = (Icons as Record<string, Icons.LucideIcon>)[tpl.icon] ?? Icons.Sparkles
+              const IconComp = (Icons as unknown as Record<string, Icons.LucideIcon>)[tpl.icon] ?? Icons.Sparkles
               return (
                 <button
                   key={tpl.id}

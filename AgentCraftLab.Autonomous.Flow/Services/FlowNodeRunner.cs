@@ -690,30 +690,14 @@ public sealed class FlowNodeRunner
 
     private static ExecutionEvent ExecuteCodeNode(Schema.CodeNode node, string input)
     {
-        // Schema.TransformKind enum → TransformHelper 期望的舊字串常數
-        var transformType = FormatTransformType(node.Kind, node.Replacement);
         var output = TransformHelper.ApplyTransform(
-            transformType,
+            node.Kind,
             input,
-            node.Expression,
-            node.Replacement);
+            expression: node.Expression,
+            replacement: node.Replacement);
 
         return ExecutionEvent.NodeCompleted(NodeTypes.Code, node.Name, output);
     }
-
-    private static string FormatTransformType(Schema.TransformKind kind, string? replacement) => kind switch
-    {
-        Schema.TransformKind.Template => "template",
-        Schema.TransformKind.Regex => string.IsNullOrEmpty(replacement) ? "regex-extract" : "regex-replace",
-        Schema.TransformKind.JsonPath => "json-path",
-        Schema.TransformKind.Trim => "trim",
-        Schema.TransformKind.Truncate => "trim",
-        Schema.TransformKind.Split => "split-take",
-        Schema.TransformKind.Upper => "upper",
-        Schema.TransformKind.Lower => "lower",
-        Schema.TransformKind.Script => "script",
-        _ => "template"
-    };
 
     // ════════════════════════════════════════
     // Condition 節點

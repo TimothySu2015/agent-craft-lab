@@ -28,11 +28,11 @@ export function toWorkflowPayloadJson(
   // 1. 節點：排除 start/end/群組容器，保留 id + nested NodeData
   //    type 必須排在 JSON 物件最前面 — .NET System.Text.Json 的 JsonPolymorphic
   //    discriminator 需要在物件開頭才能正確辨識子型別。
-  const payloadNodes = nodes
+  const payloadNodes: Array<NodeData & { id: string }> = nodes
     .filter((n) => n.type !== 'start' && n.type !== 'end' && !n.type?.endsWith('-group'))
     .map((n) => {
       const { type, ...rest } = n.data as NodeData
-      return { type, id: n.id, ...rest }
+      return { type, id: n.id, ...rest } as NodeData & { id: string }
     })
 
   // 2. 連線：保留 start→node（FindStartNode 用），過濾 node→end
