@@ -190,7 +190,7 @@ export const api = {
       request<void>(`/api/workflows/${id}/publish`, { method: 'PATCH', body: JSON.stringify({ isPublished, inputModes }) }),
   },
   tools: {
-    list: () => request<{ id: string; name: string; description: string; category: string; icon: string }[]>('/api/tools'),
+    list: (locale?: string) => request<{ id: string; name: string; description: string; category: string; icon: string }[]>(`/api/tools${locale ? `?locale=${locale}` : ''}`),
   },
   mcp: {
     discover: (url: string) =>
@@ -321,7 +321,7 @@ export const api = {
     test: (id: string) => request<{ success: boolean; message: string; latencyMs: number }>(`/api/data-sources/${id}/test`, { method: 'POST' }),
   },
   skills: {
-    list: () => request<{ builtin: any[]; custom: any[] }>('/api/skills'),
+    list: (locale?: string) => request<{ builtin: any[]; custom: any[] }>(`/api/skills${locale ? `?locale=${locale}` : ''}`),
     create: (data: any) => request<any>('/api/skills', { method: 'POST', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
     update: (id: string, data: any) => request<any>(`/api/skills/${id}`, { method: 'PUT', body: JSON.stringify(data), headers: { 'Content-Type': 'application/json' } }),
     delete: (id: string) => request<void>(`/api/skills/${id}`, { method: 'DELETE' }),

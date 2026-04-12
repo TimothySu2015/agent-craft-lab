@@ -112,6 +112,15 @@ public static class NodeTypeRegistry
 }
 
 /// <summary>
+/// 支援的 UI 語系。Skill / Tool locale 檔案載入共用。
+/// </summary>
+public static class Locales
+{
+    public static readonly string[] Supported = ["en", "zh-TW", "ja"];
+    public const string Default = "zh-TW";
+}
+
+/// <summary>
 /// Workflow 執行模式常數。
 /// </summary>
 public static class WorkflowTypes
