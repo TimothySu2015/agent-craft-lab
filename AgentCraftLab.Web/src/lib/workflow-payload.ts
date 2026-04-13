@@ -54,6 +54,9 @@ export function toWorkflowPayloadJson(
   if (settings?.contextPassing && settings.contextPassing !== 'previous-only') {
     schemaSettings.contextPassing = settings.contextPassing
   }
+  if (settings?.speculativeExecution) {
+    schemaSettings.speculativeExecution = true
+  }
 
   const payload: SchemaPayload = {
     version: '2.0',

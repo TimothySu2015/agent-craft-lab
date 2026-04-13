@@ -295,6 +295,8 @@
     "varDescription": "説明（任意）",
     "contextPassing": "コンテキスト伝達",
     "contextPassingDesc": "前のステップのコンテキストを各 Agent ノードにどの程度渡すかを制御",
+    "speculativeExecution": "投機的実行",
+    "speculativeExecutionDesc": "Condition ノードが LLM Judge を使用する場合、両方の分岐が並行して実行を開始します。敗者の分岐は破棄されます（追加トークンを消費）。",
     "ctxPreviousOnly": "前のステップの出力のみ（デフォルト）",
     "ctxWithOriginal": "元のリクエストを含む",
     "ctxAccumulate": "全結果を蓄積"

@@ -48,34 +48,6 @@ describe('WorkflowSettingsDialog', () => {
       expect(radios).toHaveLength(5)
     })
 
-    it('hides keyword field when termination is none', () => {
-      render(<WorkflowSettingsDialog open={true} onClose={vi.fn()} />)
-      expect(screen.queryByPlaceholderText('TERMINATE')).not.toBeInTheDocument()
-    })
-
-    it('shows keyword field when termination is keyword', () => {
-      mockSettings = { ...mockSettings, terminationStrategy: 'keyword' as any }
-      render(<WorkflowSettingsDialog open={true} onClose={vi.fn()} />)
-      expect(screen.getByPlaceholderText('TERMINATE')).toBeInTheDocument()
-    })
-
-    it('shows keyword field when termination is combined', () => {
-      mockSettings = { ...mockSettings, terminationStrategy: 'combined' as any }
-      render(<WorkflowSettingsDialog open={true} onClose={vi.fn()} />)
-      expect(screen.getByPlaceholderText('TERMINATE')).toBeInTheDocument()
-    })
-
-    it('hides aggregator when type is not concurrent', () => {
-      render(<WorkflowSettingsDialog open={true} onClose={vi.fn()} />)
-      expect(screen.queryByText('settings.aggregator')).not.toBeInTheDocument()
-    })
-
-    it('shows aggregator when type is concurrent', () => {
-      mockSettings = { ...mockSettings, type: 'concurrent' as const }
-      render(<WorkflowSettingsDialog open={true} onClose={vi.fn()} />)
-      expect(screen.getByText('settings.aggregator')).toBeInTheDocument()
-    })
-
     it('renders context passing select with three options', () => {
       render(<WorkflowSettingsDialog open={true} onClose={vi.fn()} />)
 

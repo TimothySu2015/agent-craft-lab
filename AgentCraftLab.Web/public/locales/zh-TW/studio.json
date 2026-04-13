@@ -295,6 +295,8 @@
     "varDescription": "描述（選填）",
     "contextPassing": "上下文傳遞",
     "contextPassingDesc": "控制前序步驟的上下文如何傳遞給每個 Agent 節點",
+    "speculativeExecution": "投機執行",
+    "speculativeExecutionDesc": "當 Condition 節點使用 LLM Judge 時，兩條分支會同時搶跑。輸家分支的結果會被丟棄（消耗額外 token）。",
     "ctxPreviousOnly": "僅前一步輸出（預設）",
     "ctxWithOriginal": "包含原始請求",
     "ctxAccumulate": "累積所有結果"
