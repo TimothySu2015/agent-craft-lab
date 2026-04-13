@@ -20,9 +20,7 @@ import type { NodeData, NodeType, LayoutDirection, WorkflowVariable } from '@/ty
 export interface WorkflowSettings {
   type: 'auto' | 'sequential' | 'concurrent' | 'handoff' | 'imperative'
   maxTurns: number
-  terminationStrategy?: 'none' | 'maxturns' | 'keyword' | 'combined'
-  terminationKeyword?: string
-  aggregatorStrategy?: 'default' | 'custom'
+  speculativeExecution?: boolean
   contextPassing?: 'previous-only' | 'with-original' | 'accumulate'
   hooks?: Record<string, any>
   variables?: WorkflowVariable[]

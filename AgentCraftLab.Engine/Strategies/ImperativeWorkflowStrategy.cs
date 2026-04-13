@@ -203,6 +203,8 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
         var currentNodeId = startNode.Id;
         var completedNodeIds = new List<string>();
         var checkpointIteration = 0;
+        var maxTurns = payload.Settings.MaxTurns > 0 ? payload.Settings.MaxTurns : int.MaxValue;
+        var agentTurnCount = 0;
 
         while (currentNodeId is not null)
         {
@@ -287,6 +289,17 @@ public class ImperativeWorkflowStrategy : IWorkflowStrategy
                 if (!NodeTypeRegistry.IsMeta(currentNode))
                 {
                     yield return ExecutionEvent.NodeCompleted(currentTypeString, nodeName, state.PreviousResult);
+                }
+
+                // MaxTurns 安全閥：每個 agent-like 節點執行算一個 turn
+                if (NodeTypeRegistry.IsAgentLike(currentNode))
+                {
+                    agentTurnCount++;
+                    if (agentTurnCount >= maxTurns)
+                    {
+                        yield return ExecutionEvent.Error($"Workflow terminated: reached max turns limit ({maxTurns}).");
+                        yield break;
+                    }
                 }
 
                 if (nodeResult.ManagesOwnNavigation)

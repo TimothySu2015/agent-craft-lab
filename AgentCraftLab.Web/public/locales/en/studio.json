@@ -295,6 +295,8 @@
     "varDescription": "Description (optional)",
     "contextPassing": "Context Passing",
     "contextPassingDesc": "Controls how much context from previous steps is passed to each agent node",
+    "speculativeExecution": "Speculative Execution",
+    "speculativeExecutionDesc": "When a Condition node uses LLM Judge, both branches start executing in parallel. The losing branch is discarded (costs extra tokens).",
     "ctxPreviousOnly": "Previous Output Only (default)",
     "ctxWithOriginal": "Include Original Request",
     "ctxAccumulate": "Accumulate All Results"

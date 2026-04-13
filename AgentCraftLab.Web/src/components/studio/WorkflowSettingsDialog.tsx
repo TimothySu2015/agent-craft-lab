@@ -116,26 +116,6 @@ export function WorkflowSettingsDialog({ open, onClose }: Props) {
                 <p className="text-[10px] text-muted-foreground mt-1">{t('settings.maxTurnsDesc')}</p>
               </div>
 
-              {/* Termination Strategy */}
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">{t('settings.termination')}</label>
-                <select className="field-input text-xs" value={settings.terminationStrategy ?? 'none'}
-                  onChange={(e) => updateSettings({ terminationStrategy: e.target.value as any })}>
-                  <option value="none">{t('settings.termNone')}</option>
-                  <option value="maxturns">{t('settings.termMaxTurns')}</option>
-                  <option value="keyword">{t('settings.termKeyword')}</option>
-                  <option value="combined">{t('settings.termCombined')}</option>
-                </select>
-              </div>
-
-              {(settings.terminationStrategy === 'keyword' || settings.terminationStrategy === 'combined') && (
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">{t('settings.terminationKeyword')}</label>
-                  <input className="field-input text-xs" value={settings.terminationKeyword ?? ''} placeholder="TERMINATE"
-                    onChange={(e) => updateSettings({ terminationKeyword: e.target.value })} />
-                </div>
-              )}
-
               {/* Context Passing */}
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1.5">{t('settings.contextPassing')}</label>
@@ -148,17 +128,16 @@ export function WorkflowSettingsDialog({ open, onClose }: Props) {
                 <p className="text-[10px] text-muted-foreground mt-1">{t('settings.contextPassingDesc')}</p>
               </div>
 
-              {/* Aggregator (concurrent mode) */}
-              {settings.type === 'concurrent' && (
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1.5">{t('settings.aggregator')}</label>
-                  <select className="field-input text-xs" value={settings.aggregatorStrategy ?? 'default'}
-                    onChange={(e) => updateSettings({ aggregatorStrategy: e.target.value as any })}>
-                    <option value="default">{t('settings.aggDefault')}</option>
-                    <option value="custom">{t('settings.aggCustom')}</option>
-                  </select>
-                </div>
-              )}
+              {/* Speculative Execution */}
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={settings.speculativeExecution ?? false}
+                    onChange={(e) => updateSettings({ speculativeExecution: e.target.checked })} />
+                  <span className="text-xs font-medium text-muted-foreground">{t('settings.speculativeExecution')}</span>
+                </label>
+                <p className="text-[10px] text-muted-foreground mt-1 ml-6">{t('settings.speculativeExecutionDesc')}</p>
+              </div>
+
             </>
           )}
 
