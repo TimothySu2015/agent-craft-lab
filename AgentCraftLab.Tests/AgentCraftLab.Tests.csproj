@@ -36,4 +36,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Skill + Tool locale 檔案複製到 test output（SkillRegistryService / ToolRegistryService 從相對路徑載入） -->
+  <ItemGroup>
+    <Content Include="..\AgentCraftLab.Api\Data\built-in-skills\**\*" LinkBase="Data\built-in-skills" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\AgentCraftLab.Api\Data\built-in-tools\**\*" LinkBase="Data\built-in-tools" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
