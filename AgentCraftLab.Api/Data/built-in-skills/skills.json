@@ -1,0 +1,13 @@
+[
+  { "id": "code_review", "category": "domainKnowledge", "icon": "&#x1F50D;" },
+  { "id": "legal_review", "category": "domainKnowledge", "icon": "&#x2696;" },
+  { "id": "structured_reasoning", "category": "methodology", "icon": "&#x1F9E0;" },
+  { "id": "swot_analysis", "category": "methodology", "icon": "&#x1F4CA;" },
+  { "id": "debate_council", "category": "methodology", "icon": "&#x2696;&#xFE0F;", "tools": ["web_search", "url_fetch"] },
+  { "id": "formal_writing", "category": "outputFormat", "icon": "&#x1F4DD;" },
+  { "id": "technical_documentation", "category": "outputFormat", "icon": "&#x1F4D6;" },
+  { "id": "customer_service", "category": "persona", "icon": "&#x1F464;" },
+  { "id": "senior_engineer", "category": "persona", "icon": "&#x1F468;&#x200D;&#x1F4BB;" },
+  { "id": "web_researcher", "category": "toolPreset", "icon": "&#x1F50E;", "tools": ["tavily_search", "url_fetch", "web_search"] },
+  { "id": "data_analyst", "category": "toolPreset", "icon": "&#x1F4C8;", "tools": ["csv_log_analyzer", "json_parser", "calculator"] }
+]
