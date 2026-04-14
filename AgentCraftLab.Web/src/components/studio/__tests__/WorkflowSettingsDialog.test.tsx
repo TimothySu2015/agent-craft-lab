@@ -93,7 +93,7 @@ describe('WorkflowSettingsDialog', () => {
 
       expect(mockUpdateSettings).toHaveBeenCalledWith({
         hooks: {
-          onInput: { type: 'code', transformType: 'template', template: '{{input}}' },
+          onInput: { type: 'code', kind: 'template', expression: '{{input}}' },
         },
       })
     })
@@ -101,7 +101,7 @@ describe('WorkflowSettingsDialog', () => {
     it('removes a hook', () => {
       mockSettings = {
         ...mockSettings,
-        hooks: { onInput: { type: 'code', transformType: 'template', template: '{{input}}' } },
+        hooks: { onInput: { type: 'code', kind: 'template', expression: '{{input}}' } },
       }
       render(<WorkflowSettingsDialog open={true} onClose={vi.fn()} />)
       fireEvent.click(screen.getByText(/Hooks/))
@@ -137,7 +137,7 @@ describe('WorkflowSettingsDialog', () => {
     it('shows code fields for code hook type', () => {
       mockSettings = {
         ...mockSettings,
-        hooks: { onInput: { type: 'code', transformType: 'template', template: '{{input}}' } },
+        hooks: { onInput: { type: 'code', kind: 'template', expression: '{{input}}' } },
       }
       render(<WorkflowSettingsDialog open={true} onClose={vi.fn()} />)
       fireEvent.click(screen.getByText(/Hooks/))
@@ -162,15 +162,15 @@ describe('WorkflowSettingsDialog', () => {
       mockSettings = {
         ...mockSettings,
         hooks: {
-          onInput: { type: 'code', transformType: 'template', template: '' },
-          postAgent: { type: 'code', transformType: 'template', template: '' },
+          onInput: { type: 'code', kind: 'template', expression: '' },
+          postAgent: { type: 'code', kind: 'template', expression: '' },
         },
       }
       render(<WorkflowSettingsDialog open={true} onClose={vi.fn()} />)
       fireEvent.click(screen.getByText(/Hooks/))
 
       // blockPattern label should appear for onInput but not postAgent
-      const blockLabels = screen.getAllByText('Block Pattern (regex)')
+      const blockLabels = screen.getAllByText('settings.hookBlockPattern')
       expect(blockLabels).toHaveLength(1) // Only onInput has it
     })
   })

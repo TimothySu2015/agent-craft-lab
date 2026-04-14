@@ -157,4 +157,130 @@ describe('toWorkflowPayloadJson (Schema v2)', () => {
     expect(typePos).toBeLessThan(idPos)
     expect(typePos).toBeGreaterThanOrEqual(0)
   })
+
+  describe('hooks serialization', () => {
+    it('maps code hook with kind and expression', () => {
+      const settings: WorkflowSettings = {
+        type: 'auto',
+        maxTurns: 10,
+        hooks: {
+          onInput: { type: 'code', kind: 'template', expression: 'Hello {{input}}' },
+        },
+      }
+      const result = JSON.parse(toWorkflowPayloadJson([], [], settings))
+
+      expect(result.hooks.onInput).toEqual({
+        type: 'code',
+        kind: 'template',
+        expression: 'Hello {{input}}',
+      })
+    })
+
+    it('includes regex replacement when present', () => {
+      const settings: WorkflowSettings = {
+        type: 'auto',
+        maxTurns: 10,
+        hooks: {
+          preExecute: { type: 'code', kind: 'regex', expression: '\\d+', replacement: '[NUM]' },
+        },
+      }
+      const result = JSON.parse(toWorkflowPayloadJson([], [], settings))
+
+      expect(result.hooks.preExecute).toEqual({
+        type: 'code',
+        kind: 'regex',
+        expression: '\\d+',
+        replacement: '[NUM]',
+      })
+    })
+
+    it('includes split delimiter and index when present', () => {
+      const settings: WorkflowSettings = {
+        type: 'auto',
+        maxTurns: 10,
+        hooks: {
+          onInput: { type: 'code', kind: 'split', expression: '{{input}}', delimiter: ',', splitIndex: 2 },
+        },
+      }
+      const result = JSON.parse(toWorkflowPayloadJson([], [], settings))
+
+      expect(result.hooks.onInput.delimiter).toBe(',')
+      expect(result.hooks.onInput.splitIndex).toBe(2)
+    })
+
+    it('includes truncate maxLength when present', () => {
+      const settings: WorkflowSettings = {
+        type: 'auto',
+        maxTurns: 10,
+        hooks: {
+          onInput: { type: 'code', kind: 'truncate', expression: '{{input}}', maxLength: 500 },
+        },
+      }
+      const result = JSON.parse(toWorkflowPayloadJson([], [], settings))
+
+      expect(result.hooks.onInput.maxLength).toBe(500)
+    })
+
+    it('maps webhook hook with url, method, and bodyTemplate', () => {
+      const settings: WorkflowSettings = {
+        type: 'auto',
+        maxTurns: 10,
+        hooks: {
+          onComplete: {
+            type: 'webhook',
+            url: 'https://example.com/hook',
+            method: 'post',
+            bodyTemplate: '{"text":"{{output}}"}',
+            headers: [{ name: 'Authorization', value: 'Bearer xxx' }],
+          },
+        },
+      }
+      const result = JSON.parse(toWorkflowPayloadJson([], [], settings))
+
+      expect(result.hooks.onComplete).toEqual({
+        type: 'webhook',
+        url: 'https://example.com/hook',
+        method: 'post',
+        bodyTemplate: '{"text":"{{output}}"}',
+        headers: [{ name: 'Authorization', value: 'Bearer xxx' }],
+      })
+    })
+
+    it('includes blockPattern when present', () => {
+      const settings: WorkflowSettings = {
+        type: 'auto',
+        maxTurns: 10,
+        hooks: {
+          onInput: { type: 'code', kind: 'template', expression: '{{input}}', blockPattern: 'ignore.*instructions' },
+        },
+      }
+      const result = JSON.parse(toWorkflowPayloadJson([], [], settings))
+
+      expect(result.hooks.onInput.blockPattern).toBe('ignore.*instructions')
+    })
+
+    it('omits empty optional fields', () => {
+      const settings: WorkflowSettings = {
+        type: 'auto',
+        maxTurns: 10,
+        hooks: {
+          onInput: { type: 'code', kind: 'template', expression: '{{input}}', replacement: '', maxLength: 0 },
+        },
+      }
+      const result = JSON.parse(toWorkflowPayloadJson([], [], settings))
+
+      expect(result.hooks.onInput).toEqual({
+        type: 'code',
+        kind: 'template',
+        expression: '{{input}}',
+      })
+    })
+
+    it('omits hooks when empty', () => {
+      const settings: WorkflowSettings = { type: 'auto', maxTurns: 10, hooks: {} }
+      const result = JSON.parse(toWorkflowPayloadJson([], [], settings))
+
+      expect(result.hooks).toBeUndefined()
+    })
+  })
 })
