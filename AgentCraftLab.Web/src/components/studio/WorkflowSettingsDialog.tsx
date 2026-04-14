@@ -23,17 +23,25 @@ const HOOK_POINTS = [
   { id: 'onError', labelKey: 'settings.hookOnError', descKey: 'settings.hookOnErrorDesc' },
 ]
 
-const TRANSFORM_TYPES = ['template', 'regex-extract', 'regex-replace', 'json-path', 'trim', 'split-take', 'upper', 'lower']
+const TRANSFORM_TYPES = ['template', 'regex', 'jsonPath', 'trim', 'split', 'upper', 'lower', 'truncate'] as const
 
 export interface WorkflowHook {
   type: 'code' | 'webhook'
-  transformType?: string
-  template?: string
-  pattern?: string
+  // Code hook fields (align with backend CodeHook)
+  kind?: string
+  expression?: string
   replacement?: string
+  maxLength?: number
+  delimiter?: string
+  splitIndex?: number
+  // Webhook hook fields (align with backend WebhookHook)
   url?: string
   method?: string
+  headers?: { name: string; value: string }[]
+  bodyTemplate?: string
+  // Shared
   blockPattern?: string
+  blockMessage?: string
 }
 
 interface Props {
@@ -164,7 +172,7 @@ export function WorkflowSettingsDialog({ open, onClose }: Props) {
                       {hook ? (
                         <button onClick={() => setHook(hp.id, null)} className="text-muted-foreground hover:text-red-400 cursor-pointer"><Trash2 size={12} /></button>
                       ) : (
-                        <button onClick={() => setHook(hp.id, { type: 'code', transformType: 'template', template: '{{input}}' })}
+                        <button onClick={() => setHook(hp.id, { type: 'code', kind: 'template', expression: '{{input}}' })}
                           className="flex items-center gap-0.5 text-[9px] text-blue-400 hover:text-blue-300 cursor-pointer"><Plus size={11} /> {t('settings.hookAdd')}</button>
                       )}
                     </div>
@@ -172,36 +180,83 @@ export function WorkflowSettingsDialog({ open, onClose }: Props) {
                       <div className="mt-2 space-y-2">
                         <select className="field-input text-[10px]" value={hook.type}
                           onChange={(e) => setHook(hp.id, { ...hook, type: e.target.value as 'code' | 'webhook' })}>
-                          <option value="code">Code (Transform)</option>
-                          <option value="webhook">Webhook (HTTP)</option>
+                          <option value="code">{t('settings.hookTypeCode')}</option>
+                          <option value="webhook">{t('settings.hookTypeWebhook')}</option>
                         </select>
                         {hook.type === 'code' && (
                           <>
-                            <select className="field-input text-[10px]" value={hook.transformType ?? 'template'}
-                              onChange={(e) => setHook(hp.id, { ...hook, transformType: e.target.value })}>
+                            <select className="field-input text-[10px]" value={hook.kind ?? 'template'}
+                              onChange={(e) => setHook(hp.id, { ...hook, kind: e.target.value })}>
                               {TRANSFORM_TYPES.map((tt) => <option key={tt} value={tt}>{tt}</option>)}
                             </select>
-                            <textarea className="field-textarea text-[10px] font-mono" rows={2} value={hook.template ?? ''}
-                              onChange={(e) => setHook(hp.id, { ...hook, template: e.target.value })} placeholder="{{input}}" />
+                            <textarea className="field-textarea text-[10px] font-mono" rows={2} value={hook.expression ?? ''}
+                              onChange={(e) => setHook(hp.id, { ...hook, expression: e.target.value })} placeholder="{{input}}" />
+                            {hook.kind === 'regex' && (
+                              <input className="field-input text-[10px] font-mono" value={hook.replacement ?? ''}
+                                onChange={(e) => setHook(hp.id, { ...hook, replacement: e.target.value })} placeholder={t('settings.hookReplacement')} />
+                            )}
+                            {hook.kind === 'split' && (
+                              <div className="flex gap-2">
+                                <input className="field-input text-[10px] font-mono flex-1" value={hook.delimiter ?? ''}
+                                  onChange={(e) => setHook(hp.id, { ...hook, delimiter: e.target.value })} placeholder={t('settings.hookDelimiter')} />
+                                <input type="number" className="field-input text-[10px] w-16" value={hook.splitIndex ?? 0}
+                                  onChange={(e) => setHook(hp.id, { ...hook, splitIndex: parseInt(e.target.value) || 0 })} placeholder={t('settings.hookSplitIndex')} />
+                              </div>
+                            )}
+                            {hook.kind === 'truncate' && (
+                              <input type="number" className="field-input text-[10px] w-32" value={hook.maxLength ?? 0}
+                                onChange={(e) => setHook(hp.id, { ...hook, maxLength: parseInt(e.target.value) || 0 })} placeholder={t('settings.hookMaxLength')} />
+                            )}
                           </>
                         )}
                         {hook.type === 'webhook' && (
                           <>
                             <input className="field-input text-[10px]" value={hook.url ?? ''} placeholder="https://..."
                               onChange={(e) => setHook(hp.id, { ...hook, url: e.target.value })} />
-                            <select className="field-input text-[10px]" value={hook.method ?? 'POST'}
+                            <select className="field-input text-[10px]" value={hook.method ?? 'post'}
                               onChange={(e) => setHook(hp.id, { ...hook, method: e.target.value })}>
-                              <option value="POST">POST</option>
-                              <option value="PUT">PUT</option>
-                              <option value="GET">GET</option>
+                              <option value="post">POST</option>
+                              <option value="put">PUT</option>
+                              <option value="get">GET</option>
+                              <option value="delete">DELETE</option>
+                              <option value="patch">PATCH</option>
                             </select>
+                            <textarea className="field-textarea text-[10px] font-mono" rows={2} value={hook.bodyTemplate ?? ''}
+                              onChange={(e) => setHook(hp.id, { ...hook, bodyTemplate: e.target.value })} placeholder={t('settings.hookBodyTemplate')} />
+                            {/* Headers */}
+                            <div>
+                              <label className="text-[9px] text-muted-foreground">{t('settings.hookHeaders')}</label>
+                              {(hook.headers ?? []).map((h, hi) => (
+                                <div key={hi} className="flex gap-1 mt-1">
+                                  <input className="field-input text-[10px] flex-1" value={h.name} placeholder={t('settings.hookHeaderName')}
+                                    onChange={(e) => {
+                                      const next = [...(hook.headers ?? [])]
+                                      next[hi] = { ...next[hi], name: e.target.value }
+                                      setHook(hp.id, { ...hook, headers: next })
+                                    }} />
+                                  <input className="field-input text-[10px] flex-1" value={h.value} placeholder={t('settings.hookHeaderValue')}
+                                    onChange={(e) => {
+                                      const next = [...(hook.headers ?? [])]
+                                      next[hi] = { ...next[hi], value: e.target.value }
+                                      setHook(hp.id, { ...hook, headers: next })
+                                    }} />
+                                  <button className="text-muted-foreground hover:text-red-400 cursor-pointer" onClick={() => {
+                                    setHook(hp.id, { ...hook, headers: (hook.headers ?? []).filter((_, i) => i !== hi) })
+                                  }}><Trash2 size={11} /></button>
+                                </div>
+                              ))}
+                              <button className="text-[9px] text-blue-400 hover:text-blue-300 mt-1 cursor-pointer"
+                                onClick={() => setHook(hp.id, { ...hook, headers: [...(hook.headers ?? []), { name: '', value: '' }] })}>
+                                + {t('settings.hookAddHeader')}
+                              </button>
+                            </div>
                           </>
                         )}
                         {(hp.id === 'onInput' || hp.id === 'preExecute') && (
                           <div>
-                            <label className="text-[9px] text-muted-foreground">Block Pattern (regex)</label>
+                            <label className="text-[9px] text-muted-foreground">{t('settings.hookBlockPattern')}</label>
                             <input className="field-input text-[10px] font-mono" value={hook.blockPattern ?? ''}
-                              onChange={(e) => setHook(hp.id, { ...hook, blockPattern: e.target.value })} placeholder="Optional regex to block input" />
+                              onChange={(e) => setHook(hp.id, { ...hook, blockPattern: e.target.value })} placeholder={t('settings.hookBlockPatternPlaceholder')} />
                           </div>
                         )}
                       </div>

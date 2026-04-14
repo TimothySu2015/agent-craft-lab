@@ -65,12 +65,34 @@ export function toWorkflowPayloadJson(
     connections,
   }
 
-  // 4. Variables / Hooks — 後端 Schema 已有對應結構，直接帶
+  // 4. Variables / Hooks — 後端 Schema 已有對應結構
   if (settings?.variables && settings.variables.length > 0) {
     payload.variables = settings.variables
   }
   if (settings?.hooks && Object.keys(settings.hooks).length > 0) {
-    payload.hooks = settings.hooks
+    // 清理 hooks：移除值為空的欄位，避免後端反序列化預設值覆蓋問題
+    const cleanedHooks: Record<string, unknown> = {}
+    for (const [point, hook] of Object.entries(settings.hooks)) {
+      const h = hook as Record<string, unknown>
+      const cleaned: Record<string, unknown> = { type: h.type }
+      if (h.blockPattern) cleaned.blockPattern = h.blockPattern
+      if (h.blockMessage) cleaned.blockMessage = h.blockMessage
+      if (h.type === 'code') {
+        cleaned.kind = h.kind ?? 'template'
+        cleaned.expression = h.expression ?? '{{input}}'
+        if (h.replacement) cleaned.replacement = h.replacement
+        if (h.maxLength) cleaned.maxLength = h.maxLength
+        if (h.delimiter && h.delimiter !== '\n') cleaned.delimiter = h.delimiter
+        if (h.splitIndex) cleaned.splitIndex = h.splitIndex
+      } else if (h.type === 'webhook') {
+        cleaned.url = h.url ?? ''
+        cleaned.method = h.method ?? 'post'
+        if (h.bodyTemplate) cleaned.bodyTemplate = h.bodyTemplate
+        if (Array.isArray(h.headers) && h.headers.length > 0) cleaned.headers = h.headers
+      }
+      cleanedHooks[point] = cleaned
+    }
+    payload.hooks = cleanedHooks
   }
 
   const json = JSON.stringify(payload)
