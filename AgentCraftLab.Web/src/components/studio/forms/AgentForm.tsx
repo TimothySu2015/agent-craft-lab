@@ -103,8 +103,8 @@ export function AgentForm({ data, onUpdate }: Props) {
           value={data.instructions}
           onChange={(v) => onUpdate({ instructions: v })}
           rows={3}
-          placeholder="Describe what this agent should do..."
-          label={`${data.name || 'Agent'} — Instructions`}
+          placeholder={t('form.instructionsPlaceholder')}
+          label={t('form.agentInstructions', { name: data.name || t('node.agent') })}
           language="markdown"
           onOptimize={handleOptimize}
           suggestions={suggestions}
@@ -115,9 +115,9 @@ export function AgentForm({ data, onUpdate }: Props) {
       <Field label={t('form.outputFormat')}>
         <select className="field-input" value={data.output?.kind ?? 'text'}
           onChange={(e) => onUpdate({ output: { ...data.output, kind: e.target.value as OutputFormat } })}>
-          <option value="text">Text (default)</option>
-          <option value="json">JSON</option>
-          <option value="jsonSchema">JSON Schema</option>
+          <option value="text">{t('form.outputText')}</option>
+          <option value="json">{t('form.outputJson')}</option>
+          <option value="jsonSchema">{t('form.outputJsonSchema')}</option>
         </select>
       </Field>
 
@@ -129,7 +129,7 @@ export function AgentForm({ data, onUpdate }: Props) {
             onChange={(v) => onUpdate({ output: { ...data.output, schemaJson: v } })}
             rows={4}
             placeholder='{"type":"object","properties":{"title":{"type":"string"}}}'
-            label="JSON Schema"
+            label={t('form.jsonSchemaLabel')}
             language="json"
           />
         </Field>
@@ -191,7 +191,7 @@ export function AgentForm({ data, onUpdate }: Props) {
             <div className="flex items-center gap-2">
               <input type="number" className="field-input flex-1" value={data.model.maxOutputTokens ?? ''} placeholder="(default)"
                 onChange={(e) => onUpdate({ model: { ...data.model, maxOutputTokens: e.target.value ? Number(e.target.value) : undefined } })} />
-              <button onClick={() => onUpdate({ model: { ...data.model, maxOutputTokens: undefined } })} className="text-muted-foreground hover:text-foreground cursor-pointer" title="Reset">
+              <button onClick={() => onUpdate({ model: { ...data.model, maxOutputTokens: undefined } })} className="text-muted-foreground hover:text-foreground cursor-pointer" title={t('form.reset')}>
                 <RotateCcw size={12} />
               </button>
             </div>
@@ -200,9 +200,9 @@ export function AgentForm({ data, onUpdate }: Props) {
           <Field label={t('form.chatHistory')}>
             <select className="field-input" value={data.history?.provider ?? 'none'}
               onChange={(e) => onUpdate({ history: { ...data.history, provider: e.target.value as HistoryProvider } })}>
-              <option value="none">None</option>
-              <option value="inMemory">In-Memory (sliding window)</option>
-              <option value="database">Database</option>
+              <option value="none">{t('form.historyNone')}</option>
+              <option value="inMemory">{t('form.historyInMemory')}</option>
+              <option value="database">{t('form.historyDatabase')}</option>
             </select>
           </Field>
 
@@ -210,7 +210,7 @@ export function AgentForm({ data, onUpdate }: Props) {
             <Field label={t('form.maxMessages')}>
               <input type="number" className="field-input" min={1} max={200} value={data.history?.maxMessages ?? 20}
                 onChange={(e) => onUpdate({ history: { ...data.history, maxMessages: Number(e.target.value) } })} />
-              <p className="text-[8px] text-muted-foreground mt-0.5">Sliding window size for conversation history</p>
+              <p className="text-[8px] text-muted-foreground mt-0.5">{t('form.slidingWindowHint')}</p>
             </Field>
           )}
 
@@ -249,12 +249,13 @@ export function AgentForm({ data, onUpdate }: Props) {
 function SliderWithReset({ value, min, max, step, defaultVal, onChange }: {
   value: number; min: number; max: number; step: number; defaultVal: number; onChange: (v: number) => void
 }) {
+  const { t } = useTranslation('studio')
   return (
     <div className="flex items-center gap-2">
       <input type="range" min={min} max={max} step={step} value={value}
         onChange={(e) => onChange(Number(e.target.value))} className="flex-1" style={{ accentColor: 'var(--primary)' }} />
       <span className="text-[10px] text-muted-foreground w-8 text-right">{value.toFixed(step < 1 ? (step < 0.1 ? 2 : 1) : 0)}</span>
-      <button onClick={() => onChange(defaultVal)} className="text-muted-foreground hover:text-foreground cursor-pointer" title="Reset">
+      <button onClick={() => onChange(defaultVal)} className="text-muted-foreground hover:text-foreground cursor-pointer" title={t('form.reset')}>
         <RotateCcw size={11} />
       </button>
     </div>

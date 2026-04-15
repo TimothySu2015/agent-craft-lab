@@ -108,7 +108,7 @@ describe('ExpandableTextarea', () => {
 
   it('shows expand button', () => {
     render(<ExpandableTextarea value="" onChange={() => {}} />)
-    const btn = screen.getByTitle('Expand editor')
+    const btn = screen.getByTitle('expandable.expand')
     expect(btn).toBeDefined()
   })
 })

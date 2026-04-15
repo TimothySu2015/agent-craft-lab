@@ -16,8 +16,13 @@
     "applyToCanvas": "Apply to Canvas",
     "applied": "Applied",
     "noCredential": "Set up API credentials in Credentials page to use AI Build.",
-    "thinking": "Thinking"
+    "thinking": "Thinking",
+    "legacy": "Legacy",
+    "basic": "Basic",
+    "flowPlanner": "Flow Planner"
   },
+  "debugMode": "Debug Mode",
+  "collapse": "Collapse",
   "clearChat": "Clear chat and reset state",
   "copilotActions": "Copilot Actions",
   "copilotActionsTooltip": "Enable AI-powered actions (list tools, test MCP/A2A) with interactive UI in chat. Requires OPENAI_API_KEY on the Runtime server.",

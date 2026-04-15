@@ -422,10 +422,10 @@ export function AiBuildPanel() {
       <div className="flex items-center justify-end gap-1.5 px-3 pt-1.5 border-t border-border/50">
         <label className="flex items-center gap-1 cursor-pointer text-[9px] text-muted-foreground">
           <input type="checkbox" checked={useLegacy} onChange={(e) => setUseLegacy(e.target.checked)} className="accent-violet-500" />
-          Legacy
+          {t('aiBuild.legacy')}
         </label>
         <span className={`text-[9px] font-medium ${useLegacy ? 'text-muted-foreground' : 'text-violet-400'}`}>
-          {useLegacy ? 'Basic' : 'Flow Planner'}
+          {useLegacy ? t('aiBuild.basic') : t('aiBuild.flowPlanner')}
         </span>
       </div>
 

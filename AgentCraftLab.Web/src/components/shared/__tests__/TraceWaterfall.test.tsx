@@ -74,7 +74,7 @@ describe('TraceWaterfall', () => {
     fireEvent.click(screen.getByText('Writer'))
 
     // Modal should show detail fields
-    expect(screen.getByText('Type:')).toBeDefined()
+    expect(screen.getByText('trace.type')).toBeDefined()
     expect(screen.getByText('agent')).toBeDefined()
   })
 

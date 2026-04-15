@@ -20,7 +20,8 @@
     "draft": "Draft",
     "noTypes": "No types",
     "publish": "Publish",
-    "unpublish": "Unpublish"
+    "unpublish": "Unpublish",
+    "required": "required"
   },
   "kb": {
     "title": "Knowledge Bases",
@@ -50,7 +51,9 @@
     "noResults": "No matching chunks found.",
     "urlPlaceholder": "Enter URL to add to knowledge base...",
     "addUrl": "Add URL",
-    "chunkPreview": "Chunk Preview (first 3):"
+    "chunkPreview": "Chunk Preview (first 3):",
+    "deleteFile": "Delete file",
+    "sqliteLegacy": "SQLite (Legacy)"
   },
   "palette": {
     "nodes": "Nodes",
@@ -71,9 +74,23 @@
     "http": "HTTP Request",
     "autonomous": "Autonomous",
     "start": "Start",
-    "end": "End"
+    "end": "End",
+    "branchTrue": "True",
+    "branchFalse": "False",
+    "branches": "Branches: ",
+    "knowledgeBase": "Knowledge Base",
+    "noKbSelected": "No KB selected",
+    "topK": "TopK: ",
+    "maxItems": "Max: ",
+    "routerSubtitle": "Router",
+    "routes": "Routes: ",
+    "ifElse": "IF / ELSE",
+    "foreach": "Foreach",
+    "loopLabel": "Loop",
+    "parallelLabel": "Parallel"
   },
   "dialog": {
+    "defaultName": "My Workflow",
     "saveWorkflow": "Save Workflow",
     "updateWorkflow": "Update Workflow",
     "loadWorkflow": "Load Workflow",
@@ -153,6 +170,13 @@
     "title": "Middleware Configuration",
     "enableFirst": "Enable this middleware to configure it.",
     "selectOne": "Select a middleware from the list.",
+    "label": {
+      "guardrails": "GuardRails",
+      "pii": "PII Masking",
+      "rateLimit": "Rate Limit",
+      "retry": "Retry",
+      "logging": "Logging"
+    },
     "guardrails": {
       "scanAllMessages": "Scan All Messages",
       "scanAllMessagesHelp": "Scan all user messages, not just the last one (recommended for multi-turn safety)",
@@ -161,14 +185,18 @@
       "injectionDetection": "Prompt Injection Detection",
       "injectionDetectionHelp": "Detect common prompt injection patterns (e.g., 'ignore previous instructions')",
       "blockedTerms": "Blocked Terms",
+      "blockedTermsPlaceholder": "hack, attack, password",
       "blockedTermsHelp": "Comma-separated keywords that will block the request",
       "warnTerms": "Warn Terms",
+      "warnTermsPlaceholder": "gambling, investment",
       "warnTermsHelp": "Comma-separated keywords that log a warning but allow through",
       "regexRules": "Regex Rules",
       "regexRulesHelp": "One regex pattern per line (blocks matching content)",
       "allowedTopics": "Allowed Topics",
+      "allowedTopicsPlaceholder": "cooking, recipes, food",
       "allowedTopicsHelp": "Restrict agent to only discuss these topics (comma-separated). Leave empty for no restriction.",
       "blockedResponse": "Blocked Response",
+      "blockedResponsePlaceholder": "Sorry, this request cannot be processed.",
       "blockedResponseHelp": "Custom message returned when content is blocked"
     },
     "pii": {
@@ -189,7 +217,23 @@
       "replacement": "Replacement Text",
       "replacementHelp": "Text to replace PII with (irreversible mode only)",
       "customRules": "Custom Patterns",
+      "customRulesPlaceholder": "Label:regex|Label2:regex2",
       "customRulesHelp": "Format: Label:regex separated by |"
+    },
+    "rateLimit": {
+      "maxPerMinute": "Max Requests/Minute",
+      "cooldownMs": "Cooldown (ms)"
+    },
+    "retry": {
+      "maxRetries": "Max Retries",
+      "strategy": "Strategy",
+      "strategyHelp": "Backoff strategy between retries",
+      "initialDelayMs": "Initial Delay (ms)"
+    },
+    "logging": {
+      "level": "Log Level",
+      "logPrompts": "Log Prompts",
+      "logResponses": "Log Responses"
     }
   },
   "skillPicker": {
@@ -208,18 +252,54 @@
     "apply": "Apply",
     "manage": "Manage"
   },
+  "debug": {
+    "pausedAt": "Debug — paused at {{nodeName}}",
+    "continue": "Continue",
+    "rerun": "Rerun",
+    "skip": "Skip"
+  },
+  "studio": {
+    "openChat": "Open chat"
+  },
+  "chat": {
+    "copied": "Copied!",
+    "copy": "Copy",
+    "workflowJson": "Workflow JSON"
+  },
   "console": {
     "title": "Console",
     "clear": "Clear",
     "empty": "No execution logs yet. Run a workflow to see events here.",
     "tab": {
       "log": "Log",
-      "trace": "Trace"
+      "trace": "Trace",
+      "sources": "Sources"
     }
   },
   "trace": {
     "noData": "No trace data",
-    "expand": "Expand trace"
+    "expand": "Expand trace",
+    "type": "Type:",
+    "source": "Source:",
+    "model": "Model:",
+    "inputTokens": "Input Tokens:",
+    "outputTokens": "Output Tokens:",
+    "total": "Total:",
+    "error": "Error",
+    "toolCalls": "Tool Calls",
+    "input": "Input",
+    "output": "Output",
+    "noContent": "No content available",
+    "noResult": "No result content",
+    "result": "Result"
+  },
+  "editor": {
+    "loading": "Loading...",
+    "openScriptStudio": "Open Script Studio",
+    "scriptStudio": "Script Studio",
+    "empty": "(empty)",
+    "formatTitle": "Format (Shift+Alt+F)",
+    "format": "Format"
   },
   "export": {
     "title": "Export Project",
@@ -325,7 +405,13 @@
     "tools": "Tools",
     "confirmDelete": "Delete this skill?",
     "import": "Import SKILL.md",
-    "export": "Export"
+    "export": "Export",
+    "builtInBadge": "Built-in",
+    "customBadge": "Custom",
+    "defaultName": "My Skill",
+    "defaultCategory": "General",
+    "promptPlaceholder": "System prompt for this skill...",
+    "exportSkill": "Export SKILL.md"
   },
   "form": {
     "provider": "Provider",
@@ -419,7 +505,70 @@
     "httpTimeoutHint": "0 = use global default",
     "httpRetryHint": "429/5xx auto retry (0 = disabled)",
     "httpApiIdHint": "Leave empty to use inline URL/Headers above",
-    "noKeyWarning": "No API key configured for this provider"
+    "noKeyWarning": "No API key configured for this provider",
+    "a2aUrl": "A2A URL",
+    "format": "Format",
+    "autoDetect": "Auto Detect",
+    "googleA2a": "Google A2A",
+    "microsoftA2a": "Microsoft A2A",
+    "conditionType": "Condition Type",
+    "expression": "Expression",
+    "timeout": "Timeout (seconds, 0 = no timeout)",
+    "inputType": "Input Type",
+    "prompt": "Prompt",
+    "inputText": "Text",
+    "inputChoice": "Choice",
+    "inputApproval": "Approval",
+    "humanPromptPlaceholder": "Message to show the user...",
+    "choices": "Choices (comma-separated)",
+    "choicesPlaceholder": "Option A, Option B, Option C",
+    "codeTemplate": "Code — Handlebars Template",
+    "codeScript": "Code — {{lang}}",
+    "templateHint": "Use {{input}} for previous node output. Supports {{#each}} for arrays.",
+    "regexReplacementPlaceholder": "$1 (leave empty for extract mode)",
+    "maxCharsHint": "Maximum characters (0 = no limit)",
+    "splitIndexHint": "0-based index of the part to take",
+    "trimHint": "0 = trim whitespace only",
+    "instructionsPlaceholder": "Describe what this agent should do...",
+    "agentInstructions": "{{name}} — Instructions",
+    "outputText": "Text (default)",
+    "outputJson": "JSON",
+    "outputJsonSchema": "JSON Schema",
+    "jsonSchemaLabel": "JSON Schema",
+    "historyNone": "None",
+    "historyInMemory": "In-Memory (sliding window)",
+    "historyDatabase": "Database",
+    "slidingWindowHint": "Sliding window size for conversation history",
+    "reset": "Reset",
+    "newRouteName": "New route name",
+    "newBranchName": "New branch name",
+    "splitJsonArray": "JSON Array",
+    "splitDelimiter": "Delimiter",
+    "maxItemsHint": "Safety limit to prevent runaway loops",
+    "concurrencyHint": "1 = sequential, >1 = parallel (risk of 429 rate limit)",
+    "mergeLabeled": "Labeled (branch name: result)",
+    "mergeJoin": "Join (concatenate)",
+    "mergeJson": "JSON (structured)",
+    "searchHybrid": "Hybrid",
+    "searchVector": "Vector",
+    "searchFullText": "Full Text",
+    "authNone": "None",
+    "authBearer": "Bearer Token",
+    "authBasic": "Basic Auth",
+    "authApiKeyHeader": "API Key (Header)",
+    "authApiKeyQuery": "API Key (Query)",
+    "responseText": "Text (raw)",
+    "responseJson": "JSON (pretty print)",
+    "responseJsonPath": "JSONPath (extract field)",
+    "httpRefPlaceholder": "my-api (leave empty for inline mode)",
+    "conditionExpression": "Condition — Expression",
+    "regexPlaceholder": "regex pattern...",
+    "textCheckPlaceholder": "text to check...",
+    "humanPrompt": "Human — Prompt",
+    "autonomousGoalPlaceholder": "Describe the goal for this autonomous agent...",
+    "tokenBudgetHint": "Token budget for the entire ReAct session",
+    "authBasicPlaceholder": "user:password",
+    "authTokenPlaceholder": "your-token-or-key"
   },
   "transform": {
     "template": "Template",
@@ -430,7 +579,8 @@
     "splitTake": "Split & Take",
     "upper": "Upper",
     "lower": "Lower",
-    "script": "Script"
+    "script": "Script",
+    "truncate": "Truncate"
   },
   "script": {
     "generateLabel": "Generate with AI",
@@ -527,7 +677,12 @@
     "cloudProviders": "Cloud Providers",
     "localProviders": "Local Inference",
     "searchTools": "Search & Tools",
-    "browserModeNotice": "Browser mode: Keys are stored in your browser session only and will be cleared when you close this tab."
+    "browserModeNotice": "Browser mode: Keys are stored in your browser session only and will be cleared when you close this tab.",
+    "apiKey": "API Key",
+    "notRequired": "(not required)",
+    "hostPort": "Host:Port",
+    "endpoint": "Endpoint",
+    "defaultModel": "Default Model"
   },
   "docRefinery": {
     "title": "Doc Refinery",
@@ -538,6 +693,27 @@
     "noFiles": "No files uploaded.",
     "retry": "Retry indexing",
     "uploadArea": "Drop files here or click to upload (PDF, DOCX, PPTX, XLSX, HTML, TXT, Images)",
+    "processing": "Processing...",
+    "statusIndexed": "Indexed",
+    "statusIndexing": "Indexing",
+    "statusPending": "Pending",
+    "statusFailed": "Failed",
+    "statusSkipped": "Skipped",
+    "section": {
+      "document": "Document",
+      "project_overview": "Project Overview",
+      "stakeholders": "Stakeholders",
+      "functional_requirements": "Functional Requirements",
+      "non_functional_requirements": "Non-Functional Requirements",
+      "data_model": "Data Model",
+      "api_endpoints": "API Endpoints",
+      "ui_screens": "UI Screens",
+      "timeline": "Timeline",
+      "budget": "Budget",
+      "risks": "Risks",
+      "glossary": "Glossary",
+      "open_questions": "Open Questions"
+    },
     "confirmDelete": "Delete refinery project \"{{name}}\"? All files and outputs will be removed.",
     "tabs": {
       "files": "Files",

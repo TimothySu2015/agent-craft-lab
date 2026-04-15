@@ -29,6 +29,10 @@
     "docRefinery": "ドキュメント精製",
     "services": "サービス"
   },
+  "sidebar": {
+    "expand": "展開",
+    "collapse": "折りたたむ"
+  },
   "apiKeys": {
     "createTitle": "API キーを作成",
     "empty": "API キーがありません。外部アクセスを有効にするには作成してください。",
@@ -45,7 +49,36 @@
     "confirmDelete": "「{{name}}」のスケジュールを削除しますか？",
     "commercialRequired": "スケジュール実行には Commercial モードが必要です。ConnectionStrings:MongoDB を設定してください。",
     "noLogs": "実行ログはまだありません。",
-    "executionLogs": "実行ログ"
+    "executionLogs": "実行ログ",
+    "publishedWorkflow": "公開済み Workflow",
+    "select": "-- 選択 --",
+    "cronExpression": "Cron 式",
+    "timeZone": "タイムゾーン",
+    "defaultInput": "デフォルト入力",
+    "optional": "（任意）",
+    "colStatus": "ステータス",
+    "colWorkflow": "Workflow",
+    "colCron": "Cron",
+    "colTimeZone": "タイムゾーン",
+    "colNextRun": "次回実行",
+    "colLastRun": "前回実行",
+    "colActions": "操作",
+    "active": "有効",
+    "paused": "一時停止",
+    "pause": "一時停止",
+    "resume": "再開",
+    "never": "未実行",
+    "logColTime": "時刻",
+    "logColStatus": "ステータス",
+    "logColDuration": "所要時間",
+    "logColOutput": "出力 / エラー",
+    "cronEveryHour": "毎時",
+    "cronDaily9am": "毎日 9時",
+    "cronWeekdays9am": "平日 9時",
+    "cronWeeklyMon": "毎週月曜",
+    "cronEvery30min": "30分ごと",
+    "selectWorkflowError": "Workflow を選択してください。",
+    "cronRequiredError": "Cron 式を入力してください。"
   },
   "kb": {
     "confirmDelete": "「{{name}}」とすべてのファイルを削除しますか？",
@@ -55,7 +88,17 @@
   "tester": {
     "noEndpoints": "エンドポイントがありません。\nWorkflow を公開するか、カスタム URL を追加してください。",
     "sendMessage": "メッセージを送信してエンドポイントをテストします。",
-    "waiting": "応答を待っています..."
+    "waiting": "応答を待っています...",
+    "autoDetect": "自動検出",
+    "googleA2A": "Google A2A",
+    "microsoftA2A": "Microsoft A2A",
+    "mcp": "MCP",
+    "api": "API",
+    "teams": "Teams",
+    "publishedLocal": "公開済み（ローカル）",
+    "external": "外部",
+    "messagePlaceholder": "メッセージを入力...",
+    "selectEndpoint": "エンドポイントを選択するか、カスタム URL を追加してテストを開始してください。"
   },
   "logs": {
     "empty": "この期間のログは見つかりません。",
@@ -64,6 +107,15 @@
     "last7d": "直近 7 日",
     "last30d": "直近 30 日",
     "allProtocols": "全プロトコル"
+  },
+  "confirm": {
+    "ok": "OK",
+    "cancel": "キャンセル"
+  },
+  "expandable": {
+    "expand": "エディタを展開",
+    "instructions": "指示",
+    "discardChanges": "未保存の変更を破棄しますか？"
   },
   "promptRefiner": {
     "optimize": "最適化",

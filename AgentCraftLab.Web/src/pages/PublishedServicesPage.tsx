@@ -220,7 +220,7 @@ function InputModesCard({ workflowId, currentModes, onChanged }: { workflowId: s
             <label key={mode.id} className="flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" checked={checked} disabled={mode.required} onChange={() => toggle(mode.id)} className="accent-blue-500" />
               <span className="text-xs text-foreground">{mode.label}</span>
-              {mode.required && <span className="text-[8px] text-muted-foreground">(required)</span>}
+              {mode.required && <span className="text-[8px] text-muted-foreground">({t('published.required')})</span>}
             </label>
           )
         })}

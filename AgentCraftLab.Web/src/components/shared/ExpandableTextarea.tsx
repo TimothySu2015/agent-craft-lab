@@ -35,6 +35,7 @@ interface Props {
 }
 
 export function ExpandableTextarea({ value, onChange, placeholder, rows = 3, className = '', label, language, onOptimize, suggestions }: Props) {
+  const { t } = useTranslation('common')
   const [expanded, setExpanded] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [suggestionFilter, setSuggestionFilter] = useState('')
@@ -110,7 +111,7 @@ export function ExpandableTextarea({ value, onChange, placeholder, rows = 3, cla
         />
         <button
           onClick={() => setExpanded(true)}
-          title="Expand editor"
+          title={t('expandable.expand')}
           className="absolute top-1.5 right-1.5 rounded p-0.5 text-muted-foreground/50 hover:text-foreground hover:bg-secondary opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
         >
           <Maximize2 size={12} />
@@ -249,7 +250,7 @@ function ExpandedEditor({ value, onChange, onClose, label, language, placeholder
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5 shrink-0">
           <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold text-foreground">{label || 'Instructions'}</h2>
+            <h2 className="text-sm font-semibold text-foreground">{label || t('expandable.instructions')}</h2>
             {language && (
               <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-[9px] font-mono text-blue-400">{language}</span>
             )}

@@ -3,6 +3,7 @@
  * 用法：const { confirm, confirmDialog } = useConfirmDialog()
  */
 import { useState, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -14,7 +15,10 @@ interface ConfirmDialogProps {
   onCancel: () => void
 }
 
-export function ConfirmDialog({ open, message, confirmLabel = 'OK', cancelLabel = 'Cancel', danger = true, onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, message, confirmLabel, cancelLabel, danger = true, onConfirm, onCancel }: ConfirmDialogProps) {
+  const { t } = useTranslation('common')
+  const resolvedConfirmLabel = confirmLabel ?? t('confirm.ok')
+  const resolvedCancelLabel = cancelLabel ?? t('confirm.cancel')
   if (!open) return null
 
   return (
@@ -26,7 +30,7 @@ export function ConfirmDialog({ open, message, confirmLabel = 'OK', cancelLabel 
             className="rounded-md border border-border bg-secondary px-3 py-1.5 text-xs text-muted-foreground cursor-pointer hover:bg-accent"
             onClick={onCancel}
           >
-            {cancelLabel}
+            {resolvedCancelLabel}
           </button>
           <button
             className={`rounded-md px-3 py-1.5 text-xs font-semibold text-white cursor-pointer ${
@@ -35,7 +39,7 @@ export function ConfirmDialog({ open, message, confirmLabel = 'OK', cancelLabel 
             onClick={onConfirm}
             autoFocus
           >
-            {confirmLabel}
+            {resolvedConfirmLabel}
           </button>
         </div>
       </div>

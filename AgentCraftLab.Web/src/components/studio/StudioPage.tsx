@@ -120,7 +120,7 @@ export function StudioPage() {
           <span className="w-px h-5 bg-border mx-0.5" />
 
           {/* ─── 畫布工具 ─── */}
-          <TbBtn onClick={() => useWorkflowStore.getState().layout()} icon={LayoutGrid} title="Auto Layout" />
+          <TbBtn onClick={() => useWorkflowStore.getState().layout()} icon={LayoutGrid} title={t('ctx.layout')} />
           <TbBtn onClick={() => setShowSettings(true)} icon={Settings} title={t('settings.title')} />
           <TbBtn onClick={() => setShowTemplates(true)} icon={Layers} label={t('templates')} />
           <TbBtn onClick={() => {
@@ -161,7 +161,7 @@ export function StudioPage() {
           <button
             onClick={() => setChatOpen(true)}
             className="shrink-0 flex flex-col items-center justify-center w-10 border-l border-border bg-card hover:bg-accent/30 transition-colors cursor-pointer"
-            title="Open chat"
+            title={t('studio.openChat')}
           >
             <PanelRightOpen size={16} className="text-muted-foreground" />
           </button>

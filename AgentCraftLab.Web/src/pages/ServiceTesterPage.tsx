@@ -28,13 +28,13 @@ interface AgentCard {
   version?: string
 }
 
-const PROTOCOLS: { value: Protocol; label: string }[] = [
-  { value: 'auto', label: 'Auto Detect' },
-  { value: 'google', label: 'Google A2A' },
-  { value: 'microsoft', label: 'Microsoft A2A' },
-  { value: 'mcp', label: 'MCP' },
-  { value: 'api', label: 'API' },
-  { value: 'teams', label: 'Teams' },
+const PROTOCOL_KEYS: { value: Protocol; i18nKey: string }[] = [
+  { value: 'auto', i18nKey: 'tester.autoDetect' },
+  { value: 'google', i18nKey: 'tester.googleA2A' },
+  { value: 'microsoft', i18nKey: 'tester.microsoftA2A' },
+  { value: 'mcp', i18nKey: 'tester.mcp' },
+  { value: 'api', i18nKey: 'tester.api' },
+  { value: 'teams', i18nKey: 'tester.teams' },
 ]
 
 function extractName(url: string): string {
@@ -226,8 +226,8 @@ export function ServiceTesterPage() {
               value={customFormat}
               onChange={(e) => setCustomFormat(e.target.value as Protocol)}
             >
-              {PROTOCOLS.map((p) => (
-                <option key={p.value} value={p.value}>{p.label}</option>
+              {PROTOCOL_KEYS.map((p) => (
+                <option key={p.value} value={p.value}>{t(p.i18nKey)}</option>
               ))}
             </select>
           </div>
@@ -237,7 +237,7 @@ export function ServiceTesterPage() {
             {/* Published (Local) */}
             {publishedWorkflows.length > 0 && (
               <>
-                <div className="px-3 pt-3 pb-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Published (Local)</div>
+                <div className="px-3 pt-3 pb-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{t('tester.publishedLocal')}</div>
                 {publishedWorkflows.map((wf) => {
                   const id = `local:${wf.id}`
                   const active = selectedId === id
@@ -263,7 +263,7 @@ export function ServiceTesterPage() {
             {/* External */}
             {externals.length > 0 && (
               <>
-                <div className="px-3 pt-3 pb-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">External</div>
+                <div className="px-3 pt-3 pb-1 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{t('tester.external')}</div>
                 {externals.map((ep) => {
                   const id = `ext:${ep.url}`
                   const active = selectedId === id
@@ -329,8 +329,8 @@ export function ServiceTesterPage() {
                       }
                     }}
                   >
-                    {PROTOCOLS.filter((p) => p.value !== 'auto').map((p) => (
-                      <option key={p.value} value={p.value}>{p.label}</option>
+                    {PROTOCOL_KEYS.filter((p) => p.value !== 'auto').map((p) => (
+                      <option key={p.value} value={p.value}>{t(p.i18nKey)}</option>
                     ))}
                   </select>
                 </div>
@@ -393,7 +393,7 @@ export function ServiceTesterPage() {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     rows={1}
-                    placeholder="Type a message..."
+                    placeholder={t('tester.messagePlaceholder')}
                     style={{ minHeight: 36, maxHeight: 80 }}
                   />
                   <button
@@ -408,7 +408,7 @@ export function ServiceTesterPage() {
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
-              Select an endpoint or add a custom URL to start testing.
+              {t('tester.selectEndpoint')}
             </div>
           )}
         </div>

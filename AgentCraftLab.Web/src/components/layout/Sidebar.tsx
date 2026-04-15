@@ -57,7 +57,7 @@ export function Sidebar() {
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
-          title={collapsed ? 'Expand' : 'Collapse'}
+          title={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
         >
           {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
         </button>

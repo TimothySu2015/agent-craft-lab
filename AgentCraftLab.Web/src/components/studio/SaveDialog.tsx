@@ -17,7 +17,7 @@ export function SaveDialog({ open, onClose, currentId, currentName, onSaved }: P
   const nodes = useWorkflowStore((s) => s.nodes)
   const edges = useWorkflowStore((s) => s.edges)
 
-  const [name, setName] = useState(currentName || 'My Workflow')
+  const [name, setName] = useState(currentName || t('studio:dialog.defaultName'))
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -63,7 +63,7 @@ export function SaveDialog({ open, onClose, currentId, currentName, onSaved }: P
         </div>
 
         <div className="mb-3">
-          <label className="block text-[10px] font-medium uppercase text-muted-foreground mb-1">Name</label>
+          <label className="block text-[10px] font-medium uppercase text-muted-foreground mb-1">{t('studio:name')}</label>
           <input
             className="field-input text-sm"
             value={name}
@@ -73,13 +73,13 @@ export function SaveDialog({ open, onClose, currentId, currentName, onSaved }: P
         </div>
 
         <div className="mb-4">
-          <label className="block text-[10px] font-medium uppercase text-muted-foreground mb-1">Description</label>
+          <label className="block text-[10px] font-medium uppercase text-muted-foreground mb-1">{t('studio:dialog.description')}</label>
           <textarea
             className="field-textarea"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
-            placeholder="Optional..."
+            placeholder={t('studio:dialog.optional')}
           />
         </div>
 

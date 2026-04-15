@@ -56,8 +56,8 @@ export function AutonomousForm({ data, onUpdate }: Props) {
           value={data.instructions}
           onChange={(v) => onUpdate({ instructions: v })}
           rows={4}
-          placeholder="Describe the goal for this autonomous agent..."
-          label={`${data.name || 'Autonomous'} — Goal`}
+          placeholder={t('form.autonomousGoalPlaceholder')}
+          label={`${data.name || t('node.autonomous')} — ${t('form.goal')}`}
           language="markdown"
           suggestions={suggestions}
         />
@@ -71,7 +71,7 @@ export function AutonomousForm({ data, onUpdate }: Props) {
       <Field label={t('form.maxOutputTokens')}>
         <input type="number" className="field-input" value={data.model.maxOutputTokens ?? 200000} placeholder="200000"
           onChange={(e) => onUpdate({ model: { ...data.model, maxOutputTokens: Number(e.target.value) } })} />
-        <p className="text-[8px] text-muted-foreground mt-0.5">Token budget for the entire ReAct session</p>
+        <p className="text-[8px] text-muted-foreground mt-0.5">{t('form.tokenBudgetHint')}</p>
       </Field>
 
       {/* Tools */}

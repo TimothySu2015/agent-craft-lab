@@ -121,7 +121,7 @@ export function SkillsPage() {
                             <span className="text-xs font-semibold text-foreground">{s.name}</span>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={(e) => { e.stopPropagation(); handleExport(s.id, s.name) }} className="text-muted-foreground hover:text-foreground cursor-pointer" title="Export SKILL.md"><Download size={12} /></button>
+                            <button onClick={(e) => { e.stopPropagation(); handleExport(s.id, s.name) }} className="text-muted-foreground hover:text-foreground cursor-pointer" title={t('skills.exportSkill')}><Download size={12} /></button>
                             <button onClick={(e) => { e.stopPropagation(); setEditing(s); setShowForm(true) }} className="text-muted-foreground hover:text-foreground cursor-pointer"><Edit3 size={12} /></button>
                             <button onClick={(e) => { e.stopPropagation(); handleDelete(s.id) }} className="text-muted-foreground hover:text-red-400 cursor-pointer"><Trash2 size={12} /></button>
                           </div>
@@ -148,7 +148,7 @@ export function SkillsPage() {
                         <Sparkles size={13} className="text-blue-400" />
                         <span className="text-xs font-semibold text-foreground">{s.name}</span>
                       </div>
-                      <button onClick={(e) => { e.stopPropagation(); handleExport(s.id, s.name) }} className="text-muted-foreground hover:text-foreground cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity" title="Export SKILL.md"><Download size={12} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleExport(s.id, s.name) }} className="text-muted-foreground hover:text-foreground cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity" title={t('skills.exportSkill')}><Download size={12} /></button>
                     </div>
                     <p className="text-[10px] text-muted-foreground line-clamp-2 mb-1">{s.description}</p>
                     <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-[8px] text-blue-400">{s.category}</span>
@@ -167,7 +167,7 @@ export function SkillsPage() {
                 <Sparkles size={14} className={viewing.isBuiltin ? 'text-blue-400' : 'text-violet-400'} />
                 <span className="text-xs font-semibold text-foreground">{viewing.name}</span>
                 <span className={`rounded px-1.5 py-0.5 text-[8px] ${viewing.isBuiltin ? 'bg-blue-500/10 text-blue-400' : 'bg-violet-500/10 text-violet-400'}`}>
-                  {viewing.isBuiltin ? 'Built-in' : 'Custom'}
+                  {viewing.isBuiltin ? t('skills.builtInBadge') : t('skills.customBadge')}
                 </span>
               </div>
               <button onClick={() => setViewing(null)} className="text-muted-foreground hover:text-foreground cursor-pointer">
@@ -179,21 +179,21 @@ export function SkillsPage() {
               {/* Description */}
               {viewing.description && (
                 <div>
-                  <h3 className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Description</h3>
+                  <h3 className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">{t('dialog.description')}</h3>
                   <p className="text-xs text-foreground">{viewing.description}</p>
                 </div>
               )}
 
               {/* Category */}
               <div>
-                <h3 className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Category</h3>
+                <h3 className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">{t('skills.category')}</h3>
                 <p className="text-xs text-foreground">{viewing.category || '—'}</p>
               </div>
 
               {/* Instructions */}
               {viewing.instructions && (
                 <div>
-                  <h3 className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Instructions</h3>
+                  <h3 className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">{t('skills.instructions')}</h3>
                   <pre className="rounded-md border border-border bg-background p-3 text-[11px] font-mono text-foreground whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto">
                     {viewing.instructions}
                   </pre>
@@ -203,7 +203,7 @@ export function SkillsPage() {
               {/* Tools */}
               {viewing.tools && viewing.tools.length > 0 && (
                 <div>
-                  <h3 className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">Tools</h3>
+                  <h3 className="text-[10px] font-semibold text-muted-foreground uppercase mb-1">{t('skills.tools')}</h3>
                   <div className="flex flex-wrap gap-1">
                     {viewing.tools.map((tool) => (
                       <span key={tool} className="rounded bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[9px] text-blue-400 font-mono">{tool}</span>
@@ -266,11 +266,11 @@ function SkillForm({ editing, onClose, onSaved }: { editing: CustomSkill | null;
         <div className="p-4 space-y-3">
           <div>
             <label className="block text-[10px] text-muted-foreground mb-1">{t('name')}</label>
-            <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Skill" />
+            <input className="field-input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('skills.defaultName')} />
           </div>
           <div>
             <label className="block text-[10px] text-muted-foreground mb-1">{t('skills.category')}</label>
-            <input className="field-input" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="General" />
+            <input className="field-input" value={category} onChange={(e) => setCategory(e.target.value)} placeholder={t('skills.defaultCategory')} />
           </div>
           <div>
             <label className="block text-[10px] text-muted-foreground mb-1">{t('dialog.description')}</label>
@@ -278,7 +278,7 @@ function SkillForm({ editing, onClose, onSaved }: { editing: CustomSkill | null;
           </div>
           <div>
             <label className="block text-[10px] text-muted-foreground mb-1">{t('skills.instructions')}</label>
-            <textarea className="field-textarea" rows={4} value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="System prompt for this skill..." />
+            <textarea className="field-textarea" rows={4} value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder={t('skills.promptPlaceholder')} />
           </div>
           <div>
             <label className="block text-[10px] text-muted-foreground mb-1">{t('skills.tools')}</label>

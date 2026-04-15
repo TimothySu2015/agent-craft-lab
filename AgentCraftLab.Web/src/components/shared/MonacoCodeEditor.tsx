@@ -44,6 +44,7 @@ const EDITOR_OPTIONS: editor.IStandaloneEditorConstructionOptions = {
 }
 
 export function MonacoCodeEditor({ value, onChange, language, label, inlineHeight = 120 }: Props) {
+  const { t } = useTranslation('studio')
   const [expanded, setExpanded] = useState(false)
   const monacoLang = toMonacoLanguage(language)
 
@@ -59,11 +60,11 @@ export function MonacoCodeEditor({ value, onChange, language, label, inlineHeigh
           theme="vs-dark"
           value={value}
           options={{ ...EDITOR_OPTIONS, readOnly: true, lineNumbers: 'on', renderLineHighlight: 'none', domReadOnly: true }}
-          loading={<div className="flex items-center justify-center h-full text-xs text-muted-foreground">Loading...</div>}
+          loading={<div className="flex items-center justify-center h-full text-xs text-muted-foreground">{t('editor.loading')}</div>}
         />
         <div className="absolute inset-0 flex items-center justify-center bg-black/0 hover:bg-black/30 transition-colors">
           <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white bg-black/60 rounded-md px-3 py-1.5 flex items-center gap-1.5">
-            <Maximize2 size={12} /> Open Script Studio
+            <Maximize2 size={12} /> {t('editor.openScriptStudio')}
           </span>
         </div>
       </div>
@@ -192,7 +193,7 @@ function ScriptStudio({ value, onChange, language, monacoLang, label, onClose }:
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5 shrink-0">
           <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold text-foreground">{label || 'Script Studio'}</h2>
+            <h2 className="text-sm font-semibold text-foreground">{label || t('studio:editor.scriptStudio')}</h2>
             <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-[9px] font-mono text-blue-400">{language}</span>
           </div>
           <div className="flex items-center gap-3">
@@ -256,7 +257,7 @@ function ScriptStudio({ value, onChange, language, monacoLang, label, onClose }:
                     ? 'border-green-500/30 bg-green-500/5 text-green-300'
                     : 'border-red-500/30 bg-red-500/5 text-red-300'
                 }`}>
-                  {testResult.success ? testResult.output || '(empty)' : `Error: ${testResult.error}`}
+                  {testResult.success ? testResult.output || t('studio:editor.empty') : `Error: ${testResult.error}`}
                   {testResult.elapsedMs != null && (
                     <span className="block text-[9px] text-muted-foreground mt-0.5">{testResult.elapsedMs.toFixed(1)}ms</span>
                   )}
@@ -286,9 +287,9 @@ function ScriptStudio({ value, onChange, language, monacoLang, label, onClose }:
             </span>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleFormat} title="Format (Shift+Alt+F)"
+            <button onClick={handleFormat} title={t('studio:editor.formatTitle')}
               className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-              <AlignLeft size={12} /> Format
+              <AlignLeft size={12} /> {t('studio:editor.format')}
             </button>
             <button onClick={onClose}
               className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">

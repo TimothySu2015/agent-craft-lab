@@ -3,6 +3,7 @@
  * 偵測回應內容中的 JSON 區塊，以 JSON View 渲染。
  */
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ChevronRight, Code2, Copy } from 'lucide-react'
 import JsonView from 'react18-json-view'
 import 'react18-json-view/src/style.css'
@@ -171,6 +172,7 @@ export function ChatAssistantMessage(props: AssistantMessageProps) {
 }
 
 function JsonBlock({ parsed, raw }: { parsed: unknown; raw: string }) {
+  const { t } = useTranslation('studio')
   const [expanded, setExpanded] = useState(true)
   const [copied, setCopied] = useState(false)
 
@@ -189,14 +191,14 @@ function JsonBlock({ parsed, raw }: { parsed: unknown; raw: string }) {
         >
           <ChevronRight size={12} className={`transition-transform ${expanded ? 'rotate-90' : ''}`} />
           <Code2 size={11} />
-          JSON
+          {t('chat.workflowJson')}
         </button>
         <button
           onClick={handleCopy}
           className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-foreground cursor-pointer"
         >
           <Copy size={10} />
-          {copied ? 'Copied!' : 'Copy'}
+          {copied ? t('chat.copied') : t('chat.copy')}
         </button>
       </div>
       {expanded && (

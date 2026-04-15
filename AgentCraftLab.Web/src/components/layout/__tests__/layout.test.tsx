@@ -71,7 +71,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('AgentCraftLab')).toBeDefined()
 
     // 點擊 collapse 按鈕
-    const collapseBtn = screen.getByTitle('Collapse')
+    const collapseBtn = screen.getByTitle('sidebar.collapse')
     fireEvent.click(collapseBtn)
 
     // 收合後品牌名稱不顯示

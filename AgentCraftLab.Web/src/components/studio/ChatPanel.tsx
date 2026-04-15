@@ -74,7 +74,7 @@ export function ChatPanel({ onCollapse }: ChatPanelProps) {
       {/* Tab bar */}
       <div className="flex items-center border-b border-border shrink-0">
         {onCollapse && (
-          <button onClick={onCollapse} className="px-2 py-2 text-muted-foreground hover:text-foreground cursor-pointer" title="Collapse">
+          <button onClick={onCollapse} className="px-2 py-2 text-muted-foreground hover:text-foreground cursor-pointer" title={t('collapse')}>
             <PanelRightClose size={14} />
           </button>
         )}
@@ -105,7 +105,7 @@ export function ChatPanel({ onCollapse }: ChatPanelProps) {
             {/* TODO: Resume 按鈕暫時隱藏 — 等 Checkpoint Resume 前端完整串接後啟用 */}
             <button
               onClick={() => setDebugMode(!debugMode)}
-              title="Debug Mode"
+              title={t('debugMode')}
               className={`p-1 rounded transition-colors cursor-pointer ${
                 debugMode
                   ? 'text-orange-400 bg-orange-500/15'

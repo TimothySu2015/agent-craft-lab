@@ -20,7 +20,8 @@
     "draft": "下書き",
     "noTypes": "タイプなし",
     "publish": "公開",
-    "unpublish": "非公開にする"
+    "unpublish": "非公開にする",
+    "required": "必須"
   },
   "kb": {
     "title": "ナレッジベース",
@@ -50,7 +51,9 @@
     "noResults": "一致するチャンクが見つかりません。",
     "urlPlaceholder": "ナレッジベースに追加する URL を入力...",
     "addUrl": "URL を追加",
-    "chunkPreview": "チャンクプレビュー（先頭 3 件）："
+    "chunkPreview": "チャンクプレビュー（先頭 3 件）：",
+    "deleteFile": "ファイルを削除",
+    "sqliteLegacy": "SQLite（レガシー）"
   },
   "palette": {
     "nodes": "ノード",
@@ -71,9 +74,23 @@
     "http": "HTTP リクエスト",
     "autonomous": "Autonomous",
     "start": "開始",
-    "end": "終了"
+    "end": "終了",
+    "branchTrue": "True",
+    "branchFalse": "False",
+    "branches": "ブランチ：",
+    "knowledgeBase": "ナレッジベース",
+    "noKbSelected": "KB 未選択",
+    "topK": "TopK：",
+    "maxItems": "上限：",
+    "routerSubtitle": "ルーター",
+    "routes": "ルート：",
+    "ifElse": "IF / ELSE",
+    "foreach": "Foreach",
+    "loopLabel": "ループ",
+    "parallelLabel": "パラレル"
   },
   "dialog": {
+    "defaultName": "マイ Workflow",
     "saveWorkflow": "Workflow を保存",
     "updateWorkflow": "Workflow を更新",
     "loadWorkflow": "Workflow を読み込み",
@@ -153,6 +170,13 @@
     "title": "ミドルウェア設定",
     "enableFirst": "設定するには、まずこのミドルウェアを有効にしてください。",
     "selectOne": "リストからミドルウェアを選択してください。",
+    "label": {
+      "guardrails": "GuardRails",
+      "pii": "PII マスキング",
+      "rateLimit": "レート制限",
+      "retry": "リトライ",
+      "logging": "ロギング"
+    },
     "guardrails": {
       "scanAllMessages": "全メッセージをスキャン",
       "scanAllMessagesHelp": "最後のメッセージだけでなく、すべてのユーザーメッセージをスキャンします（マルチターンの安全性向上に推奨）",
@@ -161,14 +185,18 @@
       "injectionDetection": "Prompt Injection 検出",
       "injectionDetectionHelp": "一般的なプロンプトインジェクションパターンを検出します（例：「前の指示を無視して」）",
       "blockedTerms": "ブロックキーワード",
+      "blockedTermsPlaceholder": "hack, attack, パスワード",
       "blockedTermsHelp": "カンマ区切りのキーワード。一致するとリクエストをブロックします",
       "warnTerms": "警告キーワード",
+      "warnTermsPlaceholder": "ギャンブル, 投資",
       "warnTermsHelp": "カンマ区切りのキーワード。一致すると警告を記録しますが通過を許可します",
       "regexRules": "正規表現ルール",
       "regexRulesHelp": "1 行に 1 つの正規表現パターン（一致するコンテンツをブロック）",
       "allowedTopics": "許可トピック",
+      "allowedTopicsPlaceholder": "料理, レシピ, 食べ物",
       "allowedTopicsHelp": "Agent の議論をこれらのトピックに制限します（カンマ区切り）。空欄で制限なし。",
       "blockedResponse": "ブロック時の応答メッセージ",
+      "blockedResponsePlaceholder": "申し訳ございませんが、このリクエストは処理できません。",
       "blockedResponseHelp": "コンテンツがブロックされた際に返すカスタムメッセージ"
     },
     "pii": {
@@ -189,7 +217,23 @@
       "replacement": "置換テキスト",
       "replacementHelp": "PII を置き換えるテキスト（不可逆モードのみ）",
       "customRules": "カスタムパターン",
+      "customRulesPlaceholder": "ラベル:正規表現|ラベル2:正規表現2",
       "customRulesHelp": "形式：ラベル:正規表現を | で区切り"
+    },
+    "rateLimit": {
+      "maxPerMinute": "最大リクエスト数/分",
+      "cooldownMs": "クールダウン (ms)"
+    },
+    "retry": {
+      "maxRetries": "最大リトライ回数",
+      "strategy": "戦略",
+      "strategyHelp": "リトライ間のバックオフ戦略",
+      "initialDelayMs": "初期遅延 (ms)"
+    },
+    "logging": {
+      "level": "ログレベル",
+      "logPrompts": "プロンプトを記録",
+      "logResponses": "レスポンスを記録"
     }
   },
   "skillPicker": {
@@ -208,18 +252,54 @@
     "apply": "適用",
     "manage": "管理"
   },
+  "debug": {
+    "pausedAt": "Debug — {{nodeName}} で一時停止中",
+    "continue": "続行",
+    "rerun": "再実行",
+    "skip": "スキップ"
+  },
+  "studio": {
+    "openChat": "チャットを開く"
+  },
+  "chat": {
+    "copied": "コピー済み！",
+    "copy": "コピー",
+    "workflowJson": "Workflow JSON"
+  },
   "console": {
     "title": "コンソール",
     "clear": "クリア",
     "empty": "実行ログがありません。Workflow を実行するとイベントが表示されます。",
     "tab": {
       "log": "ログ",
-      "trace": "トレース"
+      "trace": "トレース",
+      "sources": "ソース"
     }
   },
   "trace": {
     "noData": "トレースデータなし",
-    "expand": "トレースを展開"
+    "expand": "トレースを展開",
+    "type": "タイプ：",
+    "source": "ソース：",
+    "model": "モデル：",
+    "inputTokens": "入力トークン：",
+    "outputTokens": "出力トークン：",
+    "total": "合計：",
+    "error": "エラー",
+    "toolCalls": "ツール呼び出し",
+    "input": "入力",
+    "output": "出力",
+    "noContent": "利用可能なコンテンツがありません",
+    "noResult": "結果コンテンツがありません",
+    "result": "結果"
+  },
+  "editor": {
+    "loading": "読み込み中...",
+    "openScriptStudio": "Script Studio を開く",
+    "scriptStudio": "Script Studio",
+    "empty": "（空）",
+    "formatTitle": "フォーマット (Shift+Alt+F)",
+    "format": "フォーマット"
   },
   "export": {
     "title": "プロジェクトをエクスポート",
@@ -325,7 +405,13 @@
     "tools": "ツール",
     "confirmDelete": "このスキルを削除しますか？",
     "import": "SKILL.md をインポート",
-    "export": "エクスポート"
+    "export": "エクスポート",
+    "builtInBadge": "ビルトイン",
+    "customBadge": "カスタム",
+    "defaultName": "マイスキル",
+    "defaultCategory": "一般",
+    "promptPlaceholder": "このスキルのシステムプロンプト...",
+    "exportSkill": "SKILL.md をエクスポート"
   },
   "form": {
     "provider": "プロバイダー",
@@ -418,7 +504,70 @@
     "httpTimeoutHint": "0 = グローバルデフォルトを使用",
     "httpRetryHint": "429/5xx 自動リトライ（0 = 無効）",
     "httpApiIdHint": "空の場合、上記の URL/Headers を使用",
-    "noKeyWarning": "このプロバイダーの API キーが設定されていません"
+    "noKeyWarning": "このプロバイダーの API キーが設定されていません",
+    "a2aUrl": "A2A URL",
+    "format": "形式",
+    "autoDetect": "自動検出",
+    "googleA2a": "Google A2A",
+    "microsoftA2a": "Microsoft A2A",
+    "conditionType": "条件タイプ",
+    "expression": "式",
+    "timeout": "タイムアウト（秒、0 = 無制限）",
+    "inputType": "入力タイプ",
+    "prompt": "プロンプト",
+    "inputText": "テキスト",
+    "inputChoice": "選択",
+    "inputApproval": "承認",
+    "humanPromptPlaceholder": "ユーザーに表示するメッセージ...",
+    "choices": "選択肢（カンマ区切り）",
+    "choicesPlaceholder": "選択肢 A, 選択肢 B, 選択肢 C",
+    "codeTemplate": "Code — Handlebars テンプレート",
+    "codeScript": "Code — {{lang}}",
+    "templateHint": "{{input}} で前のノードの出力を参照。{{#each}} で配列を反復。",
+    "regexReplacementPlaceholder": "$1（空の場合は抽出モード）",
+    "maxCharsHint": "最大文字数（0 = 無制限）",
+    "splitIndexHint": "0始まりのインデックス",
+    "trimHint": "0 = 空白のみ除去",
+    "instructionsPlaceholder": "このエージェントが行うべきことを記述...",
+    "agentInstructions": "{{name}} — 指示",
+    "outputText": "テキスト（デフォルト）",
+    "outputJson": "JSON",
+    "outputJsonSchema": "JSON Schema",
+    "jsonSchemaLabel": "JSON Schema",
+    "historyNone": "なし",
+    "historyInMemory": "メモリ（スライディングウィンドウ）",
+    "historyDatabase": "データベース",
+    "slidingWindowHint": "会話履歴のスライディングウィンドウサイズ",
+    "reset": "リセット",
+    "newRouteName": "新しいルート名",
+    "newBranchName": "新しいブランチ名",
+    "splitJsonArray": "JSON 配列",
+    "splitDelimiter": "区切り文字",
+    "maxItemsHint": "無限ループを防ぐ安全上限",
+    "concurrencyHint": "1 = 逐次、>1 = 並列（429 レート制限のリスクあり）",
+    "mergeLabeled": "ラベル付き（ブランチ名: 結果）",
+    "mergeJoin": "結合（連結）",
+    "mergeJson": "JSON（構造化）",
+    "searchHybrid": "ハイブリッド",
+    "searchVector": "ベクトル",
+    "searchFullText": "全文検索",
+    "authNone": "なし",
+    "authBearer": "Bearer トークン",
+    "authBasic": "Basic 認証",
+    "authApiKeyHeader": "API キー（ヘッダー）",
+    "authApiKeyQuery": "API キー（クエリ）",
+    "responseText": "テキスト（生データ）",
+    "responseJson": "JSON（整形済み）",
+    "responseJsonPath": "JSONPath（フィールド抽出）",
+    "httpRefPlaceholder": "my-api（空の場合はインラインモード）",
+    "conditionExpression": "条件 — 式",
+    "regexPlaceholder": "正規表現パターン...",
+    "textCheckPlaceholder": "チェックするテキスト...",
+    "humanPrompt": "ヒューマン — プロンプト",
+    "autonomousGoalPlaceholder": "この自律エージェントの目標を記述...",
+    "tokenBudgetHint": "ReAct セッション全体のトークン予算",
+    "authBasicPlaceholder": "ユーザー:パスワード",
+    "authTokenPlaceholder": "トークンまたはキー"
   },
   "transform": {
     "template": "テンプレート",
@@ -429,7 +578,8 @@
     "splitTake": "分割取得",
     "upper": "大文字変換",
     "lower": "小文字変換",
-    "script": "スクリプト"
+    "script": "スクリプト",
+    "truncate": "切り捨て"
   },
   "script": {
     "generateLabel": "AI で生成",
@@ -526,7 +676,12 @@
     "cloudProviders": "クラウドプロバイダー",
     "localProviders": "ローカル推論",
     "searchTools": "検索とツール",
-    "browserModeNotice": "ブラウザモード：キーはブラウザセッションにのみ保存され、タブを閉じると削除されます。"
+    "browserModeNotice": "ブラウザモード：キーはブラウザセッションにのみ保存され、タブを閉じると削除されます。",
+    "apiKey": "API キー",
+    "notRequired": "（不要）",
+    "hostPort": "ホスト:ポート",
+    "endpoint": "エンドポイント",
+    "defaultModel": "デフォルトモデル"
   },
   "docRefinery": {
     "title": "ドキュメント精製",
@@ -537,6 +692,27 @@
     "noFiles": "ファイルがアップロードされていません。",
     "retry": "インデックスを再試行",
     "uploadArea": "ここにファイルをドロップするかクリックしてアップロード（PDF, DOCX, PPTX, XLSX, HTML, TXT, 画像）",
+    "processing": "処理中...",
+    "statusIndexed": "インデックス済み",
+    "statusIndexing": "インデックス中",
+    "statusPending": "保留中",
+    "statusFailed": "失敗",
+    "statusSkipped": "スキップ",
+    "section": {
+      "document": "ドキュメント",
+      "project_overview": "プロジェクト概要",
+      "stakeholders": "ステークホルダー",
+      "functional_requirements": "機能要件",
+      "non_functional_requirements": "非機能要件",
+      "data_model": "データモデル",
+      "api_endpoints": "API エンドポイント",
+      "ui_screens": "UI 画面",
+      "timeline": "タイムライン",
+      "budget": "予算",
+      "risks": "リスク",
+      "glossary": "用語集",
+      "open_questions": "未解決の質問"
+    },
     "confirmDelete": "精製プロジェクト「{{name}}」を削除しますか？すべてのファイルと出力が削除されます。",
     "tabs": {
       "files": "ファイル",

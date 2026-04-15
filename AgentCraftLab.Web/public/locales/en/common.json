@@ -29,6 +29,10 @@
     "docRefinery": "Doc Refinery",
     "services": "Services"
   },
+  "sidebar": {
+    "expand": "Expand",
+    "collapse": "Collapse"
+  },
   "apiKeys": {
     "createTitle": "Create API Key",
     "empty": "No API keys yet. Create one to enable external access.",
@@ -45,7 +49,36 @@
     "confirmDelete": "Delete schedule for \"{{name}}\"?",
     "commercialRequired": "Scheduled Workflows requires Commercial mode. Configure ConnectionStrings:MongoDB to enable.",
     "noLogs": "No execution logs yet.",
-    "executionLogs": "Execution Logs"
+    "executionLogs": "Execution Logs",
+    "publishedWorkflow": "Published Workflow",
+    "select": "-- Select --",
+    "cronExpression": "Cron Expression",
+    "timeZone": "Time Zone",
+    "defaultInput": "Default Input",
+    "optional": "(optional)",
+    "colStatus": "Status",
+    "colWorkflow": "Workflow",
+    "colCron": "Cron",
+    "colTimeZone": "Time Zone",
+    "colNextRun": "Next Run",
+    "colLastRun": "Last Run",
+    "colActions": "Actions",
+    "active": "Active",
+    "paused": "Paused",
+    "pause": "Pause",
+    "resume": "Resume",
+    "never": "Never",
+    "logColTime": "Time",
+    "logColStatus": "Status",
+    "logColDuration": "Duration",
+    "logColOutput": "Output / Error",
+    "cronEveryHour": "Every hour",
+    "cronDaily9am": "Daily 9am",
+    "cronWeekdays9am": "Weekdays 9am",
+    "cronWeeklyMon": "Weekly Mon",
+    "cronEvery30min": "Every 30min",
+    "selectWorkflowError": "Please select a workflow.",
+    "cronRequiredError": "Please enter a cron expression."
   },
   "kb": {
     "confirmDelete": "Delete \"{{name}}\" and all its files?",
@@ -55,7 +88,17 @@
   "tester": {
     "noEndpoints": "No endpoints yet.\nPublish a workflow or add a custom URL.",
     "sendMessage": "Send a message to test the endpoint.",
-    "waiting": "Waiting for response..."
+    "waiting": "Waiting for response...",
+    "autoDetect": "Auto Detect",
+    "googleA2A": "Google A2A",
+    "microsoftA2A": "Microsoft A2A",
+    "mcp": "MCP",
+    "api": "API",
+    "teams": "Teams",
+    "publishedLocal": "Published (Local)",
+    "external": "External",
+    "messagePlaceholder": "Type a message...",
+    "selectEndpoint": "Select an endpoint or add a custom URL to start testing."
   },
   "logs": {
     "empty": "No logs found for this time range.",
@@ -64,6 +107,15 @@
     "last7d": "Last 7d",
     "last30d": "Last 30d",
     "allProtocols": "All Protocols"
+  },
+  "confirm": {
+    "ok": "OK",
+    "cancel": "Cancel"
+  },
+  "expandable": {
+    "expand": "Expand editor",
+    "instructions": "Instructions",
+    "discardChanges": "Discard unsaved changes?"
   },
   "promptRefiner": {
     "optimize": "Optimize",

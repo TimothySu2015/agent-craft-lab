@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Field } from '../PropertiesPanel'
 import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
 import { useVariableSuggestions } from '@/hooks/useVariableSuggestions'
@@ -9,12 +10,13 @@ interface Props {
 }
 
 export function ConditionForm({ data, onUpdate }: Props) {
+  const { t } = useTranslation('studio')
   const suggestions = useVariableSuggestions()
   const isLoop = data.type === 'loop'
 
   return (
     <>
-      <Field label="Condition Type">
+      <Field label={t('form.conditionType')}>
         <select
           className="field-input"
           value={data.condition.kind}
@@ -27,19 +29,19 @@ export function ConditionForm({ data, onUpdate }: Props) {
         </select>
       </Field>
 
-      <Field label="Expression">
+      <Field label={t('form.expression')}>
         <ExpandableTextarea
           value={data.condition.value}
           onChange={(v) => onUpdate({ condition: { ...data.condition, value: v } })}
           rows={2}
-          placeholder={data.condition.kind === 'regex' ? 'regex pattern...' : 'text to check...'}
-          label="Condition — Expression"
+          placeholder={data.condition.kind === 'regex' ? t('form.regexPlaceholder') : t('form.textCheckPlaceholder')}
+          label={t('form.conditionExpression')}
           suggestions={suggestions}
         />
       </Field>
 
       {isLoop && (
-        <Field label="Max Iterations">
+        <Field label={t('form.maxIterations')}>
           <input
             type="number"
             className="field-input"
