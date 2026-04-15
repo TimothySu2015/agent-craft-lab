@@ -9,12 +9,12 @@ import { useConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { api, type ScheduleDocument, type ScheduleLogDocument, type WorkflowDocument } from '@/lib/api'
 import { notify } from '@/lib/notify'
 
-const CRON_PRESETS: { label: string; cron: string }[] = [
-  { label: 'Every hour', cron: '0 * * * *' },
-  { label: 'Daily 9am', cron: '0 9 * * *' },
-  { label: 'Weekdays 9am', cron: '0 9 * * 1-5' },
-  { label: 'Weekly Mon', cron: '0 9 * * 1' },
-  { label: 'Every 30min', cron: '*/30 * * * *' },
+const CRON_PRESETS: { labelKey: string; cron: string }[] = [
+  { labelKey: 'schedules.cronEveryHour', cron: '0 * * * *' },
+  { labelKey: 'schedules.cronDaily9am', cron: '0 9 * * *' },
+  { labelKey: 'schedules.cronWeekdays9am', cron: '0 9 * * 1-5' },
+  { labelKey: 'schedules.cronWeeklyMon', cron: '0 9 * * 1' },
+  { labelKey: 'schedules.cronEvery30min', cron: '*/30 * * * *' },
 ]
 
 const COMMON_TIMEZONES = [
@@ -108,8 +108,8 @@ export function SchedulesPage() {
   }
 
   const handleSave = async () => {
-    if (!formWorkflowId) { setError('Please select a workflow.'); return }
-    if (!formCron.trim()) { setError('Please enter a cron expression.'); return }
+    if (!formWorkflowId) { setError(t('schedules.selectWorkflowError')); return }
+    if (!formCron.trim()) { setError(t('schedules.cronRequiredError')); return }
 
     setSaving(true)
     setError(null)
@@ -218,13 +218,13 @@ export function SchedulesPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 {/* Workflow */}
                 <div>
-                  <label className="block text-[10px] text-muted-foreground mb-1">Published Workflow</label>
+                  <label className="block text-[10px] text-muted-foreground mb-1">{t('schedules.publishedWorkflow')}</label>
                   <select
                     className="field-input"
                     value={formWorkflowId}
                     onChange={(e) => setFormWorkflowId(e.target.value)}
                   >
-                    <option value="">-- Select --</option>
+                    <option value="">{t('schedules.select')}</option>
                     {publishedWorkflows.map((w) => (
                       <option key={w.id} value={w.id}>{w.name}</option>
                     ))}
@@ -233,7 +233,7 @@ export function SchedulesPage() {
 
                 {/* Cron */}
                 <div>
-                  <label className="block text-[10px] text-muted-foreground mb-1">Cron Expression</label>
+                  <label className="block text-[10px] text-muted-foreground mb-1">{t('schedules.cronExpression')}</label>
                   <input
                     className="field-input font-mono text-[11px]"
                     value={formCron}
@@ -247,7 +247,7 @@ export function SchedulesPage() {
                         onClick={() => setFormCron(p.cron)}
                         className="text-[9px] text-blue-400 hover:text-blue-300 cursor-pointer"
                       >
-                        {p.label}
+                        {t(p.labelKey)}
                       </button>
                     ))}
                   </div>
@@ -255,7 +255,7 @@ export function SchedulesPage() {
 
                 {/* TimeZone */}
                 <div>
-                  <label className="block text-[10px] text-muted-foreground mb-1">Time Zone</label>
+                  <label className="block text-[10px] text-muted-foreground mb-1">{t('schedules.timeZone')}</label>
                   <select
                     className="field-input"
                     value={formTimeZone}
@@ -269,12 +269,12 @@ export function SchedulesPage() {
 
                 {/* Default Input */}
                 <div>
-                  <label className="block text-[10px] text-muted-foreground mb-1">Default Input</label>
+                  <label className="block text-[10px] text-muted-foreground mb-1">{t('schedules.defaultInput')}</label>
                   <input
                     className="field-input"
                     value={formDefaultInput}
                     onChange={(e) => setFormDefaultInput(e.target.value)}
-                    placeholder="(optional)"
+                    placeholder={t('schedules.optional')}
                   />
                 </div>
               </div>
@@ -308,13 +308,13 @@ export function SchedulesPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-card">
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Status</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Workflow</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Cron</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Time Zone</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Next Run</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Last Run</th>
-                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Actions</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('schedules.colStatus')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('schedules.colWorkflow')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('schedules.colCron')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('schedules.colTimeZone')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('schedules.colNextRun')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('schedules.colLastRun')}</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('schedules.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -325,7 +325,7 @@ export function SchedulesPage() {
                   >
                     <td className="px-3 py-2.5">
                       <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${s.enabled ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-500/15 text-zinc-400'}`}>
-                        {s.enabled ? 'Active' : 'Paused'}
+                        {s.enabled ? t('schedules.active') : t('schedules.paused')}
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-xs font-medium text-foreground">{s.workflowName}</td>
@@ -334,33 +334,33 @@ export function SchedulesPage() {
                     </td>
                     <td className="px-3 py-2.5 text-[10px] text-muted-foreground">{s.timeZone}</td>
                     <td className="px-3 py-2.5 text-[10px] text-muted-foreground">{fmtDate(s.nextRunAt)}</td>
-                    <td className="px-3 py-2.5 text-[10px] text-muted-foreground">{s.lastRunAt ? fmtDate(s.lastRunAt) : 'Never'}</td>
+                    <td className="px-3 py-2.5 text-[10px] text-muted-foreground">{s.lastRunAt ? fmtDate(s.lastRunAt) : t('schedules.never')}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex gap-1">
                         <button
                           onClick={() => handleToggle(s)}
-                          title={s.enabled ? 'Pause' : 'Resume'}
+                          title={s.enabled ? t('schedules.pause') : t('schedules.resume')}
                           className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
                         >
                           {s.enabled ? <Pause size={13} /> : <Play size={13} />}
                         </button>
                         <button
                           onClick={() => handleEdit(s)}
-                          title="Edit"
+                          title={t('edit')}
                           className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
                         >
                           <Edit3 size={13} />
                         </button>
                         <button
                           onClick={() => handleDelete(s)}
-                          title="Delete"
+                          title={t('delete')}
                           className="rounded p-1 text-muted-foreground hover:text-red-400 hover:bg-secondary transition-colors cursor-pointer"
                         >
                           <Trash2 size={13} />
                         </button>
                         <button
                           onClick={() => handleViewLogs(s)}
-                          title="Execution Logs"
+                          title={t('schedules.executionLogs')}
                           className={`rounded p-1 transition-colors cursor-pointer ${logsFor?.id === s.id ? 'text-blue-400 bg-blue-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
                         >
                           <FileText size={13} />
@@ -394,10 +394,10 @@ export function SchedulesPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-card">
-                      <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Time</th>
-                      <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Status</th>
-                      <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Duration</th>
-                      <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">Output / Error</th>
+                      <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('schedules.logColTime')}</th>
+                      <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('schedules.logColStatus')}</th>
+                      <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('schedules.logColDuration')}</th>
+                      <th className="px-3 py-2 text-left text-[10px] font-medium uppercase text-muted-foreground">{t('schedules.logColOutput')}</th>
                     </tr>
                   </thead>
                   <tbody>

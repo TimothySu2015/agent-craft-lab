@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Field } from '../PropertiesPanel'
 import { ExpandableTextarea } from '@/components/shared/ExpandableTextarea'
 import { useVariableSuggestions } from '@/hooks/useVariableSuggestions'
@@ -9,46 +10,47 @@ interface Props {
 }
 
 export function HumanForm({ data, onUpdate }: Props) {
+  const { t } = useTranslation('studio')
   const suggestions = useVariableSuggestions()
   const choicesString = (data.choices ?? []).join(', ')
 
   return (
     <>
-      <Field label="Input Type">
+      <Field label={t('form.inputType')}>
         <select
           className="field-input"
           value={data.kind}
           onChange={(e) => onUpdate({ kind: e.target.value as HumanInputKind })}
         >
-          <option value="text">Text</option>
-          <option value="choice">Choice</option>
-          <option value="approval">Approval</option>
+          <option value="text">{t('form.inputText')}</option>
+          <option value="choice">{t('form.inputChoice')}</option>
+          <option value="approval">{t('form.inputApproval')}</option>
         </select>
       </Field>
 
-      <Field label="Prompt">
+      <Field label={t('form.prompt')}>
         <ExpandableTextarea
           value={data.prompt}
           onChange={(v) => onUpdate({ prompt: v })}
           rows={2}
-          placeholder="Message to show the user..."
-          label="Human — Prompt"
+          placeholder={t('form.humanPromptPlaceholder')}
+          label={t('form.humanPrompt')}
           suggestions={suggestions}
         />
       </Field>
 
       {data.kind === 'choice' && (
-        <Field label="Choices (comma-separated)">
+        <Field label={t('form.choices')}>
           <input
             className="field-input"
             value={choicesString}
             onChange={(e) => onUpdate({ choices: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
-            placeholder="Option A, Option B, Option C"
+            placeholder={t('form.choicesPlaceholder')}
           />
         </Field>
       )}
 
-      <Field label="Timeout (seconds, 0 = no timeout)">
+      <Field label={t('form.timeout')}>
         <input
           type="number"
           className="field-input"

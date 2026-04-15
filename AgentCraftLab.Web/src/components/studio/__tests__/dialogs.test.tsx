@@ -101,7 +101,7 @@ describe('SaveDialog', () => {
 
   it('renders save form when open', () => {
     render(<SaveDialog {...defaultProps} open={true} />)
-    expect(screen.getByDisplayValue('My Workflow')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('studio:dialog.defaultName')).toBeInTheDocument()
   })
 
   it('shows update title when currentId provided', () => {

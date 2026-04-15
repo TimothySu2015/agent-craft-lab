@@ -43,11 +43,11 @@ export function ProviderRow({ provider, cred, isExpanded, onToggle, onUpdate, on
         <div className="px-4 pb-4 pt-1 bg-accent/5">
           <div className="grid grid-cols-1 gap-3 max-w-lg ml-7">
             <div>
-              <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">API Key</label>
+              <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">{t('studio:credentials.apiKey')}</label>
               <div className="relative">
                 <input type={cred.showKey ? 'text' : 'password'} className="field-input pr-8 text-xs"
                   value={cred.apiKey} onChange={(e) => onUpdate('apiKey', e.target.value)}
-                  placeholder={provider.keyOptional ? '(not required)' : provider.id === 'smtp' ? 'password' : 'sk-...'} />
+                  placeholder={provider.keyOptional ? t('studio:credentials.notRequired') : provider.id === 'smtp' ? 'password' : 'sk-...'} />
                 <button onClick={() => onUpdate('showKey', !cred.showKey)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer">
                   {cred.showKey ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -57,7 +57,7 @@ export function ProviderRow({ provider, cred, isExpanded, onToggle, onUpdate, on
             {provider.needsEndpoint && (
               <div>
                 <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">
-                  {provider.id === 'smtp' ? 'Host:Port' : 'Endpoint'}
+                  {provider.id === 'smtp' ? t('studio:credentials.hostPort') : t('studio:credentials.endpoint')}
                 </label>
                 <input type="text" className="field-input text-xs" value={cred.endpoint}
                   onChange={(e) => onUpdate('endpoint', e.target.value)} placeholder={provider.defaultEndpoint ?? 'https://...'} />
@@ -65,7 +65,7 @@ export function ProviderRow({ provider, cred, isExpanded, onToggle, onUpdate, on
             )}
             {provider.models.length > 0 && (
               <div>
-                <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">Default Model</label>
+                <label className="block text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1">{t('studio:credentials.defaultModel')}</label>
                 <select className="field-input text-xs" value={cred.model} onChange={(e) => onUpdate('model', e.target.value)}>
                   {provider.models.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>

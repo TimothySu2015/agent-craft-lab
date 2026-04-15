@@ -55,7 +55,7 @@ describe('SimpleForm — Router', () => {
     const onUpdate = vi.fn()
     render(<SimpleForm data={baseData} onUpdate={onUpdate} />)
 
-    const input = screen.getByPlaceholderText('New route name')
+    const input = screen.getByPlaceholderText('form.newRouteName')
     fireEvent.change(input, { target: { value: 'vip' } })
     const addButton = input.closest('.flex')!.querySelector('button')!
     fireEvent.click(addButton)
@@ -69,7 +69,7 @@ describe('SimpleForm — Router', () => {
     const onUpdate = vi.fn()
     render(<SimpleForm data={baseData} onUpdate={onUpdate} />)
 
-    const input = screen.getByPlaceholderText('New route name')
+    const input = screen.getByPlaceholderText('form.newRouteName')
     fireEvent.change(input, { target: { value: 'vip' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
@@ -82,7 +82,7 @@ describe('SimpleForm — Router', () => {
     const onUpdate = vi.fn()
     render(<SimpleForm data={baseData} onUpdate={onUpdate} />)
 
-    const input = screen.getByPlaceholderText('New route name')
+    const input = screen.getByPlaceholderText('form.newRouteName')
     fireEvent.change(input, { target: { value: '   ' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 
@@ -135,7 +135,7 @@ describe('SimpleForm — Parallel', () => {
     const onUpdate = vi.fn()
     render(<SimpleForm data={baseData} onUpdate={onUpdate} />)
 
-    const input = screen.getByPlaceholderText('New branch name')
+    const input = screen.getByPlaceholderText('form.newBranchName')
     fireEvent.change(input, { target: { value: 'Marketing' } })
     fireEvent.keyDown(input, { key: 'Enter' })
 

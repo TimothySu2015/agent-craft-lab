@@ -20,7 +20,8 @@
     "draft": "草稿",
     "noTypes": "未設定類型",
     "publish": "發布",
-    "unpublish": "取消發布"
+    "unpublish": "取消發布",
+    "required": "必要"
   },
   "kb": {
     "title": "知識庫",
@@ -50,7 +51,9 @@
     "noResults": "未找到匹配的分塊。",
     "urlPlaceholder": "輸入 URL 加入知識庫...",
     "addUrl": "加入 URL",
-    "chunkPreview": "分塊預覽（前 3 個）："
+    "chunkPreview": "分塊預覽（前 3 個）：",
+    "deleteFile": "刪除檔案",
+    "sqliteLegacy": "SQLite（舊版）"
   },
   "palette": {
     "nodes": "節點",
@@ -71,9 +74,23 @@
     "http": "HTTP 請求",
     "autonomous": "自主 Agent",
     "start": "開始",
-    "end": "結束"
+    "end": "結束",
+    "branchTrue": "True",
+    "branchFalse": "False",
+    "branches": "分支：",
+    "knowledgeBase": "知識庫",
+    "noKbSelected": "未選擇知識庫",
+    "topK": "TopK：",
+    "maxItems": "上限：",
+    "routerSubtitle": "路由",
+    "routes": "路由：",
+    "ifElse": "IF / ELSE",
+    "foreach": "Foreach",
+    "loopLabel": "迴圈",
+    "parallelLabel": "並行"
   },
   "dialog": {
+    "defaultName": "我的 Workflow",
     "saveWorkflow": "儲存 Workflow",
     "updateWorkflow": "更新 Workflow",
     "loadWorkflow": "載入 Workflow",
@@ -153,6 +170,13 @@
     "title": "中介層設定",
     "enableFirst": "請先啟用此中介層才能設定。",
     "selectOne": "從左側列表選擇一個中介層。",
+    "label": {
+      "guardrails": "GuardRails",
+      "pii": "PII 遮罩",
+      "rateLimit": "速率限制",
+      "retry": "重試",
+      "logging": "日誌"
+    },
     "guardrails": {
       "scanAllMessages": "掃描所有訊息",
       "scanAllMessagesHelp": "掃描所有使用者訊息，而非只有最後一則（建議啟用，多輪對話更安全）",
@@ -161,14 +185,18 @@
       "injectionDetection": "Prompt Injection 偵測",
       "injectionDetectionHelp": "偵測常見的提示注入攻擊（如「忽略之前的指令」）",
       "blockedTerms": "封鎖關鍵字",
+      "blockedTermsPlaceholder": "hack, attack, 密碼",
       "blockedTermsHelp": "逗號分隔的關鍵字，匹配時封鎖請求",
       "warnTerms": "警告關鍵字",
+      "warnTermsPlaceholder": "gambling, 投資",
       "warnTermsHelp": "逗號分隔的關鍵字，匹配時記錄警告但允許通過",
       "regexRules": "正則規則",
       "regexRulesHelp": "每行一條正則表達式（匹配時封鎖）",
       "allowedTopics": "允許的主題",
+      "allowedTopicsPlaceholder": "烹飪, 食譜, 食物",
       "allowedTopicsHelp": "限制 agent 只能討論這些主題（逗號分隔）。留空表示不限制。",
       "blockedResponse": "封鎖回應訊息",
+      "blockedResponsePlaceholder": "抱歉，此請求無法處理。",
       "blockedResponseHelp": "內容被封鎖時回傳的自訂訊息"
     },
     "pii": {
@@ -189,7 +217,23 @@
       "replacement": "替換文字",
       "replacementHelp": "用於取代 PII 的文字（僅不可逆模式）",
       "customRules": "自訂規則",
+      "customRulesPlaceholder": "標籤:正則|標籤2:正則2",
       "customRulesHelp": "格式：標籤:正則表達式，以 | 分隔"
+    },
+    "rateLimit": {
+      "maxPerMinute": "最大請求數/分鐘",
+      "cooldownMs": "冷卻時間 (ms)"
+    },
+    "retry": {
+      "maxRetries": "最大重試次數",
+      "strategy": "策略",
+      "strategyHelp": "重試之間的退避策略",
+      "initialDelayMs": "初始延遲 (ms)"
+    },
+    "logging": {
+      "level": "日誌等級",
+      "logPrompts": "記錄 Prompt",
+      "logResponses": "記錄回應"
     }
   },
   "skillPicker": {
@@ -208,18 +252,54 @@
     "apply": "套用",
     "manage": "管理"
   },
+  "debug": {
+    "pausedAt": "Debug — 暫停於 {{nodeName}}",
+    "continue": "繼續",
+    "rerun": "重跑",
+    "skip": "跳過"
+  },
+  "studio": {
+    "openChat": "開啟對話"
+  },
+  "chat": {
+    "copied": "已複製！",
+    "copy": "複製",
+    "workflowJson": "Workflow JSON"
+  },
   "console": {
     "title": "Console",
     "clear": "清除",
     "empty": "尚無執行日誌。執行 Workflow 後會在此顯示事件。",
     "tab": {
       "log": "日誌",
-      "trace": "追蹤"
+      "trace": "追蹤",
+      "sources": "來源"
     }
   },
   "trace": {
     "noData": "無追蹤資料",
-    "expand": "展開追蹤"
+    "expand": "展開追蹤",
+    "type": "類型：",
+    "source": "來源：",
+    "model": "模型：",
+    "inputTokens": "輸入 Tokens：",
+    "outputTokens": "輸出 Tokens：",
+    "total": "合計：",
+    "error": "錯誤",
+    "toolCalls": "工具呼叫",
+    "input": "輸入",
+    "output": "輸出",
+    "noContent": "無可用內容",
+    "noResult": "無結果內容",
+    "result": "結果"
+  },
+  "editor": {
+    "loading": "載入中...",
+    "openScriptStudio": "開啟 Script Studio",
+    "scriptStudio": "Script Studio",
+    "empty": "（空）",
+    "formatTitle": "格式化 (Shift+Alt+F)",
+    "format": "格式化"
   },
   "export": {
     "title": "匯出專案",
@@ -325,7 +405,13 @@
     "tools": "工具",
     "confirmDelete": "確定刪除此技能？",
     "import": "匯入 SKILL.md",
-    "export": "匯出"
+    "export": "匯出",
+    "builtInBadge": "內建",
+    "customBadge": "自訂",
+    "defaultName": "我的技能",
+    "defaultCategory": "一般",
+    "promptPlaceholder": "此技能的系統提示...",
+    "exportSkill": "匯出 SKILL.md"
   },
   "form": {
     "provider": "提供者",
@@ -419,7 +505,70 @@
     "httpTimeoutHint": "0 = 使用全域預設",
     "httpRetryHint": "429/5xx 自動重試（0 = 停用）",
     "httpApiIdHint": "留空則使用上方 URL/Headers",
-    "noKeyWarning": "此提供者尚未設定 API 金鑰"
+    "noKeyWarning": "此提供者尚未設定 API 金鑰",
+    "a2aUrl": "A2A URL",
+    "format": "格式",
+    "autoDetect": "自動偵測",
+    "googleA2a": "Google A2A",
+    "microsoftA2a": "Microsoft A2A",
+    "conditionType": "條件類型",
+    "expression": "表達式",
+    "timeout": "逾時（秒，0 = 不限時）",
+    "inputType": "輸入類型",
+    "prompt": "提示訊息",
+    "inputText": "文字",
+    "inputChoice": "選擇",
+    "inputApproval": "核准",
+    "humanPromptPlaceholder": "要顯示給使用者的訊息...",
+    "choices": "選項（逗號分隔）",
+    "choicesPlaceholder": "選項 A, 選項 B, 選項 C",
+    "codeTemplate": "Code — Handlebars 模板",
+    "codeScript": "Code — {{lang}}",
+    "templateHint": "使用 {{input}} 代入前一節點輸出，支援 {{#each}} 迭代陣列。",
+    "regexReplacementPlaceholder": "$1（留空為擷取模式）",
+    "maxCharsHint": "最大字元數（0 = 不限）",
+    "splitIndexHint": "從 0 開始的分割索引",
+    "trimHint": "0 = 僅去除空白",
+    "instructionsPlaceholder": "描述這個 Agent 應該做什麼...",
+    "agentInstructions": "{{name}} — 指令",
+    "outputText": "文字（預設）",
+    "outputJson": "JSON",
+    "outputJsonSchema": "JSON Schema",
+    "jsonSchemaLabel": "JSON Schema",
+    "historyNone": "無",
+    "historyInMemory": "記憶體（滑動窗口）",
+    "historyDatabase": "資料庫",
+    "slidingWindowHint": "對話歷史的滑動窗口大小",
+    "reset": "重設",
+    "newRouteName": "新路由名稱",
+    "newBranchName": "新分支名稱",
+    "splitJsonArray": "JSON 陣列",
+    "splitDelimiter": "分隔符",
+    "maxItemsHint": "防止無限迴圈的安全上限",
+    "concurrencyHint": "1 = 循序，>1 = 平行（有 429 速率限制風險）",
+    "mergeLabeled": "標記（分支名稱: 結果）",
+    "mergeJoin": "串接（合併）",
+    "mergeJson": "JSON（結構化）",
+    "searchHybrid": "混合",
+    "searchVector": "向量",
+    "searchFullText": "全文",
+    "authNone": "無",
+    "authBearer": "Bearer Token",
+    "authBasic": "Basic 認證",
+    "authApiKeyHeader": "API Key（Header）",
+    "authApiKeyQuery": "API Key（Query）",
+    "responseText": "文字（原始）",
+    "responseJson": "JSON（格式化）",
+    "responseJsonPath": "JSONPath（擷取欄位）",
+    "httpRefPlaceholder": "my-api（留空使用行內模式）",
+    "conditionExpression": "條件 — 運算式",
+    "regexPlaceholder": "正規表示式...",
+    "textCheckPlaceholder": "要檢查的文字...",
+    "humanPrompt": "人工 — 提示訊息",
+    "autonomousGoalPlaceholder": "描述此自主代理的目標...",
+    "tokenBudgetHint": "整個 ReAct 會話的 Token 預算",
+    "authBasicPlaceholder": "帳號:密碼",
+    "authTokenPlaceholder": "你的 Token 或金鑰"
   },
   "transform": {
     "template": "模板",
@@ -430,7 +579,8 @@
     "splitTake": "分割取值",
     "upper": "轉大寫",
     "lower": "轉小寫",
-    "script": "腳本"
+    "script": "腳本",
+    "truncate": "截斷"
   },
   "script": {
     "generateLabel": "AI 生成腳本",
@@ -527,7 +677,12 @@
     "cloudProviders": "雲端提供者",
     "localProviders": "地端推理",
     "searchTools": "搜尋與工具",
-    "browserModeNotice": "瀏覽器模式：金鑰僅存於瀏覽器工作階段，關閉分頁即清除。"
+    "browserModeNotice": "瀏覽器模式：金鑰僅存於瀏覽器工作階段，關閉分頁即清除。",
+    "apiKey": "API 金鑰",
+    "notRequired": "（非必填）",
+    "hostPort": "主機:連接埠",
+    "endpoint": "端點",
+    "defaultModel": "預設模型"
   },
   "docRefinery": {
     "title": "文件精煉",
@@ -538,6 +693,27 @@
     "noFiles": "尚未上傳檔案。",
     "retry": "重試索引",
     "uploadArea": "拖拉檔案到這裡，或點擊選擇（支援 PDF、DOCX、PPTX、XLSX、HTML、TXT、圖片）",
+    "processing": "處理中...",
+    "statusIndexed": "已索引",
+    "statusIndexing": "索引中",
+    "statusPending": "等待中",
+    "statusFailed": "失敗",
+    "statusSkipped": "已跳過",
+    "section": {
+      "document": "文件",
+      "project_overview": "專案概覽",
+      "stakeholders": "利害關係人",
+      "functional_requirements": "功能需求",
+      "non_functional_requirements": "非功能需求",
+      "data_model": "資料模型",
+      "api_endpoints": "API 端點",
+      "ui_screens": "UI 畫面",
+      "timeline": "時程",
+      "budget": "預算",
+      "risks": "風險",
+      "glossary": "詞彙表",
+      "open_questions": "待決問題"
+    },
     "confirmDelete": "確定刪除精煉專案「{{name}}」？所有檔案和輸出都會被移除。",
     "tabs": {
       "files": "檔案",

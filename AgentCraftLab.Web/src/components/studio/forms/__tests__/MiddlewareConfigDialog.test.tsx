@@ -33,11 +33,11 @@ describe('MiddlewareConfigDialog', () => {
     render(<MiddlewareConfigDialog {...defaultProps} />)
 
     // Each label appears in both sidebar and detail panel, so use getAllByText
-    expect(screen.getAllByText('GuardRails').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('PII Masking').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Rate Limit').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Retry').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Logging').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('middlewareConfig.label.guardrails').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('middlewareConfig.label.pii').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('middlewareConfig.label.rateLimit').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('middlewareConfig.label.retry').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('middlewareConfig.label.logging').length).toBeGreaterThanOrEqual(1)
   })
 
   it('initializes active set from middleware prop', () => {
@@ -82,10 +82,10 @@ describe('MiddlewareConfigDialog', () => {
     render(<MiddlewareConfigDialog {...defaultProps} middleware="guardrails,ratelimit" />)
 
     // Click on Rate Limit
-    fireEvent.click(screen.getByText('Rate Limit'))
+    fireEvent.click(screen.getByText('middlewareConfig.label.rateLimit'))
 
-    expect(screen.getByText('Max Requests/Minute')).toBeInTheDocument()
-    expect(screen.getByText('Cooldown (ms)')).toBeInTheDocument()
+    expect(screen.getByText('middlewareConfig.rateLimit.maxPerMinute')).toBeInTheDocument()
+    expect(screen.getByText('middlewareConfig.rateLimit.cooldownMs')).toBeInTheDocument()
   })
 
   it('applies with correct middleware string and config', () => {
@@ -126,7 +126,7 @@ describe('MiddlewareConfigDialog', () => {
     render(<MiddlewareConfigDialog {...defaultProps} middleware="ratelimit" />)
 
     // Switch to Rate Limit panel by clicking in sidebar
-    const sidebar = screen.getAllByText('Rate Limit')[0].closest('div[class*="cursor-pointer"]')!
+    const sidebar = screen.getAllByText('middlewareConfig.label.rateLimit')[0].closest('div[class*="cursor-pointer"]')!
     fireEvent.click(sidebar)
 
     // Fill in max per minute
@@ -148,7 +148,7 @@ describe('MiddlewareConfigDialog', () => {
     render(<MiddlewareConfigDialog {...defaultProps} middleware="pii" />)
 
     // Click PII Masking in sidebar
-    const sidebar = screen.getAllByText('PII Masking')[0].closest('div[class*="cursor-pointer"]')!
+    const sidebar = screen.getAllByText('middlewareConfig.label.pii')[0].closest('div[class*="cursor-pointer"]')!
     fireEvent.click(sidebar)
 
     // PII fields use i18n keys
@@ -161,11 +161,11 @@ describe('MiddlewareConfigDialog', () => {
     render(<MiddlewareConfigDialog {...defaultProps} middleware="retry" />)
 
     // Click Retry in sidebar
-    const sidebar = screen.getAllByText('Retry')[0].closest('div[class*="cursor-pointer"]')!
+    const sidebar = screen.getAllByText('middlewareConfig.label.retry')[0].closest('div[class*="cursor-pointer"]')!
     fireEvent.click(sidebar)
 
-    expect(screen.getByText('Max Retries')).toBeInTheDocument()
-    expect(screen.getByText('Strategy')).toBeInTheDocument()
-    expect(screen.getByText('Initial Delay (ms)')).toBeInTheDocument()
+    expect(screen.getByText('middlewareConfig.retry.maxRetries')).toBeInTheDocument()
+    expect(screen.getByText('middlewareConfig.retry.strategy')).toBeInTheDocument()
+    expect(screen.getByText('middlewareConfig.retry.initialDelayMs')).toBeInTheDocument()
   })
 })

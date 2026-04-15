@@ -16,8 +16,13 @@
     "applyToCanvas": "套用到畫布",
     "applied": "已套用",
     "noCredential": "請先到憑證管理頁面設定 API Key 才能使用 AI 建構。",
-    "thinking": "設計思路"
+    "thinking": "設計思路",
+    "legacy": "傳統模式",
+    "basic": "基礎",
+    "flowPlanner": "Flow 規劃器"
   },
+  "debugMode": "除錯模式",
+  "collapse": "收合",
   "clearChat": "清除對話與執行狀態",
   "copilotActions": "Copilot Actions",
   "copilotActionsTooltip": "啟用 AI 互動功能（列出工具、測試 MCP/A2A），在 Chat 中顯示互動式 UI。需要在 Runtime 設定 OPENAI_API_KEY。",

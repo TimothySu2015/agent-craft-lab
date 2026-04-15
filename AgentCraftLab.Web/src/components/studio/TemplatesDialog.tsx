@@ -110,7 +110,7 @@ export function TemplatesDialog({ open, onClose, onSelect, onSelectCustom }: Pro
                     <button
                       onClick={() => removeCustom(tpl.id)}
                       className="self-end mt-1 text-muted-foreground hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                      title="Delete"
+                      title={t('ctx.delete')}
                     >
                       <Trash2 size={12} />
                     </button>

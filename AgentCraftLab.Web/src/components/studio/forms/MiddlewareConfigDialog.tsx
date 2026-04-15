@@ -49,37 +49,37 @@ const PII_LOCALE_OPTIONS: CheckboxGroupOption[] = [
 ]
 
 const MIDDLEWARE_DEFS: MiddlewareDef[] = [
-  { id: 'guardrails', label: 'GuardRails', fields: [
+  { id: 'guardrails', label: 'middlewareConfig.label.guardrails', fields: [
     { key: 'scanAllMessages', label: 'middlewareConfig.guardrails.scanAllMessages', type: 'checkbox', help: 'middlewareConfig.guardrails.scanAllMessagesHelp' },
     { key: 'scanOutput', label: 'middlewareConfig.guardrails.scanOutput', type: 'checkbox', help: 'middlewareConfig.guardrails.scanOutputHelp' },
     { key: 'enableInjectionDetection', label: 'middlewareConfig.guardrails.injectionDetection', type: 'checkbox', help: 'middlewareConfig.guardrails.injectionDetectionHelp' },
-    { key: 'blockedTerms', label: 'middlewareConfig.guardrails.blockedTerms', type: 'textarea', placeholder: 'hack, attack, 密碼', help: 'middlewareConfig.guardrails.blockedTermsHelp' },
-    { key: 'warnTerms', label: 'middlewareConfig.guardrails.warnTerms', type: 'textarea', placeholder: 'gambling, 投資', help: 'middlewareConfig.guardrails.warnTermsHelp' },
+    { key: 'blockedTerms', label: 'middlewareConfig.guardrails.blockedTerms', type: 'textarea', placeholder: 'middlewareConfig.guardrails.blockedTermsPlaceholder', help: 'middlewareConfig.guardrails.blockedTermsHelp' },
+    { key: 'warnTerms', label: 'middlewareConfig.guardrails.warnTerms', type: 'textarea', placeholder: 'middlewareConfig.guardrails.warnTermsPlaceholder', help: 'middlewareConfig.guardrails.warnTermsHelp' },
     { key: 'regexRules', label: 'middlewareConfig.guardrails.regexRules', type: 'textarea', placeholder: '\\d{4}-\\d{4}-\\d{4}-\\d{4}', help: 'middlewareConfig.guardrails.regexRulesHelp' },
-    { key: 'allowedTopics', label: 'middlewareConfig.guardrails.allowedTopics', type: 'textarea', placeholder: 'cooking, recipes, food', help: 'middlewareConfig.guardrails.allowedTopicsHelp' },
-    { key: 'blockedResponse', label: 'middlewareConfig.guardrails.blockedResponse', type: 'textarea', placeholder: 'Sorry, this request cannot be processed.', help: 'middlewareConfig.guardrails.blockedResponseHelp' },
+    { key: 'allowedTopics', label: 'middlewareConfig.guardrails.allowedTopics', type: 'textarea', placeholder: 'middlewareConfig.guardrails.allowedTopicsPlaceholder', help: 'middlewareConfig.guardrails.allowedTopicsHelp' },
+    { key: 'blockedResponse', label: 'middlewareConfig.guardrails.blockedResponse', type: 'textarea', placeholder: 'middlewareConfig.guardrails.blockedResponsePlaceholder', help: 'middlewareConfig.guardrails.blockedResponseHelp' },
   ]},
-  { id: 'pii', label: 'PII Masking', fields: [
+  { id: 'pii', label: 'middlewareConfig.label.pii', fields: [
     { key: 'mode', label: 'middlewareConfig.pii.mode', type: 'select', options: ['irreversible', 'reversible'], help: 'middlewareConfig.pii.modeHelp' },
     { key: 'confidenceThreshold', label: 'middlewareConfig.pii.confidenceThreshold', type: 'number', placeholder: '0.5', help: 'middlewareConfig.pii.confidenceHelp' },
     { key: 'locales', label: 'middlewareConfig.pii.locales', type: 'checkboxGroup', options: PII_LOCALE_OPTIONS, help: 'middlewareConfig.pii.localesHelp' },
     { key: 'scanOutput', label: 'middlewareConfig.pii.scanOutput', type: 'checkbox', help: 'middlewareConfig.pii.scanOutputHelp' },
     { key: 'replacement', label: 'middlewareConfig.pii.replacement', type: 'select', options: ['***', '[REDACTED]', '[PII]'], help: 'middlewareConfig.pii.replacementHelp', showWhen: { mode: 'irreversible' } },
-    { key: 'customRules', label: 'middlewareConfig.pii.customRules', type: 'textarea', placeholder: 'Label:regex|Label2:regex2', help: 'middlewareConfig.pii.customRulesHelp' },
+    { key: 'customRules', label: 'middlewareConfig.pii.customRules', type: 'textarea', placeholder: 'middlewareConfig.pii.customRulesPlaceholder', help: 'middlewareConfig.pii.customRulesHelp' },
   ]},
-  { id: 'ratelimit', label: 'Rate Limit', fields: [
-    { key: 'maxPerMinute', label: 'Max Requests/Minute', type: 'number', placeholder: '60' },
-    { key: 'cooldownMs', label: 'Cooldown (ms)', type: 'number', placeholder: '1000' },
+  { id: 'ratelimit', label: 'middlewareConfig.label.rateLimit', fields: [
+    { key: 'maxPerMinute', label: 'middlewareConfig.rateLimit.maxPerMinute', type: 'number', placeholder: '60' },
+    { key: 'cooldownMs', label: 'middlewareConfig.rateLimit.cooldownMs', type: 'number', placeholder: '1000' },
   ]},
-  { id: 'retry', label: 'Retry', fields: [
-    { key: 'maxRetries', label: 'Max Retries', type: 'number', placeholder: '3' },
-    { key: 'strategy', label: 'Strategy', type: 'select', options: ['exponential', 'fixed', 'linear'], help: 'Backoff strategy between retries' },
-    { key: 'initialDelayMs', label: 'Initial Delay (ms)', type: 'number', placeholder: '1000' },
+  { id: 'retry', label: 'middlewareConfig.label.retry', fields: [
+    { key: 'maxRetries', label: 'middlewareConfig.retry.maxRetries', type: 'number', placeholder: '3' },
+    { key: 'strategy', label: 'middlewareConfig.retry.strategy', type: 'select', options: ['exponential', 'fixed', 'linear'], help: 'middlewareConfig.retry.strategyHelp' },
+    { key: 'initialDelayMs', label: 'middlewareConfig.retry.initialDelayMs', type: 'number', placeholder: '1000' },
   ]},
-  { id: 'logging', label: 'Logging', fields: [
-    { key: 'level', label: 'Log Level', type: 'select', options: ['verbose', 'info', 'warning', 'error'] },
-    { key: 'logPrompts', label: 'Log Prompts', type: 'checkbox' },
-    { key: 'logResponses', label: 'Log Responses', type: 'checkbox' },
+  { id: 'logging', label: 'middlewareConfig.label.logging', fields: [
+    { key: 'level', label: 'middlewareConfig.logging.level', type: 'select', options: ['verbose', 'info', 'warning', 'error'] },
+    { key: 'logPrompts', label: 'middlewareConfig.logging.logPrompts', type: 'checkbox' },
+    { key: 'logResponses', label: 'middlewareConfig.logging.logResponses', type: 'checkbox' },
   ]},
 ]
 
@@ -165,7 +165,7 @@ export function MiddlewareConfigDialog({ open, middleware, config, onClose, onAp
                 <div key={mw.id} className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors ${isSelected ? 'bg-accent' : 'hover:bg-accent/50'}`}
                   onClick={() => setSelectedMw(mw.id)}>
                   <input type="checkbox" checked={isActive} onChange={() => toggleMw(mw.id)} onClick={(e) => e.stopPropagation()} className="accent-blue-500" />
-                  <span className={`text-[11px] ${isActive ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{mw.label}</span>
+                  <span className={`text-[11px] ${isActive ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{resolveLabel(mw.label)}</span>
                 </div>
               )
             })}
@@ -175,7 +175,7 @@ export function MiddlewareConfigDialog({ open, middleware, config, onClose, onAp
           <div className="flex-1 overflow-y-auto p-4">
             {selectedDef ? (
               <div className="space-y-3">
-                <h3 className="text-xs font-semibold text-foreground">{selectedDef.label}</h3>
+                <h3 className="text-xs font-semibold text-foreground">{resolveLabel(selectedDef.label)}</h3>
                 {!active.has(selectedDef.id) && (
                   <p className="text-[10px] text-muted-foreground italic">{t('middlewareConfig.enableFirst')}</p>
                 )}
@@ -201,7 +201,7 @@ export function MiddlewareConfigDialog({ open, middleware, config, onClose, onAp
                           })}
                         </div>
                       ) : field.type === 'textarea' ? (
-                        <textarea className="field-textarea text-[10px]" rows={3} value={val} placeholder={field.placeholder}
+                        <textarea className="field-textarea text-[10px]" rows={3} value={val} placeholder={field.placeholder ? resolveLabel(field.placeholder) : undefined}
                           onChange={(e) => setField(selectedDef.id, field.key, e.target.value)} />
                       ) : field.type === 'select' ? (
                         <select className="field-input text-[10px]" value={val || (field.options as string[])?.[0]}

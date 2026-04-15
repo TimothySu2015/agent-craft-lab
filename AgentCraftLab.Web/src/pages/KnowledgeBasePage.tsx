@@ -93,7 +93,7 @@ export function KnowledgeBasePage() {
   useEffect(() => { fetchKbs(); fetchDataSources() }, [fetchKbs, fetchDataSources])
 
   const dsName = (dsId?: string) => {
-    if (!dsId) return 'SQLite (Legacy)'
+    if (!dsId) return t('kb.sqliteLegacy')
     const ds = dataSources.find(d => d.id === dsId)
     return ds ? `${ds.name} (${ds.provider})` : dsId
   }
@@ -363,7 +363,7 @@ export function KnowledgeBasePage() {
                 <div className="px-4 py-8 text-center">
                   <p className="text-xs text-muted-foreground mb-2">{t('kb.noFiles')}</p>
                   <label className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 transition-colors cursor-pointer">
-                    <Upload size={12} /> Upload File
+                    <Upload size={12} /> {t('kb.uploadFile')}
                     <input
                       type="file"
                       multiple
@@ -391,7 +391,7 @@ export function KnowledgeBasePage() {
                       <button
                         onClick={() => handleDeleteFile(f.id, f.fileName)}
                         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400 cursor-pointer shrink-0 p-1"
-                        title="Delete file"
+                        title={t('kb.deleteFile')}
                       >
                         <Trash2 size={12} />
                       </button>
@@ -417,11 +417,11 @@ export function KnowledgeBasePage() {
             </div>
             <div className="p-4 space-y-3">
               <div>
-                <label className="block text-[10px] text-muted-foreground mb-1">Name</label>
+                <label className="block text-[10px] text-muted-foreground mb-1">{t('name')}</label>
                 <input className="field-input" value={newName} onChange={(e) => setNewName(e.target.value)} autoFocus />
               </div>
               <div>
-                <label className="block text-[10px] text-muted-foreground mb-1">Description</label>
+                <label className="block text-[10px] text-muted-foreground mb-1">{t('dialog.description')}</label>
                 <textarea className="field-textarea" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} rows={2} />
               </div>
               <div>
@@ -517,11 +517,11 @@ export function KnowledgeBasePage() {
             </div>
             <div className="p-4 space-y-3">
               <div>
-                <label className="block text-[10px] text-muted-foreground mb-1">Name</label>
+                <label className="block text-[10px] text-muted-foreground mb-1">{t('name')}</label>
                 <input className="field-input" value={editName} onChange={(e) => setEditName(e.target.value)} autoFocus />
               </div>
               <div>
-                <label className="block text-[10px] text-muted-foreground mb-1">Description</label>
+                <label className="block text-[10px] text-muted-foreground mb-1">{t('dialog.description')}</label>
                 <textarea className="field-textarea" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} rows={2} />
               </div>
               <button
@@ -675,9 +675,9 @@ function RetrievalTestPanel({ kbId, hasFiles }: { kbId: string; hasFiles: boolea
               <label className="block text-[8px] text-muted-foreground mb-0.5">{t('form.searchMode')}</label>
               <select className="field-input text-[10px] py-0.5" value={searchMode}
                 onChange={(e) => setSearchMode(e.target.value)}>
-                <option value="hybrid">Hybrid</option>
-                <option value="vector">Vector</option>
-                <option value="fulltext">Full Text</option>
+                <option value="hybrid">{t('form.searchHybrid')}</option>
+                <option value="vector">{t('form.searchVector')}</option>
+                <option value="fulltext">{t('form.searchFullText')}</option>
               </select>
             </div>
             <div>

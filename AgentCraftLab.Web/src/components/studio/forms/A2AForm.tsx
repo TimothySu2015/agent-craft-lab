@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Field } from '../PropertiesPanel'
 import type { A2ANodeData, A2AFormat, NodeData } from '@/types/workflow'
 
@@ -7,9 +8,10 @@ interface Props {
 }
 
 export function A2AForm({ data, onUpdate }: Props) {
+  const { t } = useTranslation('studio')
   return (
     <>
-      <Field label="A2A URL">
+      <Field label={t('form.a2aUrl')}>
         <input
           className="field-input font-mono text-[10px]"
           value={data.url}
@@ -18,19 +20,19 @@ export function A2AForm({ data, onUpdate }: Props) {
         />
       </Field>
 
-      <Field label="Format">
+      <Field label={t('form.format')}>
         <select
           className="field-input"
           value={data.format}
           onChange={(e) => onUpdate({ format: e.target.value as A2AFormat })}
         >
-          <option value="auto">Auto Detect</option>
-          <option value="google">Google A2A</option>
-          <option value="microsoft">Microsoft A2A</option>
+          <option value="auto">{t('form.autoDetect')}</option>
+          <option value="google">{t('form.googleA2a')}</option>
+          <option value="microsoft">{t('form.microsoftA2a')}</option>
         </select>
       </Field>
 
-      <Field label="Instructions">
+      <Field label={t('form.instructions')}>
         <textarea
           className="field-textarea"
           value={data.instructions}

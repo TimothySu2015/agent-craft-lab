@@ -226,12 +226,12 @@ describe('HumanForm', () => {
   it('shows choices field when kind is choice', () => {
     const choiceData: HumanNodeData = { ...humanData, kind: 'choice' }
     render(<HumanForm data={choiceData} onUpdate={vi.fn()} />)
-    expect(screen.getByTestId('field-Choices (comma-separated)')).toBeInTheDocument()
+    expect(screen.getByTestId('field-form.choices')).toBeInTheDocument()
   })
 
   it('hides choices field for non-choice types', () => {
     render(<HumanForm data={humanData} onUpdate={vi.fn()} />)
-    expect(screen.queryByTestId('field-Choices (comma-separated)')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('field-form.choices')).not.toBeInTheDocument()
   })
 
   it('renders timeout input', () => {

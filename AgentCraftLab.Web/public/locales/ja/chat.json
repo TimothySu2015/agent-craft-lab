@@ -16,8 +16,13 @@
     "applyToCanvas": "キャンバスに適用",
     "applied": "適用済み",
     "noCredential": "AI Build を使用するには、認証情報ページで API 認証情報を設定してください。",
-    "thinking": "思考中"
+    "thinking": "思考中",
+    "legacy": "レガシー",
+    "basic": "ベーシック",
+    "flowPlanner": "Flow プランナー"
   },
+  "debugMode": "デバッグモード",
+  "collapse": "折りたたむ",
   "clearChat": "チャットと状態をクリア",
   "copilotActions": "Copilot アクション",
   "copilotActionsTooltip": "AI を活用したアクション（ツール一覧、MCP/A2A テスト）をチャット内で有効にします。Runtime サーバーに OPENAI_API_KEY が必要です。",

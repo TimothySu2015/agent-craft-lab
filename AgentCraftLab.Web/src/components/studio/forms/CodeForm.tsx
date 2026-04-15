@@ -30,7 +30,7 @@ export function CodeForm({ data, onUpdate }: Props) {
           <option value="split">{t('transform.splitTake')}</option>
           <option value="upper">{t('transform.upper')}</option>
           <option value="lower">{t('transform.lower')}</option>
-          <option value="truncate">Truncate</option>
+          <option value="truncate">{t('transform.truncate')}</option>
           <option value="script">{t('transform.script')}</option>
         </select>
       </Field>
@@ -43,10 +43,10 @@ export function CodeForm({ data, onUpdate }: Props) {
             onChange={(v) => onUpdate({ expression: v })}
             rows={4}
             placeholder="{{input}}"
-            label="Code — Handlebars Template"
+            label={t('form.codeTemplate')}
             language="handlebars"
           />
-          <p className="text-[8px] text-muted-foreground mt-0.5">Use {'{{input}}'} for previous node output. Supports {'{{#each}}'} for arrays.</p>
+          <p className="text-[8px] text-muted-foreground mt-0.5">{t('form.templateHint')}</p>
         </Field>
       )}
 
@@ -70,7 +70,7 @@ export function CodeForm({ data, onUpdate }: Props) {
               value={data.expression}
               onChange={(v) => onUpdate({ expression: v })}
               language={isCSharp ? 'csharp' : 'javascript'}
-              label={`Code — ${isCSharp ? 'C#' : 'JavaScript'}`}
+              label={t('form.codeScript', { lang: isCSharp ? 'C#' : 'JavaScript' })}
             />
           </Field>
         </>
@@ -84,7 +84,7 @@ export function CodeForm({ data, onUpdate }: Props) {
           </Field>
           <Field label={t('form.replacement')}>
             <input className="field-input font-mono text-[10px]" value={data.replacement ?? ''}
-              onChange={(e) => onUpdate({ replacement: e.target.value })} placeholder="$1 (leave empty for extract mode)" />
+              onChange={(e) => onUpdate({ replacement: e.target.value })} placeholder={t('form.regexReplacementPlaceholder')} />
           </Field>
         </>
       )}
@@ -100,7 +100,7 @@ export function CodeForm({ data, onUpdate }: Props) {
         <Field label={t('form.maxLength')}>
           <input type="number" className="field-input" value={data.maxLength ?? 0} min={0}
             onChange={(e) => onUpdate({ maxLength: Number(e.target.value) })} />
-          <p className="text-[8px] text-muted-foreground mt-0.5">0 = trim whitespace only</p>
+          <p className="text-[8px] text-muted-foreground mt-0.5">{t('form.trimHint')}</p>
         </Field>
       )}
 
@@ -108,7 +108,7 @@ export function CodeForm({ data, onUpdate }: Props) {
         <Field label={t('form.maxLength')}>
           <input type="number" className="field-input" value={data.maxLength ?? 0} min={0}
             onChange={(e) => onUpdate({ maxLength: Number(e.target.value) })} />
-          <p className="text-[8px] text-muted-foreground mt-0.5">Maximum characters (0 = no limit)</p>
+          <p className="text-[8px] text-muted-foreground mt-0.5">{t('form.maxCharsHint')}</p>
         </Field>
       )}
 
@@ -121,7 +121,7 @@ export function CodeForm({ data, onUpdate }: Props) {
           <Field label={t('form.takeIndex')}>
             <input type="number" className="field-input" value={data.splitIndex ?? 0} min={0}
               onChange={(e) => onUpdate({ splitIndex: Number(e.target.value) })} />
-            <p className="text-[8px] text-muted-foreground mt-0.5">0-based index of the part to take</p>
+            <p className="text-[8px] text-muted-foreground mt-0.5">{t('form.splitIndexHint')}</p>
           </Field>
         </>
       )}

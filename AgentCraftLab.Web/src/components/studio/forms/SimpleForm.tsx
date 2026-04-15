@@ -76,7 +76,7 @@ function RouterForm({ data, onUpdate }: { data: RouterNodeData; onUpdate: (p: Pa
         </div>
         <div className="flex gap-1.5">
           <input className="field-input flex-1 text-[10px]" value={newRoute} onChange={(e) => setNewRoute(e.target.value)}
-            placeholder="New route name" onKeyDown={(e) => { if (e.key === 'Enter') addRoute() }} />
+            placeholder={t('form.newRouteName')} onKeyDown={(e) => { if (e.key === 'Enter') addRoute() }} />
           <button onClick={addRoute} className="rounded-md border border-border bg-secondary px-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer"><Plus size={12} /></button>
         </div>
       </Field>
@@ -91,8 +91,8 @@ function IterationForm({ data, onUpdate }: { data: IterationNodeData; onUpdate: 
     <>
       <Field label={t('form.splitMode')}>
         <select className="field-input" value={data.split} onChange={(e) => onUpdate({ split: e.target.value as SplitModeKind })}>
-          <option value="jsonArray">JSON Array</option>
-          <option value="delimiter">Delimiter</option>
+          <option value="jsonArray">{t('form.splitJsonArray')}</option>
+          <option value="delimiter">{t('form.splitDelimiter')}</option>
         </select>
       </Field>
       {data.split === 'delimiter' && (
@@ -102,11 +102,11 @@ function IterationForm({ data, onUpdate }: { data: IterationNodeData; onUpdate: 
       )}
       <Field label={t('form.maxItems')}>
         <input type="number" className="field-input" value={data.maxItems} onChange={(e) => onUpdate({ maxItems: Number(e.target.value) })} min={1} max={200} />
-        <p className="text-[8px] text-muted-foreground mt-0.5">Safety limit to prevent runaway loops</p>
+        <p className="text-[8px] text-muted-foreground mt-0.5">{t('form.maxItemsHint')}</p>
       </Field>
       <Field label={t('form.maxConcurrency', 'Concurrency')}>
         <input type="number" className="field-input" value={data.maxConcurrency} onChange={(e) => onUpdate({ maxConcurrency: Number(e.target.value) })} min={1} max={10} />
-        <p className="text-[8px] text-muted-foreground mt-0.5">1 = sequential, &gt;1 = parallel (risk of 429 rate limit)</p>
+        <p className="text-[8px] text-muted-foreground mt-0.5">{t('form.concurrencyHint')}</p>
       </Field>
     </>
   )
@@ -142,15 +142,15 @@ function ParallelForm({ data, onUpdate }: { data: ParallelNodeData; onUpdate: (p
         </div>
         <div className="flex gap-1.5">
           <input className="field-input flex-1 text-[10px]" value={newBranch} onChange={(e) => setNewBranch(e.target.value)}
-            placeholder="New branch name" onKeyDown={(e) => { if (e.key === 'Enter') addBranch() }} />
+            placeholder={t('form.newBranchName')} onKeyDown={(e) => { if (e.key === 'Enter') addBranch() }} />
           <button onClick={addBranch} className="rounded-md border border-border bg-secondary px-2 py-1 text-muted-foreground hover:text-foreground cursor-pointer"><Plus size={12} /></button>
         </div>
       </Field>
       <Field label={t('form.mergeStrategy')}>
         <select className="field-input" value={data.merge} onChange={(e) => onUpdate({ merge: e.target.value as MergeStrategy })}>
-          <option value="labeled">Labeled (branch name: result)</option>
-          <option value="join">Join (concatenate)</option>
-          <option value="json">JSON (structured)</option>
+          <option value="labeled">{t('form.mergeLabeled')}</option>
+          <option value="join">{t('form.mergeJoin')}</option>
+          <option value="json">{t('form.mergeJson')}</option>
         </select>
       </Field>
     </>
@@ -268,9 +268,9 @@ function RagForm({ data, onUpdate }: { data: RagNodeData; onUpdate: (p: Partial<
         <Field label={t('form.searchMode')}>
           <select className="field-input" value={rag?.searchMode ?? 'hybrid'}
             onChange={(e) => onUpdate({ rag: { ...rag, searchMode: e.target.value as RagSearchMode } })}>
-            <option value="hybrid">Hybrid</option>
-            <option value="vector">Vector</option>
-            <option value="fulltext">Full Text</option>
+            <option value="hybrid">{t('form.searchHybrid')}</option>
+            <option value="vector">{t('form.searchVector')}</option>
+            <option value="fulltext">{t('form.searchFullText')}</option>
           </select>
         </Field>
         <Field label={t('form.minScore')}>
@@ -448,7 +448,7 @@ function HttpForm({ data, onUpdate }: { data: HttpRequestNodeData; onUpdate: (p:
             if (e.target.value) switchToCatalog(e.target.value)
             else if (isCatalog) switchToInline()
           }}
-          placeholder="my-api (leave empty for inline mode)"
+          placeholder={t('form.httpRefPlaceholder')}
         />
         {!isCatalog && <p className="text-[8px] text-muted-foreground mt-0.5">{t('form.httpApiIdHint')}</p>}
       </Field>
@@ -540,11 +540,11 @@ function HttpForm({ data, onUpdate }: { data: HttpRequestNodeData; onUpdate: (p:
           <Field label={t('form.httpAuthMode')}>
             <select className="field-input text-[10px]" value={authMode}
               onChange={(e) => updateInline({ auth: buildAuth(e.target.value as HttpAuthMode, authCredential, authKeyName) })}>
-              <option value="none">None</option>
-              <option value="bearer">Bearer Token</option>
-              <option value="basic">Basic Auth</option>
-              <option value="apikey-header">API Key (Header)</option>
-              <option value="apikey-query">API Key (Query)</option>
+              <option value="none">{t('form.authNone')}</option>
+              <option value="bearer">{t('form.authBearer')}</option>
+              <option value="basic">{t('form.authBasic')}</option>
+              <option value="apikey-header">{t('form.authApiKeyHeader')}</option>
+              <option value="apikey-query">{t('form.authApiKeyQuery')}</option>
             </select>
           </Field>
           {authMode !== 'none' && (
@@ -555,7 +555,7 @@ function HttpForm({ data, onUpdate }: { data: HttpRequestNodeData; onUpdate: (p:
                   className="field-input font-mono text-[10px]"
                   value={authCredential}
                   onChange={(e) => updateInline({ auth: buildAuth(authMode, e.target.value, authKeyName) })}
-                  placeholder={authMode === 'basic' ? 'user:password' : 'your-token-or-key'} />
+                  placeholder={authMode === 'basic' ? t('form.authBasicPlaceholder') : t('form.authTokenPlaceholder')} />
               </Field>
               {(authMode === 'apikey-header' || authMode === 'apikey-query') && (
                 <Field label={t('form.httpAuthKeyName')}>
@@ -581,9 +581,9 @@ function HttpForm({ data, onUpdate }: { data: HttpRequestNodeData; onUpdate: (p:
           <Field label={t('form.httpResponseFormat')}>
             <select className="field-input text-[10px]" value={responseFormat}
               onChange={(e) => updateInline({ response: buildResponseParser(e.target.value as 'text' | 'json' | 'jsonPath', responseJsonPath) })}>
-              <option value="text">Text (raw)</option>
-              <option value="json">JSON (pretty print)</option>
-              <option value="jsonPath">JSONPath (extract field)</option>
+              <option value="text">{t('form.responseText')}</option>
+              <option value="json">{t('form.responseJson')}</option>
+              <option value="jsonPath">{t('form.responseJsonPath')}</option>
             </select>
           </Field>
           {responseFormat === 'jsonPath' && (

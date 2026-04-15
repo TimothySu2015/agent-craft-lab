@@ -200,6 +200,7 @@ function SpanRow({ span, totalMs, depth, colorIndex, onSelect, onSelectToolCall 
 }
 
 function SpanDetailModal({ span, onClose }: { span: TraceSpan; onClose: () => void }) {
+  const { t } = useTranslation('studio')
   const [copied, setCopied] = useState<string | null>(null)
   const duration = span.endMs - span.startMs
 
@@ -229,22 +230,22 @@ function SpanDetailModal({ span, onClose }: { span: TraceSpan; onClose: () => vo
 
         {/* Meta */}
         <div className="flex flex-wrap gap-x-5 gap-y-1 px-4 py-2 border-b border-border/50 text-xs text-muted-foreground">
-          <span>Type: <span className="text-foreground">{span.type}</span></span>
-          <span>Source: <span className="text-foreground">{span.source}</span></span>
-          {span.model && <span>Model: <span className="text-foreground">{span.model}</span></span>}
-          {span.inputTokens != null && <span>Input Tokens: <span className="text-foreground">{span.inputTokens.toLocaleString()}</span></span>}
-          {span.outputTokens != null && <span>Output Tokens: <span className="text-foreground">{span.outputTokens.toLocaleString()}</span></span>}
-          {span.tokens != null && <span>Total: <span className="text-foreground">{span.tokens.toLocaleString()}</span></span>}
+          <span>{t('trace.type')} <span className="text-foreground">{span.type}</span></span>
+          <span>{t('trace.source')} <span className="text-foreground">{span.source}</span></span>
+          {span.model && <span>{t('trace.model')} <span className="text-foreground">{span.model}</span></span>}
+          {span.inputTokens != null && <span>{t('trace.inputTokens')} <span className="text-foreground">{span.inputTokens.toLocaleString()}</span></span>}
+          {span.outputTokens != null && <span>{t('trace.outputTokens')} <span className="text-foreground">{span.outputTokens.toLocaleString()}</span></span>}
+          {span.tokens != null && <span>{t('trace.total')} <span className="text-foreground">{span.tokens.toLocaleString()}</span></span>}
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-xs">
           {span.error && (
-            <ContentBlock label="Error" text={span.error} color="text-red-400" copied={copied === 'error'} onCopy={() => copy(span.error!, 'error')} />
+            <ContentBlock label={t('trace.error')} text={span.error} color="text-red-400" copied={copied === 'error'} onCopy={() => copy(span.error!, 'error')} />
           )}
           {span.toolCalls && span.toolCalls.length > 0 && (
             <div>
-              <span className="font-medium text-muted-foreground">Tool Calls ({span.toolCalls.length})</span>
+              <span className="font-medium text-muted-foreground">{t('trace.toolCalls')} ({span.toolCalls.length})</span>
               <div className="mt-1 space-y-2">
                 {span.toolCalls.map((tc, i) => (
                   <div key={i} className="bg-accent/20 rounded p-2">
@@ -273,13 +274,13 @@ function SpanDetailModal({ span, onClose }: { span: TraceSpan; onClose: () => vo
             </div>
           )}
           {span.input && (
-            <ContentBlock label="Input" text={span.input} copied={copied === 'input'} onCopy={() => copy(span.input!, 'input')} />
+            <ContentBlock label={t('trace.input')} text={span.input} copied={copied === 'input'} onCopy={() => copy(span.input!, 'input')} />
           )}
           {span.result && (
-            <ContentBlock label="Output" text={span.result} copied={copied === 'result'} onCopy={() => copy(span.result!, 'result')} />
+            <ContentBlock label={t('trace.output')} text={span.result} copied={copied === 'result'} onCopy={() => copy(span.result!, 'result')} />
           )}
           {!span.error && !span.input && !span.result && (
-            <p className="text-muted-foreground text-center py-4">No content available</p>
+            <p className="text-muted-foreground text-center py-4">{t('trace.noContent')}</p>
           )}
         </div>
       </div>
@@ -308,6 +309,7 @@ function ContentBlock({ label, text, color, copied, onCopy }: {
 function ToolCallModal({ tc, onClose }: {
   tc: { name: string; result?: string; durationMs?: number }; onClose: () => void
 }) {
+  const { t } = useTranslation('studio')
   const [copied, setCopied] = useState(false)
 
   const copy = () => {
@@ -338,7 +340,7 @@ function ToolCallModal({ tc, onClose }: {
           {tc.result ? (
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="font-medium text-xs text-muted-foreground">Result</span>
+                <span className="font-medium text-xs text-muted-foreground">{t('trace.result')}</span>
                 <button onClick={copy} className="text-muted-foreground hover:text-foreground">
                   {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
                 </button>
@@ -348,7 +350,7 @@ function ToolCallModal({ tc, onClose }: {
               </pre>
             </div>
           ) : (
-            <p className="text-muted-foreground text-center py-4 text-xs">No result content</p>
+            <p className="text-muted-foreground text-center py-4 text-xs">{t('trace.noResult')}</p>
           )}
         </div>
       </div>

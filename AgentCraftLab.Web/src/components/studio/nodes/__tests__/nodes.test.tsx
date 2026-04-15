@@ -106,8 +106,8 @@ describe('ConditionNode', () => {
 
   it('renders True/False labels', () => {
     render(<ConditionNode data={data} {...nodeDefaults} selected={false} id="c1" type="condition" />)
-    expect(screen.getByText('True')).toBeInTheDocument()
-    expect(screen.getByText('False')).toBeInTheDocument()
+    expect(screen.getByText('node.branchTrue')).toBeInTheDocument()
+    expect(screen.getByText('node.branchFalse')).toBeInTheDocument()
   })
 
   it('renders condition expression', () => {
@@ -236,7 +236,7 @@ describe('IterationNode', () => {
       delimiter: '\\n', maxItems: 50, maxConcurrency: 1,
     }
     render(<IterationNode data={data} {...nodeDefaults} selected={false} id="i1" type="iteration" />)
-    expect(screen.getByText('Max: 50')).toBeInTheDocument()
+    expect(screen.getByText('node.maxItems50')).toBeInTheDocument()
   })
 })
 
@@ -277,7 +277,7 @@ describe('RagNode', () => {
       knowledgeBaseIds: [],
     }
     render(<RagNode data={data} {...nodeDefaults} selected={false} id="rag1" type="rag" />)
-    expect(screen.getByText('TopK: 5 · hybrid')).toBeInTheDocument()
+    expect(screen.getByText('node.topK5 · hybrid')).toBeInTheDocument()
   })
 })
 

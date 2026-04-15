@@ -85,7 +85,7 @@ export function AssistantMessage({ msg, applied, onApply, t }: AssistantMessageP
           >
             <ChevronRight size={12} className={`transition-transform ${showJson ? 'rotate-90' : ''}`} />
             <Code2 size={12} />
-            <span>Workflow JSON</span>
+            <span>{t('chat.workflowJson')}</span>
             <span className="text-[9px] opacity-50">
               ({parsedJson.nodes?.length ?? 0} nodes)
             </span>

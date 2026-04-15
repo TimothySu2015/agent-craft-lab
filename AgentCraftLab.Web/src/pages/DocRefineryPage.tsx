@@ -30,15 +30,16 @@ function formatFileSize(bytes: number): string {
 }
 
 function IndexStatusBadge({ status }: { status: string }) {
-  const config: Record<string, { text: string; color: string }> = {
-    Indexed: { text: '✅', color: 'text-green-400' },
-    Indexing: { text: '🔄', color: 'text-blue-400' },
-    Pending: { text: '⏳', color: 'text-yellow-400' },
-    Failed: { text: '⚠️', color: 'text-red-400' },
-    Skipped: { text: '⏭️', color: 'text-gray-400' },
+  const { t } = useTranslation(['studio'])
+  const config: Record<string, { text: string; color: string; i18nKey: string }> = {
+    Indexed: { text: '✅', color: 'text-green-400', i18nKey: 'docRefinery.statusIndexed' },
+    Indexing: { text: '🔄', color: 'text-blue-400', i18nKey: 'docRefinery.statusIndexing' },
+    Pending: { text: '⏳', color: 'text-yellow-400', i18nKey: 'docRefinery.statusPending' },
+    Failed: { text: '⚠️', color: 'text-red-400', i18nKey: 'docRefinery.statusFailed' },
+    Skipped: { text: '⏭️', color: 'text-gray-400', i18nKey: 'docRefinery.statusSkipped' },
   }
-  const c = config[status] ?? { text: '?', color: 'text-gray-400' }
-  return <span className={`text-xs ${c.color}`} title={status}>{c.text}</span>
+  const c = config[status] ?? { text: '?', color: 'text-gray-400', i18nKey: '' }
+  return <span className={`text-xs ${c.color}`} title={c.i18nKey ? t(c.i18nKey) : status}>{c.text}</span>
 }
 
 function LogPanel({ logs }: { logs: string[] }) {
@@ -61,13 +62,14 @@ function FileLogCard({ fileName, status, logs, isExpanded, onToggle }: {
   fileName: string; status: string; logs: string[];
   isExpanded: boolean; onToggle: () => void
 }) {
+  const { t } = useTranslation(['studio'])
   return (
     <div className="mb-1">
       <div className="flex items-center justify-between rounded-md px-3 py-2 bg-secondary/30 cursor-pointer"
         onClick={onToggle}>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm">{fileName}</p>
-          <p className="text-xs text-muted-foreground">Processing...</p>
+          <p className="text-xs text-muted-foreground">{t('docRefinery.processing')}</p>
         </div>
         <div className="flex items-center gap-1.5">
           <IndexStatusBadge status={status} />
@@ -80,24 +82,26 @@ function FileLogCard({ fileName, status, logs, isExpanded, onToggle }: {
 }
 
 // ── Section name mapping (for Challenge display) ──
-const SECTION_LABELS: Record<string, string> = {
-  document: '📄 Document',
-  project_overview: '📋 Project Overview',
-  stakeholders: '👥 Stakeholders',
-  functional_requirements: '⚙️ Functional Requirements',
-  non_functional_requirements: '🔒 Non-Functional Requirements',
-  data_model: '🗄️ Data Model',
-  api_endpoints: '🔌 API Endpoints',
-  ui_screens: '🖥️ UI Screens',
-  timeline: '📅 Timeline',
-  budget: '💰 Budget',
-  risks: '⚠️ Risks',
-  glossary: '📖 Glossary',
-  open_questions: '❓ Open Questions',
+const SECTION_ICONS: Record<string, string> = {
+  document: '📄', project_overview: '📋', stakeholders: '👥',
+  functional_requirements: '⚙️', non_functional_requirements: '🔒',
+  data_model: '🗄️', api_endpoints: '🔌', ui_screens: '🖥️',
+  timeline: '📅', budget: '💰', risks: '⚠️',
+  glossary: '📖', open_questions: '❓',
+}
+
+function useSectionLabels() {
+  const { t } = useTranslation(['studio'])
+  return (key: string) => {
+    const icon = SECTION_ICONS[key] ?? ''
+    const label = t(`docRefinery.section.${key}`, { defaultValue: key })
+    return icon ? `${icon} ${label}` : label
+  }
 }
 
 function ChallengePanel({ challenges }: { challenges: FieldChallengeDoc[] }) {
   const { t } = useTranslation(['studio'])
+  const getSectionLabel = useSectionLabels()
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
   // 按區塊分組（取 field 的第一段作為 group key）
@@ -132,7 +136,7 @@ function ChallengePanel({ challenges }: { challenges: FieldChallengeDoc[] }) {
             {/* Group header — 可收折 */}
             <button className="flex w-full items-center justify-between bg-purple-500/5 px-3 py-2 text-xs text-purple-300 hover:bg-purple-500/10"
               onClick={() => toggleGroup(section)}>
-              <span className="font-medium">{SECTION_LABELS[section] ?? section} ({items.length})</span>
+              <span className="font-medium">{getSectionLabel(section)} ({items.length})</span>
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expandedGroups.has(section) ? 'rotate-180' : ''}`} />
             </button>
 
